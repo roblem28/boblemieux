@@ -14,5 +14,6 @@ media:
   url: /images/lynda.jpg
   altText: "Lynda"
 ---
-This is the detail page for the Lynda project.
+
+This is the detail page for the Lynda project.  
 You can add more text, images, or links here as needed.
