@@ -10,20 +10,23 @@ backgroundImage:
   backgroundRepeat: no-repeat
   opacity: 75
 sections:
-  - elementId: ''
+  - type: HeroSection
+    elementId: ''
     colors: colors-f
     backgroundSize: full
     title: >-
-     Strategic Construction Project Manager | Project Superintendent | Project Controls Team Leader
+      Strategic Construction Project Manager | Project Superintendent | Project
+      Controls Team Leader
     subtitle: >-
-  I bring four decades of experience delivering billion-dollar capital and
-  industrial projects, guiding teams from concept through mechanical completion.
-  As a proven Construction Manager and Project Controls professional, I have
-  advanced scheduling, cost, and execution performance across energy,
-  infrastructure, and industrial sectors. Today I combine this foundation with
-  data-driven insights and AI-enabled tools to transform project delivery,
-  elevate efficiency, and drive profitable outcomes. Ready to lead at the
-  Director and Executive level, shaping both strategy and execution.
+      I bring four decades of experience delivering billion-dollar capital and
+      industrial projects, guiding teams from concept through mechanical
+      completion. As a proven Construction Manager and Project Controls
+      professional, I have advanced scheduling, cost, and execution performance
+      across energy, infrastructure, and industrial sectors. Today I combine
+      this foundation with data-driven insights and AI-enabled tools to
+      transform project delivery, elevate efficiency, and drive profitable
+      outcomes. Ready to lead at the Director and Executive level, shaping both
+      strategy and execution.
     styles:
       self:
         height: auto
@@ -40,11 +43,12 @@ sections:
           - pr-4
         flexDirection: row-reverse
         textAlign: left
-    type: HeroSection
     actions: []
-  - colors: colors-f
-    type: FeaturedProjectsSection
+  - type: FeaturedProjectsSection
     elementId: ''
+    colors: colors-f
+    variant: variant-b
+    subtitle: Projects
     actions:
       - type: Link
         label: See all projects
@@ -53,7 +57,6 @@ sections:
     showDescription: true
     showFeaturedImage: true
     showReadMoreLink: true
-    variant: variant-b
     projects:
       - content/pages/projects/project-two.md
       - content/pages/projects/project-three.md
@@ -68,24 +71,23 @@ sections:
           - pl-4
           - pr-4
         textAlign: left
-    subtitle: Projects
   - type: FeaturedPostsSection
     elementId: ''
     colors: colors-f
     variant: variant-d
     subtitle: Featured Posts
-    showFeaturedImage: false
     actions:
       - type: Link
         label: See all posts
         url: /blog
+    showFeaturedImage: false
+    showDate: true
+    showExcerpt: true
+    showReadMoreLink: true
     posts:
       - content/pages/blog/post-six.md
       - content/pages/blog/post-four.md
       - content/pages/blog/post-three.md
-    showDate: true
-    showExcerpt: true
-    showReadMoreLink: true
     styles:
       self:
         height: auto
@@ -99,7 +101,7 @@ sections:
   - type: ContactSection
     colors: colors-f
     backgroundSize: full
-    title: "Got an interesting project? Tell me more...\U0001F4AC"
+    title: "Got an interesting project? Tell me more...💬"
     form:
       type: FormBlock
       elementId: sign-up-form
@@ -137,7 +139,7 @@ sections:
           isRequired: false
           width: full
           type: CheckboxFormControl
-      submitLabel: "Submit \U0001F680"
+      submitLabel: "Submit 🚀"
       styles:
         self:
           textAlign: center
