@@ -14,12 +14,16 @@ sections:
     colors: colors-f
     backgroundSize: full
     title: >-
-      I’m a developer, digital artist, consultant and a bunch of other
-      impressive titles and buzz words.
+     Strategic Construction Project Manager | Project Superintendent | Project Controls Team Leader
     subtitle: >-
-      This is my info—I’m sharing it all this with ya’ll to impress you with all
-      the hard work I’ve done in the past few years. Once you’re impressed, you
-      can continue to scroll down to see more details and credentials about me.
+  I bring four decades of experience delivering billion-dollar capital and
+  industrial projects, guiding teams from concept through mechanical completion.
+  As a proven Construction Manager and Project Controls professional, I have
+  advanced scheduling, cost, and execution performance across energy,
+  infrastructure, and industrial sectors. Today I combine this foundation with
+  data-driven insights and AI-enabled tools to transform project delivery,
+  elevate efficiency, and drive profitable outcomes. Ready to lead at the
+  Director and Executive level, shaping both strategy and execution.
     styles:
       self:
         height: auto
