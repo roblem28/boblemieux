@@ -15,7 +15,7 @@ sections:
     colors: colors-f
     backgroundSize: full
     title: >-
-      Strategic Construction Project Manager | Project Superintendent | Project
+      Construction Project Manager | Project Superintendent | Project
       Controls Team Leader
     subtitle: >-
       I bring four decades of experience delivering billion-dollar capital and
@@ -25,8 +25,7 @@ sections:
       across energy, infrastructure, and industrial sectors. Today I combine
       this foundation with data-driven insights and AI-enabled tools to
       transform project delivery, elevate efficiency, and drive profitable
-      outcomes. Ready to lead at the Director and Executive level, shaping both
-      strategy and execution.
+      outcomes. Ready to lead at any level, shaping both strategy and execution.
     styles:
       self:
         height: auto
