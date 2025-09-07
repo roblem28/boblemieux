@@ -14,9 +14,10 @@ sections:
     elementId: ''
     colors: colors-f
     backgroundSize: full
-    title: >-
-      Construction Project Manager | Project Superintendent | Project
-      Controls Team Leader
+    title: |-
+      Construction Project Manager
+      Project Superintendent
+      Project Controls Team Leader
     subtitle: >-
       I bring four decades of experience delivering billion-dollar capital and
       industrial projects, guiding teams from concept through mechanical
