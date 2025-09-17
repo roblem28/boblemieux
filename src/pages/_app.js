@@ -7,7 +7,7 @@ export default function MyApp({ Component, pageProps }) {
     const { theme } = global || {};
     const [isMounted, setIsMounted] = useState(false);
 
-    const cssVars = generateGlobalCssVariables(theme);
+    const cssVars = theme ? generateGlobalCssVariables(theme) : '';
 
     useEffect(() => {
         setIsMounted(true);
