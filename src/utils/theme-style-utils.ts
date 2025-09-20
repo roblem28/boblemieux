@@ -1,6 +1,10 @@
 import { ThemeStyle } from '@/types';
 
 export function generateGlobalCssVariables(styles: ThemeStyle): string {
+    if (!styles) {
+        return '';
+    }
+
     let cssVars = '';
 
     function processObject(obj, prefix = '--theme-') {
