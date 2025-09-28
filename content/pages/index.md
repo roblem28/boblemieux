@@ -4,11 +4,11 @@ title: GrooveCraft Studio
 colors: colors-a
 backgroundImage:
   type: BackgroundImage
-  url: /images/retro-bg.svg
+  url: /images/bg4.jpg
   backgroundSize: cover
   backgroundPosition: center
-  backgroundRepeat: repeat
-  opacity: 65
+  backgroundRepeat: no-repeat
+  opacity: 45
 sections:
   - type: HeroSection
     elementId: hero
@@ -25,8 +25,8 @@ sections:
       like liner notes you can step inside.
     media:
       type: ImageBlock
-      url: /images/retro-sunburst.svg
-      altText: Radiant retro sunburst illustration
+      url: /images/featured-Image1.jpg
+      altText: Designer arranging 70s inspired posters on wall
     actions:
       - type: Button
         label: Spin the reel
@@ -102,8 +102,8 @@ sections:
           moodboards, sonic cues, and analog-inspired motion.
         featuredImage:
           type: ImageBlock
-          url: /images/retro-cassette.svg
-          altText: Retro cassette illustration
+          url: /images/featured-Image2.jpg
+          altText: Vintage reel-to-reel studio session
         styles:
           self:
             padding:
@@ -123,8 +123,8 @@ sections:
           era-specific vibes while staying future ready.
         featuredImage:
           type: ImageBlock
-          url: /images/retro-mosaic.svg
-          altText: Retro mosaic tile illustration
+          url: /images/featured-Image3.jpg
+          altText: Artist curating 1970s color swatches on desk
         styles:
           self:
             padding:
@@ -144,8 +144,8 @@ sections:
           crescendo exactly when the beat drops.
         featuredImage:
           type: ImageBlock
-          url: /images/retro-waves.svg
-          altText: Retro neon wave illustration
+          url: /images/featured-Image4.jpg
+          altText: Stage lighting panel casting colorful beams
         styles:
           self:
             padding:
@@ -176,21 +176,21 @@ sections:
     subtitle: Select frames from recent dreamscapes and palette experiments.
     images:
       - type: ImageBlock
-        url: /images/retro-aurora.svg
-        altText: Aurora inspired retro illustration
-        caption: Cosmic bloom gradients
+        url: /images/gallery-1.jpg
+        altText: Analog synth performer bathed in stage lights
+        caption: Live synth storytelling
       - type: ImageBlock
-        url: /images/retro-sunburst.svg
-        altText: Radiant sunburst collage
-        caption: Sunset supergraphics
+        url: /images/gallery-2.jpg
+        altText: Retro living room moodboard with warm lighting
+        caption: Habitat palette studies
       - type: ImageBlock
-        url: /images/retro-mosaic.svg
-        altText: Mosaic color study
-        caption: Modular color masonry
+        url: /images/gallery-3.jpg
+        altText: Designer sketching album-cover layout on table
+        caption: Sleeve art explorations
       - type: ImageBlock
-        url: /images/retro-waves.svg
-        altText: Neon wave layers
-        caption: Oceanic synth wave
+        url: /images/gallery-4.jpg
+        altText: Neon-lit skyline reflected in glass facade at dusk
+        caption: City afterglow gradients
     columns: 2
     spacing: 28
     aspectRatio: 1:1
@@ -276,8 +276,8 @@ sections:
           textAlign: left
     media:
       type: ImageBlock
-      url: /images/retro-aurora.svg
-      altText: Retro aurora illustration
+      url: /images/bg2.jpg
+      altText: Creative duo collaborating in lounge with warm lighting
     styles:
       self:
         width: wide
