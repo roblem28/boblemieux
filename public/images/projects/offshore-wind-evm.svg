@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="720" viewBox="0 0 1200 720">
+  <defs>
+    <linearGradient id="bg3" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#001F3F"/>
+      <stop offset="100%" stop-color="#005F73"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="720" fill="url(#bg3)" rx="24"/>
+  <g font-family="'Montserrat', sans-serif" fill="#E0FBFC">
+    <text x="72" y="96" font-size="44" font-weight="700">Offshore Wind Array Controls</text>
+    <text x="72" y="144" font-size="26">Atlantic 1.2 GW Foundation Package</text>
+  </g>
+  <g transform="translate(72,210)">
+    <rect x="0" y="0" width="1056" height="360" fill="rgba(255,255,255,0.1)" rx="24"/>
+    <g stroke="#98C1D9" stroke-width="4" fill="none" stroke-linecap="round">
+      <polyline points="96,288 252,270 408,246 564,222 720,204 876,192"/>
+    </g>
+    <g stroke="#FFB703" stroke-width="3" stroke-dasharray="12 12" fill="none" stroke-linecap="round">
+      <polyline points="96,312 876,180"/>
+    </g>
+    <g fill="#FFFFFF" font-size="18" font-family="'Montserrat', sans-serif">
+      <text x="24" y="48">Earned vs Planned Hours</text>
+      <text x="936" y="72">SPI 1.07</text>
+      <text x="936" y="108">Crew Utilization 92%</text>
+      <text x="936" y="144">Float Restored: 18 days</text>
+    </g>
+    <g fill="#BEE9E8" font-size="20">
+      <text x="24" y="320">Jul</text>
+      <text x="196" y="320">Aug</text>
+      <text x="352" y="320">Sep</text>
+      <text x="508" y="320">Oct</text>
+      <text x="664" y="320">Nov</text>
+      <text x="820" y="320">Dec</text>
+    </g>
+  </g>
+  <g transform="translate(72,606)" fill="#FFFFFF" font-size="22" font-family="'Montserrat', sans-serif">
+    <text x="0" y="0">Reporting suite accelerated claims defense with defensible EVM narratives.</text>
+  </g>
+</svg>
