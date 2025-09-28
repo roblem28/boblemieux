@@ -13,16 +13,25 @@ sections:
   - elementId: ''
     colors: colors-f
     backgroundSize: full
-    text: >+
-      # Hey I’m a developer. I’ve been born and raised in the world, and that’s
-      also where I’m based. I’m currently a free agent, ex-this, ex-that,
-      ex-super big name. When I’m not coding, writing or creating, I eat
-      cereals. I have a dog, check her out [@mygod](https://www.stackbit.com/).
+    text: >-
+      # Bob LeMieux, Project Controls Leader
 
+      I guide construction teams through the entire project controls lifecycle—from
+      establishing the integrated master schedule to delivering data-informed
+      decisions for stakeholders. Over the past decade I have led controls
+      organizations on complex transportation, water, and advanced facility
+      programs, championing earned value management (EVM) analytics that keep
+      megaprojects predictable. My focus is on pairing collaborative field
+      engagement with disciplined cost and schedule governance so owners see
+      issues early, mitigate risk, and realize planned outcomes.
+
+      Highlights include driving on-time turnover for a $1.4B transit expansion,
+      rebuilding controls processes for a regional water resilience program, and
+      building dashboards that translate EVM metrics into executive action.
     media:
       type: ImageBlock
-      url: /images/about.jpg
-      altText: Hero image
+      url: /images/gallery-4.jpg
+      altText: Bob reviewing project controls dashboards on a construction site
     styles:
       self:
         height: auto
@@ -50,39 +59,55 @@ sections:
           - pr-4
         borderWidth: 1
         borderStyle: solid
-  - type: MediaGallerySection
+  - type: FeaturedItemsSection
     colors: colors-f
-    subtitle: 'I worked with these folks:'
-    images:
-      - type: ImageBlock
-        url: /images/logo1.svg
-        altText: Logo one
-        caption: Logo one
-      - type: ImageBlock
-        url: /images/logo2.svg
-        altText: Logo two
-        caption: Logo two
-      - type: ImageBlock
-        url: /images/logo3.svg
-        altText: Logo three
-        caption: Logo three
-      - type: ImageBlock
-        url: /images/logo4.svg
-        altText: Logo four
-        caption: Logo four
-      - type: ImageBlock
-        url: /images/logo5.svg
-        altText: Logo five
-        caption: Logo five
-    spacing: 3
-    columns: 5
-    aspectRatio: auto
-    showCaption: false
-    enableHover: false
+    subtitle: 'Trusted by project owners and delivery partners:'
+    items:
+      - type: FeaturedItem
+        title: Massachusetts Bay Transportation Authority
+        text: >-
+          Senior project controls advisor for the Green Line Extension, aligning
+          contractor schedules with owner milestones and standing up integrated
+          EVM reporting that kept the $1.4B program on baseline.
+        actions:
+          - type: Link
+            label: View MBTA project highlights
+            url: 'https://www.mbta.com/projects/green-line-extension-glx'
+        styles:
+          self:
+            textAlign: left
+      - type: FeaturedItem
+        title: Skanska USA Civil
+        text: >-
+          Led cost control modernization on heavy civil pursuits, building
+          analytics that blended Primavera P6, Deltek Cobra, and field quantity
+          tracking for real-time performance insights.
+        actions:
+          - type: Link
+            label: Explore Skanska Civil portfolio
+            url: 'https://www.usa.skanska.com/what-we-deliver/infrastructure/'
+        styles:
+          self:
+            textAlign: left
+      - type: FeaturedItem
+        title: American Water Capital Program
+        text: >-
+          Partnered with AECOM to stand up standardized reporting for a
+          multi-state water resilience initiative, including monthly executive
+          dashboards and earned schedule variance reviews.
+        actions:
+          - type: Link
+            label: Read AECOM water program insights
+            url: 'https://aecom.com/us/projects/water/'
+        styles:
+          self:
+            textAlign: left
+    columns: 3
+    spacingX: 60
+    spacingY: 32
     styles:
       self:
         width: wide
-        height: auto
         padding:
           - pt-8
           - pb-8
@@ -100,101 +125,26 @@ sections:
           - pr-4
         borderWidth: 1
         borderStyle: solid
-  - type: FeaturedItemsSection
-    subtitle: 'You can find me here:'
-    colors: colors-f
-    items:
-      - type: FeaturedItem
-        actions:
-          - type: Link
-            label: GitHub
-            url: 'https://github.com/'
-        styles:
-          self:
-            textAlign: left
-      - type: FeaturedItem
-        actions:
-          - type: Link
-            label: Twitter
-            url: 'https://twitter.com/'
-        styles:
-          self:
-            textAlign: left
-      - type: FeaturedItem
-        actions:
-          - type: Link
-            label: LinkedIn
-            url: 'https://www.linkedin.com/'
-        styles:
-          self:
-            textAlign: left
-      - type: FeaturedItem
-        actions:
-          - type: Link
-            label: CodePen
-            url: 'https://codepen.io/'
-        styles:
-          self:
-            textAlign: left
-      - type: FeaturedItem
-        actions:
-          - type: Link
-            label: Discord
-            url: 'https://discord.com/'
-        styles:
-          self:
-            textAlign: left
-      - type: FeaturedItem
-        actions:
-          - type: Link
-            label: Instagram
-            url: 'https://www.instagram.com/'
-        styles:
-          self:
-            textAlign: left
-    columns: 3
-    spacingX: 120
-    spacingY: 16
-    styles:
-      self:
-        height: auto
-        width: wide
-        padding:
-          - pt-8
-          - pb-8
-          - pl-4
-          - pr-4
-  - type: DividerSection
-    styles:
-      self:
-        width: wide
-        padding:
-          - pt-12
-          - pb-12
-          - pl-4
-          - pr-4
-        borderWidth: 1
-        borderStyle: solid
   - type: LabelsSection
     colors: colors-f
-    subtitle: 'Skills:'
+    subtitle: 'Core capabilities:'
     items:
       - type: Label
-        label: 'WEB 1, 2, 3'
+        label: Primavera P6 & Schedule Risk Analysis
       - type: Label
-        label: React
+        label: Earned Value Management & Earned Schedule
       - type: Label
-        label: Microsoft Office
+        label: Deltek Cobra & Acumen Fuse
       - type: Label
-        label: Next.js
+        label: Power BI & Tableau Analytics
       - type: Label
-        label: Netlify
+        label: Construction Change Management
       - type: Label
-        label: Pancakes
+        label: Field Progress Validation
       - type: Label
-        label: C++
+        label: Integrated Baseline Reviews
       - type: Label
-        label: Swift
+        label: Collaborative Planning Workshops
   - type: DividerSection
     styles:
       self:
@@ -210,8 +160,10 @@ sections:
     variant: variant-a
     subtitle: 'Contact:'
     colors: colors-f
-    text: |
-      [thisismyemail.@myemail.me](mailto:thisismyemail.@myemail.me)
+    text: |-
+      Ready to discuss schedule recovery or EVM optimization? Send a note to
+      [bob@lemieuxcontrols.com](mailto:bob@lemieuxcontrols.com) with your project
+      name, current phase, and decision timeline.
   - type: DividerSection
     styles:
       self:
@@ -227,44 +179,41 @@ sections:
     colors: colors-f
     items:
       - type: FeaturedItem
-        subtitle: 'Experience:'
+        subtitle: 'Recent Experience:'
         text: |-
-          **Current**
+          **2022–Present**
 
-          * freelance @freelance.me
+          * Director of Project Controls, Infrastructure Programs – Leading EVM
+            governance, data automation, and schedule integration across transit
+            and water portfolios exceeding $3B.
 
-          **2018-2021**
+          **2020–2022**
 
-          * fullstack at this startup
+          * Senior Manager, Construction Analytics – Delivered predictive cost
+            and schedule models for heavy civil pursuits and claims analysis.
 
-          **2015**
+          **2019–2020**
 
-          * senior front-end at this place
-
-          **2013**
-
-          * intern developer at a big company
-
-          **2011**
-
-          * flipping burgers
+          * Program Controls Lead, Advanced Manufacturing – Implemented
+            integrated master schedule, progress assurance, and change control
+            for a fast-track fabrication facility.
         styles:
           self:
             textAlign: left
       - type: FeaturedItem
-        subtitle: 'Education:'
+        subtitle: 'Education & Credentials:'
         text: |-
-          **2015-2018**
+          **Certifications**
 
-          * ba computer sciense at a semi fancy school
+          * PMI Project Management Professional (PMP)
+          * AACE International Planning & Scheduling Professional (PSP)
+          * AACE Earned Value Professional (EVP) candidate – in progress 2024
 
-          **2014**
+          **Training (Last 3 Years)**
 
-          * react certificate somewhere
-
-          **2011**
-
-          * my highschool
+          * Deltek Cobra advanced integration workshop, 2023
+          * DCMA 14-point schedule assessment masterclass, 2022
+          * Tableau data storytelling for infrastructure leaders, 2021
         styles:
           self:
             textAlign: left
@@ -294,46 +243,53 @@ sections:
         borderStyle: solid
   - type: ContactSection
     backgroundSize: full
-    title: "Let’s talk... \U0001F4AC"
+    title: "Let's plan your next milestone \U0001F4C5"
     colors: colors-f
     form:
       type: FormBlock
       elementId: sign-up-form
       fields:
-        - name: firstName
-          label: First Name
+        - name: projectName
+          label: Project Name
           hideLabel: true
-          placeholder: First Name
+          placeholder: Project or Program Name
           isRequired: true
           width: 1/2
           type: TextFormControl
-        - name: lastName
-          label: Last Name
+        - name: phase
+          label: Project Phase
           hideLabel: true
-          placeholder: Last Name
-          isRequired: false
+          placeholder: Current Phase (e.g., design, construction)
+          isRequired: true
           width: 1/2
           type: TextFormControl
         - name: email
           label: Email
           hideLabel: true
-          placeholder: Email
+          placeholder: Work Email
           isRequired: true
           width: full
           type: EmailFormControl
-        - name: message
-          label: Message
+        - name: scheduleWindow
+          label: Schedule Window
           hideLabel: true
-          placeholder: Tell me about your project
+          placeholder: Key milestone dates or deadlines
+          isRequired: true
+          width: full
+          type: TextFormControl
+        - name: evmFocus
+          label: EVM Focus
+          hideLabel: true
+          placeholder: Share current EVM metrics, concerns, or reporting needs
           isRequired: true
           width: full
           type: TextareaFormControl
         - name: updatesConsent
-          label: Sign me up to recieve my words
+          label: Keep me posted on project controls insights
           isRequired: false
           width: full
           type: CheckboxFormControl
-      submitLabel: "Submit \U0001F680"
+      submitLabel: "Schedule a consultation \U0001F4DD"
       styles:
         self:
           textAlign: center
