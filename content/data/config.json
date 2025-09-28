@@ -5,39 +5,39 @@
         "type": "Header",
         "headerVariant": "variant-c",
         "isSticky": false,
-        "title": "Personal",
+        "title": "GrooveCraft Studio",
         "isTitleVisible": true,
         "primaryLinks": [
             {
                 "type": "Link",
-                "label": "Info",
+                "label": "Story",
                 "url": "/info"
             },
             {
                 "type": "Link",
-                "label": "Projects",
+                "label": "Showcase",
                 "url": "/projects"
             },
             {
                 "type": "Link",
-                "label": "Blog",
+                "label": "Journal",
                 "url": "/blog"
             }
         ],
         "socialLinks": [
             {
                 "type": "Social",
-                "altText": "Twitter",
-                "label": "Twitter",
-                "url": "https://twitter.com/netlify",
-                "icon": "twitter"
+                "altText": "GrooveCraft mixtape on Spotify",
+                "label": "Mixtape",
+                "url": "https://open.spotify.com/",
+                "icon": "play"
             },
             {
                 "type": "Social",
-                "altText": "GitHub",
-                "label": "GitHub",
-                "url": "https://github.com/netlify-templates",
-                "icon": "github"
+                "altText": "GrooveCraft Polaroids on Instagram",
+                "label": "Polaroids",
+                "url": "https://www.instagram.com/",
+                "icon": "instagram"
             }
         ],
         "styles": {
@@ -51,40 +51,40 @@
         "primaryLinks": [
             {
                 "type": "Link",
-                "label": "Info",
+                "label": "Story",
                 "url": "/info",
-                "altText": ""
+                "altText": "Our origin story"
             },
             {
                 "type": "Link",
-                "label": "Contact",
-                "url": "mailto:thisismyemail.@myemail.me",
-                "altText": ""
+                "label": "Reach Out",
+                "url": "mailto:hello@groovecraft.studio",
+                "altText": "Email the GrooveCraft crew"
             },
             {
                 "type": "Link",
-                "label": "Blog",
+                "label": "Journal",
                 "url": "/blog",
-                "altText": ""
+                "altText": "Peek into the journal"
             },
             {
                 "type": "Link",
-                "label": "GitHub",
-                "url": "https://github.com/netlify-templates",
-                "altText": "Netlify templates"
+                "label": "Showcase",
+                "url": "/projects",
+                "altText": "See the work"
             }
         ],
         "contacts": {
             "type": "ContactBlock",
-            "title": "Contact details",
-            "phoneNumber": "850-123-5021",
-            "phoneAltText": "My phone number",
-            "email": "thisismyemail.@myemail.me",
-            "emailAltText": "My email",
-            "address": "312 Lovely Street, Brooklyn, NY, 123456",
-            "addressAltText": "My address"
+            "title": "Stay in the Groove",
+            "phoneNumber": "+1 (718) 555-1977",
+            "phoneAltText": "GrooveCraft studio line",
+            "email": "hello@groovecraft.studio",
+            "emailAltText": "GrooveCraft studio email",
+            "address": "1313 Velvet Sunset Blvd, Brooklyn, NY 11222",
+            "addressAltText": "GrooveCraft studio address"
         },
-        "copyrightText": "Powered by [Netlify](https://www.netlify.com/)",
+        "copyrightText": "© 2024 GrooveCraft Studio · Tune in, turn up, stay curious.",
         "styles": {
             "self": {
                 "width": "narrow",

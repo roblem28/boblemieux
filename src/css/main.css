@@ -1,11 +1,12 @@
-@import url('https://fonts.googleapis.com/css2?family=Azeret+Mono:ital,wght@0,400;0,500;1,400;1,500&family=DM+Mono:ital,wght@0,400;0,500;1,400;1,500&display=swap')
+@import url('https://fonts.googleapis.com/css2?family=Monoton&family=Space+Grotesk:wght@400;500;600;700&display=swap')
 layer(base);
 
 @import 'tailwindcss';
 @plugin '@tailwindcss/typography';
 
 @theme {
-    --font-body: var(--theme-font-body, monospace);
+    --font-body: var(--theme-font-body, 'Space Grotesk', sans-serif);
+    --font-heading: var(--theme-heading-font, var(--font-body));
     --background-color-main: var(--theme-dark);
     --background-color-inverse: var(--theme-on-dark);
     --text-color-main: var(--theme-on-dark);
@@ -20,9 +21,32 @@ layer(base);
     }
     body {
         @apply flex flex-col min-h-screen;
+        position: relative;
+        background-color: var(--background-color-main);
+        color: var(--text-color-main);
+        isolation: isolate;
+        background-image:
+            radial-gradient(circle at 10% 18%, rgba(255, 111, 60, 0.4) 0, rgba(255, 111, 60, 0) 52%),
+            radial-gradient(circle at 92% 12%, rgba(43, 211, 163, 0.35) 0, rgba(43, 211, 163, 0) 48%),
+            radial-gradient(circle at 18% 84%, rgba(255, 200, 87, 0.3) 0, rgba(255, 200, 87, 0) 55%),
+            radial-gradient(circle at 80% 78%, rgba(249, 79, 158, 0.25) 0, rgba(249, 79, 158, 0) 52%);
+        background-attachment: fixed;
+    }
+    body::before {
+        content: '';
+        position: fixed;
+        inset: 0;
+        z-index: 0;
+        pointer-events: none;
+        background-image:
+            repeating-radial-gradient(circle at 0 0, rgba(255, 247, 230, 0.08) 0, rgba(255, 247, 230, 0.08) 2px, transparent 2px, transparent 8px),
+            linear-gradient(115deg, rgba(255, 247, 230, 0.05) 0%, rgba(255, 111, 60, 0.12) 48%, rgba(20, 10, 39, 0.65) 100%);
+        mix-blend-mode: screen;
     }
     body > div {
         @apply flex flex-col grow;
+        position: relative;
+        z-index: 1;
     }
 
     h1,
@@ -35,6 +59,9 @@ layer(base);
         line-height: 1.15;
         font-weight: var(--theme-heading-weight);
         text-transform: var(--theme-heading-case);
+        font-family: var(--font-heading);
+        letter-spacing: 0.08em;
+        text-shadow: 0 6px 0 rgba(255, 111, 60, 0.35);
     }
 
     b,

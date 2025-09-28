@@ -1,0 +1,25 @@
+<svg width="460" height="460" viewBox="0 0 460 460" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="460" height="460" rx="80" fill="#1a0f33"/>
+  <circle cx="230" cy="230" r="170" fill="url(#sun_core)"/>
+  <circle cx="230" cy="230" r="136" fill="url(#sun_ring)"/>
+  <circle cx="230" cy="230" r="96" fill="url(#sun_inner)"/>
+  <path d="M230 46L256 134L346 110L292 188L360 246L270 246L288 336L230 268L172 336L190 246L100 246L168 188L114 110L204 134L230 46Z" fill="#fff7e6" fill-opacity="0.2"/>
+  <path d="M58 354C126 398 178 414 230 414C282 414 334 398 402 354L366 414C322 438 276 452 230 452C184 452 138 438 94 414L58 354Z" fill="#f94f9e" fill-opacity="0.45"/>
+  <path d="M94 134C148 90 190 70 230 70C270 70 312 90 366 134L400 70C342 34 290 16 230 16C170 16 118 34 60 70L94 134Z" fill="#2bd3a3" fill-opacity="0.35"/>
+  <defs>
+    <radialGradient id="sun_core" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(230 230) rotate(90) scale(170)">
+      <stop stop-color="#ffc857"/>
+      <stop offset="0.58" stop-color="#ff6f3c"/>
+      <stop offset="1" stop-color="#f94f9e"/>
+    </radialGradient>
+    <radialGradient id="sun_ring" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(230 230) rotate(90) scale(136)">
+      <stop stop-color="#fff7e6" stop-opacity="0"/>
+      <stop offset="0.72" stop-color="#fff7e6" stop-opacity="0.38"/>
+      <stop offset="1" stop-color="#fff7e6" stop-opacity="0.1"/>
+    </radialGradient>
+    <radialGradient id="sun_inner" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(230 230) rotate(90) scale(96)">
+      <stop stop-color="#fff7e6" stop-opacity="0.82"/>
+      <stop offset="1" stop-color="#ffc857" stop-opacity="0.48"/>
+    </radialGradient>
+  </defs>
+</svg>

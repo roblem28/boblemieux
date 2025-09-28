@@ -1,123 +1,240 @@
 ---
 type: PageLayout
-title: Home
+title: GrooveCraft Studio
 colors: colors-a
 backgroundImage:
   type: BackgroundImage
-  url: /images/bg1.jpg
+  url: /images/bg4.jpg
   backgroundSize: cover
   backgroundPosition: center
   backgroundRepeat: no-repeat
-  opacity: 75
+  opacity: 45
 sections:
   - type: HeroSection
-    elementId: ''
-    colors: colors-f
-    backgroundSize: full
+    elementId: hero
+    colors: colors-b
+    backgroundSize: inset
     title: |-
-      Construction Project Manager
-      Project Superintendent
-      Project Controls Team Leader
-    subtitle: >-
-      I bring four decades of experience delivering billion-dollar capital and
-      industrial projects, guiding teams from concept through mechanical
-      completion. As a proven Construction Manager and Project Controls
-      professional, I have advanced scheduling, cost, and execution performance
-      across energy, infrastructure, and industrial sectors. Today I combine
-      this foundation with data-driven insights and AI-enabled tools to
-      transform project delivery, elevate efficiency, and drive profitable
-      outcomes. Ready to lead at any level, shaping both strategy and execution.
+      GROOVECRAFT
+      STUDIO
+    subtitle: Analog daydreams for the digital age.
+    text: >-
+      Crafted like a mixtape from 1977, our studio shapes immersive, soulful
+      digital worlds where every pixel hums with warmth, texture, and rhythm.
+      We combine analog curiosity with modern tooling to make interfaces feel
+      like liner notes you can step inside.
+    media:
+      type: ImageBlock
+      url: /images/featured-Image1.jpg
+      altText: Designer arranging 70s inspired posters on wall
+    actions:
+      - type: Button
+        label: Spin the reel
+        url: '#vibes'
+        showIcon: true
+        icon: play
+        style: secondary
+      - type: Link
+        label: See the showcase
+        url: /projects
+        showIcon: true
+        icon: arrowRightCircle
     styles:
       self:
         height: auto
         width: wide
         margin:
-          - mt-0
-          - mb-0
+          - mt-20
+          - mb-6
           - ml-0
           - mr-0
         padding:
-          - pt-36
-          - pb-48
-          - pl-4
-          - pr-4
-        flexDirection: row-reverse
+          - pt-28
+          - pb-28
+          - pl-8
+          - pr-8
         textAlign: left
-    actions: []
-  - type: FeaturedProjectsSection
-    elementId: ''
+        flexDirection: row
+        borderRadius: xx-large
+        borderWidth: 4
+        borderStyle: solid
+        borderColor: 'border-white/30'
+  - type: TextSection
+    elementId: vibes
     colors: colors-f
     variant: variant-b
-    subtitle: Projects
-    actions:
-      - type: Link
-        label: See all projects
-        url: /projects
-    showDate: false
-    showDescription: true
-    showFeaturedImage: true
-    showReadMoreLink: true
-    projects:
-      - content/pages/projects/project-two.md
-      - content/pages/projects/project-three.md
-      - content/pages/projects/project-one.md
+    title: What does a GrooveCraft experience feel like?
+    subtitle: Blended analog grit, cosmic gradients, and storytelling that moves like a vinyl groove.
+    text: >-
+      ### The 70’s lens we look through
+
+      - **Sound-first design:** we map each screen to a track on the set list so
+        the narrative builds verse by verse.
+      - **Texture over templates:** grain, gradients, and playful serifs give
+        digital canvases the warmth of print.
+      - **Playful tech:** motion, AI prompts, and modular systems engineered to
+        riff as your brand evolves.
+
+      Every project is a concept album — immersive, cohesive, and impossible to
+      forget once the chorus hits.
     styles:
       self:
-        height: auto
         width: wide
         padding:
-          - pt-24
-          - pb-24
+          - pt-16
+          - pb-16
           - pl-4
           - pr-4
         textAlign: left
-  - type: FeaturedPostsSection
-    elementId: ''
-    colors: colors-f
-    variant: variant-d
-    subtitle: Featured Posts
-    actions:
-      - type: Link
-        label: See all posts
-        url: /blog
-    showFeaturedImage: false
-    showDate: true
-    showExcerpt: true
-    showReadMoreLink: true
-    posts:
-      - content/pages/blog/post-six.md
-      - content/pages/blog/post-four.md
-      - content/pages/blog/post-three.md
+  - type: FeaturedItemsSection
+    colors: colors-c
+    title: House Specialties
+    subtitle: Signature services pressed straight from the GrooveCraft control room.
+    columns: 3
+    spacingX: 32
+    spacingY: 32
+    items:
+      - type: FeaturedItem
+        title: Mixtape Strategy
+        subtitle: Narratives sequenced like a double LP.
+        text: >-
+          We choreograph launches as story arcs, scoring each touchpoint with
+          moodboards, sonic cues, and analog-inspired motion.
+        featuredImage:
+          type: ImageBlock
+          url: /images/featured-Image2.jpg
+          altText: Vintage reel-to-reel studio session
+        styles:
+          self:
+            padding:
+              - p-8
+            borderRadius: xx-large
+            borderWidth: 2
+            borderStyle: solid
+            borderColor: 'border-white/30'
+            backgroundColor: 'bg-white/10'
+            className: 'shadow-2xl backdrop-blur-sm'
+            textAlign: left
+      - type: FeaturedItem
+        title: Chromatic Systems
+        subtitle: Color science with soul.
+        text: >-
+          Palette architectures, typography stacks, and UI atoms tuned to
+          era-specific vibes while staying future ready.
+        featuredImage:
+          type: ImageBlock
+          url: /images/featured-Image3.jpg
+          altText: Artist curating 1970s color swatches on desk
+        styles:
+          self:
+            padding:
+              - p-8
+            borderRadius: xx-large
+            borderWidth: 2
+            borderStyle: solid
+            borderColor: 'border-white/30'
+            backgroundColor: 'bg-white/10'
+            className: 'shadow-2xl backdrop-blur-sm'
+            textAlign: left
+      - type: FeaturedItem
+        title: Analog Motion
+        subtitle: Scrolls that feel like stage lights.
+        text: >-
+          Microinteractions, tape-warp transitions, and storytelling loops that
+          crescendo exactly when the beat drops.
+        featuredImage:
+          type: ImageBlock
+          url: /images/featured-Image4.jpg
+          altText: Stage lighting panel casting colorful beams
+        styles:
+          self:
+            padding:
+              - p-8
+            borderRadius: xx-large
+            borderWidth: 2
+            borderStyle: solid
+            borderColor: 'border-white/30'
+            backgroundColor: 'bg-white/10'
+            className: 'shadow-2xl backdrop-blur-sm'
+            textAlign: left
     styles:
       self:
-        height: auto
-        width: narrow
+        width: wide
         padding:
-          - pt-28
-          - pb-48
+          - pt-20
+          - pb-20
           - pl-4
           - pr-4
         textAlign: left
-  - type: ContactSection
+        borderRadius: xx-large
+        borderWidth: 4
+        borderStyle: solid
+        borderColor: 'border-white/30'
+  - type: MediaGallerySection
     colors: colors-f
-    backgroundSize: full
-    title: "Got an interesting project? Tell me more...💬"
+    title: Moodboard
+    subtitle: Select frames from recent dreamscapes and palette experiments.
+    images:
+      - type: ImageBlock
+        url: /images/gallery-1.jpg
+        altText: Analog synth performer bathed in stage lights
+        caption: Live synth storytelling
+      - type: ImageBlock
+        url: /images/gallery-2.jpg
+        altText: Retro living room moodboard with warm lighting
+        caption: Habitat palette studies
+      - type: ImageBlock
+        url: /images/gallery-3.jpg
+        altText: Designer sketching album-cover layout on table
+        caption: Sleeve art explorations
+      - type: ImageBlock
+        url: /images/gallery-4.jpg
+        altText: Neon-lit skyline reflected in glass facade at dusk
+        caption: City afterglow gradients
+    columns: 2
+    spacing: 28
+    aspectRatio: 1:1
+    showCaption: true
+    enableHover: true
+    styles:
+      self:
+        width: wide
+        padding:
+          - pt-16
+          - pb-20
+          - pl-4
+          - pr-4
+        textAlign: left
+  - type: QuoteSection
+    colors: colors-f
+    quote: '“Design is the mixtape where every screen flips like the verse you never skip.”'
+    name: Lumen Flux
+    title: Creative Director, GrooveCraft Studio
+    styles:
+      self:
+        width: narrow
+        padding:
+          - pt-12
+          - pb-16
+          - pl-4
+          - pr-4
+        textAlign: center
+  - type: ContactSection
+    colors: colors-d
+    backgroundSize: inset
+    title: "Let's Jam on Your Next Vision"
+    text: >-
+      Drop us a line with the vibe, the deadline, and the wildest inspiration
+      image you’ve got. We’ll spin it into a concept deck before the chorus hits.
     form:
       type: FormBlock
-      elementId: sign-up-form
+      elementId: groove-form
       fields:
-        - name: firstName
-          label: First Name
+        - name: yourName
+          label: Your Name
           hideLabel: true
-          placeholder: First Name
+          placeholder: Your Name
           isRequired: true
-          width: 1/2
-          type: TextFormControl
-        - name: lastName
-          label: Last Name
-          hideLabel: true
-          placeholder: Last Name
-          isRequired: false
           width: 1/2
           type: TextFormControl
         - name: email
@@ -127,36 +244,52 @@ sections:
           isRequired: true
           width: 1/2
           type: EmailFormControl
-        - name: address
-          label: Address
+        - name: projectFocus
+          label: Project Focus
           hideLabel: true
-          placeholder: Address
+          placeholder: "What's the main groove?"
           isRequired: true
           width: 1/2
           type: TextFormControl
+        - name: timeline
+          label: Timeline
+          hideLabel: true
+          placeholder: When do we drop it?
+          isRequired: false
+          width: 1/2
+          type: TextFormControl
+        - name: visionNotes
+          label: Vision Notes
+          hideLabel: true
+          placeholder: Tell us about your analog dream.
+          isRequired: true
+          width: full
+          type: TextareaFormControl
         - name: updatesConsent
-          label: Sign me up to recieve updates
+          label: Keep me tuned to studio broadcasts
           isRequired: false
           width: full
           type: CheckboxFormControl
-      submitLabel: "Submit 🚀"
+      submitLabel: Send the signal
       styles:
         self:
-          textAlign: center
+          textAlign: left
+    media:
+      type: ImageBlock
+      url: /images/bg2.jpg
+      altText: Creative duo collaborating in lounge with warm lighting
     styles:
       self:
-        height: auto
-        width: narrow
-        margin:
-          - mt-0
-          - mb-0
-          - ml-0
-          - mr-0
+        width: wide
         padding:
-          - pt-24
+          - pt-20
           - pb-24
-          - pr-4
-          - pl-4
-        flexDirection: row
+          - pl-6
+          - pr-6
         textAlign: left
+        flexDirection: row
+        borderRadius: xx-large
+        borderWidth: 4
+        borderStyle: solid
+        borderColor: 'border-white/30'
 ---
