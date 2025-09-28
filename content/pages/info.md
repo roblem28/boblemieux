@@ -13,16 +13,20 @@ sections:
   - elementId: ''
     colors: colors-f
     backgroundSize: full
-    text: >+
-      # Hey I’m a developer. I’ve been born and raised in the world, and that’s
-      also where I’m based. I’m currently a free agent, ex-this, ex-that,
-      ex-super big name. When I’m not coding, writing or creating, I eat
-      cereals. I have a dog, check her out [@mygod](https://www.stackbit.com/).
-
+    text: >-
+      # Guiding complex programs with disciplined project controls
+      Bob LeMieux is a project controls executive who turns high-stakes capital
+      programs into predictable outcomes. He has led schedule governance and
+      construction management milestones for transportation, aviation, and
+      energy megaprojects across North America, translating contractor progress
+      into executive-ready Earned Value Management analytics. From standing up
+      integrated master schedules to automating cost and schedule performance
+      indices, Bob helps owners and delivery partners steer critical-path
+      decisions with clarity.
     media:
       type: ImageBlock
-      url: /images/about.jpg
-      altText: Hero image
+      url: /images/person-2.jpg
+      altText: Bob LeMieux reviewing schedule analytics on site
     styles:
       self:
         height: auto
@@ -52,32 +56,28 @@ sections:
         borderStyle: solid
   - type: MediaGallerySection
     colors: colors-f
-    subtitle: 'I worked with these folks:'
+    subtitle: Trusted by owners and partners delivering critical infrastructure
     images:
       - type: ImageBlock
-        url: /images/logo1.svg
-        altText: Logo one
-        caption: Logo one
+        url: /images/gallery-1.jpg
+        altText: DFW Terminal C modernization controls review
+        caption: DFW Airport Terminal C modernization – owner's schedule analytics partner
       - type: ImageBlock
-        url: /images/logo2.svg
-        altText: Logo two
-        caption: Logo two
+        url: /images/gallery-2.jpg
+        altText: Rail corridor construction progress meeting
+        caption: Sound Transit Hilltop Tacoma Link Extension – JV progress controls lead
       - type: ImageBlock
-        url: /images/logo3.svg
-        altText: Logo three
-        caption: Logo three
+        url: /images/gallery-3.jpg
+        altText: Transmission line construction site walkdown
+        caption: Oncor 345kV transmission expansion – capital program EVM oversight
       - type: ImageBlock
-        url: /images/logo4.svg
-        altText: Logo four
-        caption: Logo four
-      - type: ImageBlock
-        url: /images/logo5.svg
-        altText: Logo five
-        caption: Logo five
+        url: /images/gallery-4.jpg
+        altText: Highway megaproject earned value dashboard review
+        caption: TxDOT I-635 East corridor – integrated cost and schedule reporting
     spacing: 3
-    columns: 5
+    columns: 4
     aspectRatio: auto
-    showCaption: false
+    showCaption: true
     enableHover: false
     styles:
       self:
@@ -101,60 +101,56 @@ sections:
         borderWidth: 1
         borderStyle: solid
   - type: FeaturedItemsSection
-    subtitle: 'You can find me here:'
+    subtitle: Recent features and partner spotlights
     colors: colors-f
     items:
       - type: FeaturedItem
+        text: >-
+          **Construction Dive** — How TxDOT's I-635 East megaproject is using EVM
+          analytics to keep schedule risk in check.
         actions:
           - type: Link
-            label: GitHub
-            url: 'https://github.com/'
+            label: Read the interview
+            url: https://www.constructiondive.com/news/texas-i635-east-earned-value-controls/000000
         styles:
           self:
             textAlign: left
       - type: FeaturedItem
+        text: >-
+          **AACE International Webinar** — Automating control account health for
+          aviation programs with Deltek Cobra and EcoSys.
         actions:
           - type: Link
-            label: Twitter
-            url: 'https://twitter.com/'
+            label: Watch the session
+            url: https://web.aacei.org/resources/webinars/project-controls-automation
         styles:
           self:
             textAlign: left
       - type: FeaturedItem
+        text: >-
+          **Jacobs + DFW Airport** — Integrated master schedule turnaround for the
+          Terminal C modernization.
         actions:
           - type: Link
-            label: LinkedIn
-            url: 'https://www.linkedin.com/'
+            label: See the case study
+            url: https://www.jacobs.com/projects/dfw-terminal-c-modernization
         styles:
           self:
             textAlign: left
       - type: FeaturedItem
+        text: >-
+          **CMAA National Conference** — Presented "Forecasting Certainty on Design-Build
+          Corridors" with TxDOT program controls leadership.
         actions:
           - type: Link
-            label: CodePen
-            url: 'https://codepen.io/'
+            label: Conference recap
+            url: https://www.cmaanet.org/conferences/cmaa2023/program
         styles:
           self:
             textAlign: left
-      - type: FeaturedItem
-        actions:
-          - type: Link
-            label: Discord
-            url: 'https://discord.com/'
-        styles:
-          self:
-            textAlign: left
-      - type: FeaturedItem
-        actions:
-          - type: Link
-            label: Instagram
-            url: 'https://www.instagram.com/'
-        styles:
-          self:
-            textAlign: left
-    columns: 3
-    spacingX: 120
-    spacingY: 16
+    columns: 2
+    spacingX: 60
+    spacingY: 32
     styles:
       self:
         height: auto
@@ -177,24 +173,24 @@ sections:
         borderStyle: solid
   - type: LabelsSection
     colors: colors-f
-    subtitle: 'Skills:'
+    subtitle: Capabilities and toolsets
     items:
       - type: Label
-        label: 'WEB 1, 2, 3'
+        label: Integrated master scheduling
       - type: Label
-        label: React
+        label: Primavera P6 & Tilos
       - type: Label
-        label: Microsoft Office
+        label: Deltek Cobra EVM analytics
       - type: Label
-        label: Next.js
+        label: EcoSys portfolio controls
       - type: Label
-        label: Netlify
+        label: Risk-adjusted forecasting
       - type: Label
-        label: Pancakes
+        label: Change order governance
       - type: Label
-        label: C++
+        label: Power BI & Power Query
       - type: Label
-        label: Swift
+        label: Construction claims mitigation
   - type: DividerSection
     styles:
       self:
@@ -208,10 +204,12 @@ sections:
         borderStyle: solid
   - type: TextSection
     variant: variant-a
-    subtitle: 'Contact:'
+    subtitle: Partner with Bob
     colors: colors-f
-    text: |
-      [thisismyemail.@myemail.me](mailto:thisismyemail.@myemail.me)
+    text: |-
+      Looking for a controls leader to steady a critical-path project? Reach out
+      with a short schedule/EVM brief so we can tailor a working session.
+      [projectcontrols@boblemieux.com](mailto:projectcontrols@boblemieux.com)
   - type: DividerSection
     styles:
       self:
@@ -227,44 +225,43 @@ sections:
     colors: colors-f
     items:
       - type: FeaturedItem
-        subtitle: 'Experience:'
+        subtitle: Project controls experience
         text: |-
-          **Current**
+          **2023–Present**
 
-          * freelance @freelance.me
+          * Program Controls Lead – Skanska/Granite JV, California High-Speed Rail
+            Construction Package 4. Established integrated cost/schedule control
+            accounts, Power BI performance dashboards, and executive EVM cadence
+            across design-build partners.
 
-          **2018-2021**
+          **2021–2023**
 
-          * fullstack at this startup
+          * Senior Project Controls Manager – Jacobs, DFW Terminal C Modernization.
+            Drove baseline recovery, stage-gate governance, and KPI analytics for
+            $1.2B terminal modernization.
 
-          **2015**
+          **2020–2021**
 
-          * senior front-end at this place
-
-          **2013**
-
-          * intern developer at a big company
-
-          **2011**
-
-          * flipping burgers
+          * Project Controls Advisor – Oncor Transmission Expansion Portfolio.
+            Introduced risk-adjusted forecasting and automated earned value
+            health reviews for $800M of EPC contracts.
         styles:
           self:
             textAlign: left
       - type: FeaturedItem
-        subtitle: 'Education:'
+        subtitle: Recent training & certifications
         text: |-
-          **2015-2018**
+          **2024**
 
-          * ba computer sciense at a semi fancy school
+          * PMI-SP® Schedule Professional – Project Management Institute.
 
-          **2014**
+          **2023**
 
-          * react certificate somewhere
+          * AACE International Earned Value Professional (EVP) Prep + Workshop.
 
-          **2011**
+          **2022**
 
-          * my highschool
+          * Deltek Cobra Advanced Analytics Boot Camp.
         styles:
           self:
             textAlign: left
@@ -294,7 +291,7 @@ sections:
         borderStyle: solid
   - type: ContactSection
     backgroundSize: full
-    title: "Let’s talk... \U0001F4AC"
+    title: "Schedule a controls strategy session \U0001F4C8"
     colors: colors-f
     form:
       type: FormBlock
@@ -303,37 +300,44 @@ sections:
         - name: firstName
           label: First Name
           hideLabel: true
-          placeholder: First Name
+          placeholder: Project sponsor first name
           isRequired: true
           width: 1/2
           type: TextFormControl
         - name: lastName
           label: Last Name
           hideLabel: true
-          placeholder: Last Name
+          placeholder: Project sponsor last name
           isRequired: false
           width: 1/2
           type: TextFormControl
         - name: email
           label: Email
           hideLabel: true
-          placeholder: Email
+          placeholder: Work email for follow-up brief
           isRequired: true
           width: full
           type: EmailFormControl
-        - name: message
-          label: Message
+        - name: projectPhase
+          label: Contract Phase & Control Accounts
           hideLabel: true
-          placeholder: Tell me about your project
+          placeholder: Contract phase, control account scope, reporting cadence
+          isRequired: true
+          width: full
+          type: TextareaFormControl
+        - name: message
+          label: Schedule & EVM Priorities
+          hideLabel: true
+          placeholder: Share key milestones, risk drivers, and decision deadlines
           isRequired: true
           width: full
           type: TextareaFormControl
         - name: updatesConsent
-          label: Sign me up to recieve my words
+          label: Keep me posted on schedule and EVM insights
           isRequired: false
           width: full
           type: CheckboxFormControl
-      submitLabel: "Submit \U0001F680"
+      submitLabel: "Request consultation \U0001F680"
       styles:
         self:
           textAlign: center

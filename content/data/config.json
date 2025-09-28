@@ -27,9 +27,9 @@
         "socialLinks": [
             {
                 "type": "Social",
-                "altText": "Twitter",
-                "label": "Twitter",
-                "url": "https://twitter.com/netlify",
+                "altText": "X",
+                "label": "X",
+                "url": "https://x.com/BobLemAI",
                 "icon": "twitter"
             },
             {
