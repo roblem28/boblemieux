@@ -58,9 +58,9 @@ sections:
     showFeaturedImage: true
     showReadMoreLink: true
     projects:
+      - content/pages/projects/project-one.md
       - content/pages/projects/project-two.md
       - content/pages/projects/project-three.md
-      - content/pages/projects/project-one.md
     styles:
       self:
         height: auto

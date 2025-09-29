@@ -1,29 +1,65 @@
 ---
 type: ProjectLayout
-title: A very cool code project
+title: Gulf Coast LNG Turnaround EVM Recovery
 colors: colors-a
-date: '2021-10-15'
-client: Awesome client
+date: '2024-05-30'
+client: Confidential LNG Operator
 description: >-
-  It’s hard to imagine that I’ve that I wrote all this code by myself, probably because I worked with an entire team :) but they definitely followed my lead most of the time.
+  Led a six-week recovery sprint that rebuilt EVM-based turnaround controls,
+  restoring SPI to 1.05 and clearing variance with executive-ready dashboards.
 featuredImage:
   type: ImageBlock
-  url: /images/bg1.jpg
-  altText: Project thumbnail image
+  url: /images/projects/gulf-coast-lng-evm.svg
+  altText: EVM dashboard for Gulf Coast LNG turnaround
 media:
   type: ImageBlock
-  url: /images/bg1.jpg
-  altText: Project image
+  url: /images/projects/gulf-coast-lng-evm.svg
+  altText: EVM dashboard showing CPI and SPI trends
 ---
 
-Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed ante lorem, tincidunt ac leo efficitur, feugiat tempor odio. Curabitur at auctor sapien. Etiam at cursus enim. Suspendisse sed augue tortor. Nunc eu magna vitae lorem pellentesque fermentum. Sed in facilisis dui. Nulla molestie risus in mi dapibus, eget porta lorem semper. Donec sed facilisis nibh. Curabitur eget dui in libero euismod commodo nec sit amet est. Etiam id ipsum aliquam, vehicula erat sit amet, consequat tortor.
+## Opportunity
 
-Etiam facilisis lacus nec pretium lobortis. Praesent dapibus justo non efficitur efficitur. Nullam viverra justo arcu, eget egestas tortor pretium id. Sed imperdiet mattis eleifend. Vivamus suscipit et neque imperdiet venenatis. In malesuada sed urna eget vehicula. Donec fermentum tortor sit amet nisl elementum fringilla. Pellentesque dapibus suscipit faucibus. Nullam malesuada sed urna quis rutrum. Donec facilisis lorem id maximus mattis. Vestibulum quis elit magna. Vestibulum accumsan blandit consequat. Phasellus quis posuere quam.
+The owner engaged me midway through a $420M Gulf Coast LNG train turnaround
+when field execution had slipped 11% against the critical path. Work-fronts were
+being released late, contractor updates were inconsistent, and leadership lacked
+a single source of truth that combined earned value metrics with schedule risk.
 
-> “Everybody should learn to program a computer, because it teaches you how to think.”
+## Role and Approach
 
-Vestibulum ullamcorper risus auctor eleifend consequat. Vivamus mollis in tellus ac ullamcorper. Vestibulum sit amet bibendum ipsum, vitae rutrum ex. Nullam cursus, urna et dapibus aliquam, urna leo euismod metus, eu luctus justo mi eget mauris. Proin felis leo, volutpat et purus in, lacinia luctus eros. Pellentesque lobortis massa scelerisque lorem ullamcorper, sit amet elementum nulla scelerisque. In volutpat efficitur nulla, aliquam ornare lectus ultricies ac. Mauris sagittis ornare dictum. Nulla vel felis ut purus fermentum pretium. Sed id lectus ac diam aliquet venenatis. Etiam ac auctor enim. Nunc velit mauris, viverra vel orci ut, egestas rhoncus diam. Morbi scelerisque nibh tellus, vel varius urna malesuada sed. Etiam ultricies sem consequat, posuere urna non, maximus ex. Mauris gravida diam sed augue condimentum pulvinar vel ac dui. Integer vel convallis justo.
+- **Role:** Turnaround controls advisor embedded with the project director and
+  owner-side project controls team.
+- Conducted a forensic schedule assessment of 9,800 activities, validating logic
+  ties and integrating contractor look-aheads with the Primavera P6 baseline.
+- Rebuilt the earned value structure to align cost accounts with the master
+  schedule, enabling accurate SPI/CPI calculations across 14 work packages.
+- Developed Power BI dashboards fed by automated P6 and cost management exports
+  so that daily field progress, variance reason codes, and recovery actions were
+  visible to the steering committee.
 
-Nam rutrum magna sed pellentesque lobortis. Etiam quam mauris, iaculis eget ex ac, rutrum scelerisque nisl. Cras finibus dictum ex sed tincidunt. Morbi facilisis neque porta, blandit mauris quis, pharetra odio. Aliquam dictum quam quis elit auctor, at vestibulum ex pulvinar. Quisque lobortis a lectus quis faucibus. Nulla vitae pellentesque nibh, et fringilla erat. Praesent placerat ac est at tincidunt. Praesent ultricies a ex at ultrices. Etiam sed tincidunt elit. Nulla sagittis neque neque, ultrices dignissim sapien pellentesque faucibus. Donec tempor orci sed consectetur dictum. Ut viverra ut enim ac semper. Integer lacinia sem in arcu tempor faucibus eget non urna. Praesent vel nunc eu libero aliquet interdum non vitae elit. Maecenas pharetra ipsum dolor, et iaculis elit ornare ac.
+## EVM Insights and Visualizations
 
-Aenean scelerisque ullamcorper est aliquet blandit. Donec ac tellus enim. Vivamus quis leo mattis, varius arcu at, convallis diam. Donec ac leo at nunc viverra molestie ac viverra nisi. Proin interdum at turpis at varius. Nunc sit amet ex suscipit, convallis ligula eu, pretium turpis. Sed ultricies neque vel mi malesuada, et mollis risus lobortis. Sed condimentum venenatis mauris, id elementum dolor gravida ac. Sed sodales tempus neque, quis iaculis arcu tincidunt ut. Donec vitae faucibus dui. In hac habitasse platea dictumst. Donec erat ex, ullamcorper a massa a, porttitor porta ligula.
+Using refreshed resource curves, I generated weekly trend charts showing SPI and
+CPI convergence, overlaying the recovery glidepath against the contractual
+milestone line. Quantified schedule risk exposure with Monte Carlo scenarios and
+mapped float consumption to area leads, focusing recovery crews on the highest
+value work-fronts.
+
+## Outcomes
+
+- Restored mechanical completion float by 24 days and closed a $12.4M negative
+  cost variance while maintaining safe execution.
+- Provided executive-ready slide decks and live dashboards that the owner now
+  uses as the template for all North American turnarounds.
+- Institutionalized a control room cadence with daily KPI huddles that sustained
+  SPI &gt; 1.03 through completion.
+
+> “Bob’s dashboards turned chaos into clarity. We finally had the confidence to
+> approve overtime and make rapid crew moves.” — Turnaround Director
+
+## Key Deliverables
+
+- Primavera P6 recovery schedule with risk-adjusted scenario modeling
+- Daily EVM dashboard highlighting SPI/CPI, constraint logs, and variance
+  clearance actions
+- Executive reporting pack aligning earned value signals with decision-ready
+  recommendations

@@ -28,7 +28,9 @@ projectFeed:
 topSections:
   - type: HeroSection
     title: Projects
-    subtitle: ''
+    subtitle: >-
+      Earned value and schedule analytics case studies featuring the controls
+      dashboards and reporting cadence clients relied on in the last three years.
     actions: []
     colors: colors-f
     backgroundSize: full
@@ -47,7 +49,7 @@ topSections:
 bottomSections:
   - type: ContactSection
     backgroundSize: full
-    title: "Let’s talk... \U0001F4AC"
+    title: "Need EVM clarity on your next program? Let’s talk."
     colors: colors-f
     form:
       type: FormBlock

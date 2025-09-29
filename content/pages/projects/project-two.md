@@ -1,29 +1,62 @@
 ---
 type: ProjectLayout
-title: Another cool project
+title: Milwaukee Mobility Corridor Controls Integration
 colors: colors-a
-date: '2021-12-20'
-client: Awesome client
+date: '2023-11-15'
+client: Milwaukee Department of Public Works
 description: >-
-  It’s hard to imagine that I’ve that I wrote all this code by myself, probably because I worked with an entire team :) but they definitely followed my lead most of the time.
+  Unified contractor schedules and earned value reporting for a $1.1B transit
+  corridor, delivering variance-driven dashboards that kept the program on track.
 featuredImage:
   type: ImageBlock
-  url: /images/bg2.jpg
-  altText: Project thumbnail image
+  url: /images/projects/midwest-transit-evm.svg
+  altText: Integrated earned value chart for transit corridor
 media:
   type: ImageBlock
-  url: /images/bg2.jpg
-  altText: Project image
+  url: /images/projects/midwest-transit-evm.svg
+  altText: Transit program SPI dashboard visual
 ---
 
-Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed ante lorem, tincidunt ac leo efficitur, feugiat tempor odio. Curabitur at auctor sapien. Etiam at cursus enim. Suspendisse sed augue tortor. Nunc eu magna vitae lorem pellentesque fermentum. Sed in facilisis dui. Nulla molestie risus in mi dapibus, eget porta lorem semper. Donec sed facilisis nibh. Curabitur eget dui in libero euismod commodo nec sit amet est. Etiam id ipsum aliquam, vehicula erat sit amet, consequat tortor.
+## Project Snapshot
 
-Etiam facilisis lacus nec pretium lobortis. Praesent dapibus justo non efficitur efficitur. Nullam viverra justo arcu, eget egestas tortor pretium id. Sed imperdiet mattis eleifend. Vivamus suscipit et neque imperdiet venenatis. In malesuada sed urna eget vehicula. Donec fermentum tortor sit amet nisl elementum fringilla. Pellentesque dapibus suscipit faucibus. Nullam malesuada sed urna quis rutrum. Donec facilisis lorem id maximus mattis. Vestibulum quis elit magna. Vestibulum accumsan blandit consequat. Phasellus quis posuere quam.
+The Milwaukee Regional Mobility Corridor packages light rail, BRT, and
+streetscape upgrades into a single $1.1B capital program. As design-assist and
+construction manager at risk contracts mobilized, the city needed an integrated
+controls environment that combined schedule health with earned value insights for
+monthly council briefings.
 
-> “Everybody should learn to program a computer, because it teaches you how to think.”
+## Role and Approach
 
-Vestibulum ullamcorper risus auctor eleifend consequat. Vivamus mollis in tellus ac ullamcorper. Vestibulum sit amet bibendum ipsum, vitae rutrum ex. Nullam cursus, urna et dapibus aliquam, urna leo euismod metus, eu luctus justo mi eget mauris. Proin felis leo, volutpat et purus in, lacinia luctus eros. Pellentesque lobortis massa scelerisque lorem ullamcorper, sit amet elementum nulla scelerisque. In volutpat efficitur nulla, aliquam ornare lectus ultricies ac. Mauris sagittis ornare dictum. Nulla vel felis ut purus fermentum pretium. Sed id lectus ac diam aliquet venenatis. Etiam ac auctor enim. Nunc velit mauris, viverra vel orci ut, egestas rhoncus diam. Morbi scelerisque nibh tellus, vel varius urna malesuada sed. Etiam ultricies sem consequat, posuere urna non, maximus ex. Mauris gravida diam sed augue condimentum pulvinar vel ac dui. Integer vel convallis justo.
+- **Role:** Owner’s project controls lead overseeing a blended city and
+  consultant team.
+- Normalized six prime contractor schedule files and synchronized them with the
+  program-level Primavera P6 schedule, aligning coding structures and resource
+  calendars.
+- Established an earned value baseline tied to 27 control accounts, mapping
+  funding sources and contract milestones to support grant reporting.
+- Designed a Power BI portal with drill-down charts that compared SPI, CPI, and
+  milestone status for each corridor segment, feeding automated PDF decks for
+  stakeholders.
 
-Nam rutrum magna sed pellentesque lobortis. Etiam quam mauris, iaculis eget ex ac, rutrum scelerisque nisl. Cras finibus dictum ex sed tincidunt. Morbi facilisis neque porta, blandit mauris quis, pharetra odio. Aliquam dictum quam quis elit auctor, at vestibulum ex pulvinar. Quisque lobortis a lectus quis faucibus. Nulla vitae pellentesque nibh, et fringilla erat. Praesent placerat ac est at tincidunt. Praesent ultricies a ex at ultrices. Etiam sed tincidunt elit. Nulla sagittis neque neque, ultrices dignissim sapien pellentesque faucibus. Donec tempor orci sed consectetur dictum. Ut viverra ut enim ac semper. Integer lacinia sem in arcu tempor faucibus eget non urna. Praesent vel nunc eu libero aliquet interdum non vitae elit. Maecenas pharetra ipsum dolor, et iaculis elit ornare ac.
+## EVM Analysis Highlights
 
-Aenean scelerisque ullamcorper est aliquet blandit. Donec ac tellus enim. Vivamus quis leo mattis, varius arcu at, convallis diam. Donec ac leo at nunc viverra molestie ac viverra nisi. Proin interdum at turpis at varius. Nunc sit amet ex suscipit, convallis ligula eu, pretium turpis. Sed ultricies neque vel mi malesuada, et mollis risus lobortis. Sed condimentum venenatis mauris, id elementum dolor gravida ac. Sed sodales tempus neque, quis iaculis arcu tincidunt ut. Donec vitae faucibus dui. In hac habitasse platea dictumst. Donec erat ex, ullamcorper a massa a, porttitor porta ligula.
+Created rolling 12-week trend charts highlighting variances and forecast finish
+positions, reinforcing risk narratives with look-ahead Gantt visuals. Variance
+reason codes were captured through weekly contractor workshops and displayed in
+an interactive matrix that prioritized corrective actions.
+
+## Outcomes
+
+- Maintained SPI between 0.98 and 1.04 despite utility relocation volatility,
+  protecting the critical path to revenue service in Q4 2025.
+- Reduced reporting cycle time from eight days to less than 36 hours, enabling
+  city leadership to brief federal partners with current data.
+- Delivered a capital dashboard adopted by the finance office for ongoing bond
+  oversight and contingency management.
+
+## Deliverables
+
+- Integrated master schedule with risk scoring, float erosion alerts, and
+  interface milestone logic
+- Earned value manual and templates aligned to FTA grant compliance
+- Executive-ready dashboards, variance narratives, and corrective action logs

@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="720" viewBox="0 0 1200 720">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#002B49"/>
+      <stop offset="100%" stop-color="#136F63"/>
+    </linearGradient>
+    <linearGradient id="bar" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#4FC3F7"/>
+      <stop offset="100%" stop-color="#0288D1"/>
+    </linearGradient>
+    <linearGradient id="bar2" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#80CBC4"/>
+      <stop offset="100%" stop-color="#26A69A"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="720" fill="url(#bg)" rx="24"/>
+  <g font-family="'Montserrat', sans-serif" fill="#F0F4F8">
+    <text x="72" y="96" font-size="48" font-weight="700">EVM Recovery Dashboard</text>
+    <text x="72" y="148" font-size="28">Gulf Coast LNG Turnaround</text>
+  </g>
+  <g transform="translate(72,210)">
+    <rect x="0" y="0" width="1056" height="360" fill="rgba(255,255,255,0.08)" rx="24"/>
+    <g fill="#B3E5FC" font-size="20" font-family="'Montserrat', sans-serif">
+      <text x="24" y="40">SPI Trend</text>
+      <text x="24" y="320">Jan</text>
+      <text x="180" y="320">Feb</text>
+      <text x="336" y="320">Mar</text>
+      <text x="492" y="320">Apr</text>
+      <text x="648" y="320">May</text>
+      <text x="804" y="320">Jun</text>
+    </g>
+    <polyline fill="none" stroke="#FFEB3B" stroke-width="6" stroke-linecap="round" points="96,240 252,210 408,192 564,180 720,168 876,156"/>
+    <polyline fill="none" stroke="#4FC3F7" stroke-width="6" stroke-linecap="round" points="96,270 252,240 408,210 564,204 720,186 876,174"/>
+    <polyline fill="none" stroke="#E57373" stroke-dasharray="16 16" stroke-width="4" points="96,288 876,144"/>
+    <g fill="#FFFFFF" font-size="18" font-family="'Montserrat', sans-serif">
+      <text x="912" y="72">CPI 1.08</text>
+      <text x="912" y="108">SPI 1.05</text>
+      <text x="912" y="144">Variance Cleared</text>
+    </g>
+  </g>
+  <g transform="translate(72,606)" fill="#FFFFFF" font-family="'Montserrat', sans-serif">
+    <text x="0" y="0" font-size="22">Recovery achieved 24 days ahead of revised mechanical completion.</text>
+  </g>
+</svg>

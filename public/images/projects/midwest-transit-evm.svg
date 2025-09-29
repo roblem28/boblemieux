@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="720" viewBox="0 0 1200 720">
+  <defs>
+    <linearGradient id="bg2" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1B1F3B"/>
+      <stop offset="100%" stop-color="#4E4E93"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="720" fill="url(#bg2)" rx="24"/>
+  <g font-family="'Montserrat', sans-serif" fill="#E8EAF6">
+    <text x="72" y="96" font-size="46" font-weight="700">Integrated Transit Program Controls</text>
+    <text x="72" y="148" font-size="26">Milwaukee Regional Mobility Corridor</text>
+  </g>
+  <g transform="translate(72,210)">
+    <rect x="0" y="0" width="1056" height="360" fill="rgba(255,255,255,0.08)" rx="24"/>
+    <g stroke="#90CAF9" stroke-width="3" fill="none">
+      <path d="M96,276 L252,252 L408,210 L564,198 L720,186 L876,174" stroke-linecap="round"/>
+      <path d="M96,300 L876,156" stroke="#F06292" stroke-dasharray="14 14" stroke-linecap="round"/>
+    </g>
+    <g fill="#FFFFFF" font-family="'Montserrat', sans-serif" font-size="18">
+      <text x="24" y="48">SPI</text>
+      <text x="936" y="72">On-time Milestones</text>
+      <text x="936" y="108">13/14</text>
+      <text x="936" y="144">Variance: -1.5%</text>
+    </g>
+    <g fill="#C5CAE9" font-size="20">
+      <text x="24" y="320">Mar</text>
+      <text x="196" y="320">Apr</text>
+      <text x="352" y="320">May</text>
+      <text x="508" y="320">Jun</text>
+      <text x="664" y="320">Jul</text>
+      <text x="820" y="320">Aug</text>
+    </g>
+  </g>
+  <g transform="translate(72,606)" fill="#FFFFFF" font-size="22" font-family="'Montserrat', sans-serif">
+    <text x="0" y="0">Dashboards linked contractor updates with earned value curves for executive reviews.</text>
+  </g>
+</svg>
