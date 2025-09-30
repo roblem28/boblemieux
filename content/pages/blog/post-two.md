@@ -1,37 +1,29 @@
 ---
 type: PostLayout
-title: The Great Unbundling
+title: "Kitchen diaries: Crafting the comfort food supper menu"
 colors: colors-a
-backgroundImage:
-  type: BackgroundImage
-  url: /images/bg2.jpg
-  backgroundSize: cover
-  backgroundPosition: center
-  backgroundRepeat: no-repeat
-  opacity: 75
-date: '2021-11-03'
+date: '2025-02-18'
 author: content/data/team/doris-soto.json
 excerpt: >-
-  More context that may or may not be helpful
+  Chef Lynda walks through the seasonal dishes, local partners, and kitchen rituals powering our Sunday supper series.
 featuredImage:
   type: ImageBlock
-  url: /images/featured-Image2.jpg
-  altText: Post thumbnail image
+  url: /images/featured-Image3.jpg
+  altText: Cast-iron skillet of mac and cheese on a rustic table
 media:
-  url: /images/post-4.png
-  altText: altText of the image
-  caption: Caption of the image
-  elementId: ''
   type: ImageBlock
+  url: /images/post-3.jpg
+  altText: Chef plating a roasted vegetable dish in the kitchen
 bottomSections:
-  - elementId: ''
-    type: RecentPostsSection
+  - type: RecentPostsSection
     colors: colors-f
     variant: variant-d
-    subtitle: Recent posts
+    subtitle: Keep reading
     showDate: true
     showAuthor: false
     showExcerpt: true
+    showFeaturedImage: true
+    showReadMoreLink: true
     recentCount: 2
     styles:
       self:
@@ -39,32 +31,23 @@ bottomSections:
         width: wide
         padding:
           - pt-12
-          - pb-56
+          - pb-40
           - pr-4
           - pl-4
         textAlign: left
-    showFeaturedImage: true
-    showReadMoreLink: true
   - type: ContactSection
     backgroundSize: full
-    title: 'Stay up-to-date with my words ✍️'
+    title: Reserve your Sunday table
     colors: colors-f
     form:
       type: FormBlock
-      elementId: sign-up-form
+      elementId: sunday-supper
       fields:
-        - name: firstName
-          label: First Name
+        - name: name
+          label: Name
           hideLabel: true
-          placeholder: First Name
+          placeholder: Name
           isRequired: true
-          width: 1/2
-          type: TextFormControl
-        - name: lastName
-          label: Last Name
-          hideLabel: true
-          placeholder: Last Name
-          isRequired: false
           width: 1/2
           type: TextFormControl
         - name: email
@@ -72,36 +55,66 @@ bottomSections:
           hideLabel: true
           placeholder: Email
           isRequired: true
-          width: full
+          width: 1/2
           type: EmailFormControl
-        - name: updatesConsent
-          label: Sign me up to recieve my words
+        - name: guests
+          label: Number of guests
+          hideLabel: true
+          placeholder: Number of guests
+          isRequired: true
+          width: 1/2
+          type: TextFormControl
+        - name: date
+          label: Preferred Sunday
+          hideLabel: true
+          placeholder: Preferred Sunday
+          isRequired: true
+          width: 1/2
+          type: TextFormControl
+        - name: notes
+          label: Dietary notes
+          hideLabel: true
+          placeholder: Dietary notes
           isRequired: false
           width: full
-          type: CheckboxFormControl
-      submitLabel: "Submit \U0001F680"
+          type: TextareaFormControl
+      submitLabel: Save my seat
       styles:
         self:
           textAlign: center
     styles:
       self:
         height: auto
-        width: wide
+        width: narrow
         padding:
-          - pt-24
-          - pb-24
+          - pt-20
+          - pb-28
           - pr-4
           - pl-4
-        flexDirection: row
         textAlign: left
 ---
 
-Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed ante lorem, tincidunt ac leo efficitur, feugiat tempor odio. Curabitur at auctor sapien. Etiam at cursus enim. Suspendisse sed augue tortor. Nunc eu magna vitae lorem pellentesque fermentum. Sed in facilisis dui. Nulla molestie risus in mi dapibus, eget porta lorem semper. Donec sed facilisis nibh. Curabitur eget dui in libero euismod commodo nec sit amet est. Etiam id ipsum aliquam, vehicula erat sit amet, consequat tortor.
+There’s a certain kind of magic that settles over the pub every Sunday afternoon. The lights dim a touch, the playlist slows down, and the kitchen crew leans into a rhythm that feels like cooking for family.
 
-Etiam facilisis lacus nec pretium lobortis. Praesent dapibus justo non efficitur efficitur. Nullam viverra justo arcu, eget egestas tortor pretium id. Sed imperdiet mattis eleifend. Vivamus suscipit et neque imperdiet venenatis. In malesuada sed urna eget vehicula. Donec fermentum tortor sit amet nisl elementum fringilla. Pellentesque dapibus suscipit faucibus. Nullam malesuada sed urna quis rutrum. Donec facilisis lorem id maximus mattis. Vestibulum quis elit magna. Vestibulum accumsan blandit consequat. Phasellus quis posuere quam.
+## Sourcing the ingredients
 
-Vestibulum ullamcorper risus auctor eleifend consequat. Vivamus mollis in tellus ac ullamcorper. Vestibulum sit amet bibendum ipsum, vitae rutrum ex. Nullam cursus, urna et dapibus aliquam, urna leo euismod metus, eu luctus justo mi eget mauris. Proin felis leo, volutpat et purus in, lacinia luctus eros. Pellentesque lobortis massa scelerisque lorem ullamcorper, sit amet elementum nulla scelerisque. In volutpat efficitur nulla, aliquam ornare lectus ultricies ac. Mauris sagittis ornare dictum. Nulla vel felis ut purus fermentum pretium. Sed id lectus ac diam aliquet venenatis. Etiam ac auctor enim. Nunc velit mauris, viverra vel orci ut, egestas rhoncus diam. Morbi scelerisque nibh tellus, vel varius urna malesuada sed. Etiam ultricies sem consequat, posuere urna non, maximus ex. Mauris gravida diam sed augue condimentum pulvinar vel ac dui. Integer vel convallis justo.
+- **Farms & fields.** We partner with Cedar Glen Farm for root vegetables, Laughing Goat Dairy for chèvre, and Old Town Greens for winter herbs.
+- **Baker buddies.** Hearth & Honey keeps us stocked with sourdough boules that soak up every drop of gravy.
+- **Barrel pantry.** Finn shares his stash of barrel-aged syrups and bitters to glaze carrots or finish sauces.
 
-Nam rutrum magna sed pellentesque lobortis. Etiam quam mauris, iaculis eget ex ac, rutrum scelerisque nisl. Cras finibus dictum ex sed tincidunt. Morbi facilisis neque porta, blandit mauris quis, pharetra odio. Aliquam dictum quam quis elit auctor, at vestibulum ex pulvinar. Quisque lobortis a lectus quis faucibus. Nulla vitae pellentesque nibh, et fringilla erat. Praesent placerat ac est at tincidunt. Praesent ultricies a ex at ultrices. Etiam sed tincidunt elit. Nulla sagittis neque neque, ultrices dignissim sapien pellentesque faucibus. Donec tempor orci sed consectetur dictum. Ut viverra ut enim ac semper. Integer lacinia sem in arcu tempor faucibus eget non urna. Praesent vel nunc eu libero aliquet interdum non vitae elit. Maecenas pharetra ipsum dolor, et iaculis elit ornare ac.
+## The menu staples
 
-Aenean scelerisque ullamcorper est aliquet blandit. Donec ac tellus enim. Vivamus quis leo mattis, varius arcu at, convallis diam. Donec ac leo at nunc viverra molestie ac viverra nisi. Proin interdum at turpis at varius. Nunc sit amet ex suscipit, convallis ligula eu, pretium turpis. Sed ultricies neque vel mi malesuada, et mollis risus lobortis. Sed condimentum venenatis mauris, id elementum dolor gravida ac. Sed sodales tempus neque, quis iaculis arcu tincidunt ut. Donec vitae faucibus dui. In hac habitasse platea dictumst. Donec erat ex, ullamcorper a massa a, porttitor porta ligula.
+1. **Cast-iron mac & cheese** with three cheeses and breadcrumb crunch.
+2. **Stout-braised short ribs** on garlic mashed potatoes with roasted mushrooms.
+3. **Charred brassica salad** tossed with preserved lemon vinaigrette and spiced pepitas.
+4. **Flaky buttermilk biscuits** served with smoked honey butter.
+5. **Seasonal pie flight** rotating through apple crumble, chocolate chess, and pear frangipane.
+
+## Rituals you’ll taste
+
+- We finish every platter with fresh herbs clipped from our patio garden.
+- Lynda plates each course herself so temperatures and textures stay spot-on.
+- The bar pairs every supper with a suggested beer, cocktail, and zero-proof option.
+
+We cap seating at forty guests to keep things intimate. If Sunday supper sounds like your vibe, grab a reservation below—we can’t wait to cook for you.
+---
