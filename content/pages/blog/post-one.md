@@ -1,30 +1,29 @@
 ---
 type: PostLayout
-title: How I started a startup 🚀
+title: "Brewer’s notes: Inside our Barrel Bash tap takeover"
 colors: colors-a
-date: '2021-06-28'
+date: '2025-03-05'
 author: content/data/team/doris-soto.json
 excerpt: >-
-  More context that may or may not be helpful
+  Finn shares tasting notes, cellar secrets, and the stories behind the six barrel-aged beers headlining this month’s tap takeover.
 featuredImage:
   type: ImageBlock
   url: /images/featured-Image1.jpg
-  altText: Post thumbnail image
+  altText: Barrel-aged beer being poured into a tulip glass
 media:
-  url: /images/post-2.jpg
-  altText: altText of the image
-  caption: Caption of the image
-  elementId: ''
   type: ImageBlock
+  url: /images/post-1.jpg
+  altText: Barrels stacked in The Pub for What Ales You cellar
 bottomSections:
-  - elementId: ''
-    type: RecentPostsSection
+  - type: RecentPostsSection
     colors: colors-f
     variant: variant-d
-    subtitle: Recent posts
+    subtitle: More from the Taproom Journal
     showDate: true
     showAuthor: false
     showExcerpt: true
+    showFeaturedImage: true
+    showReadMoreLink: true
     recentCount: 2
     styles:
       self:
@@ -32,32 +31,25 @@ bottomSections:
         width: wide
         padding:
           - pt-12
-          - pb-56
+          - pb-40
           - pr-4
           - pl-4
         textAlign: left
-    showFeaturedImage: true
-    showReadMoreLink: true
   - type: ContactSection
     backgroundSize: full
-    title: 'Stay up-to-date with my words ✍️'
+    title: Join the barrel club newsletter
     colors: colors-f
+    text: >-
+      Monthly updates on new releases, rare bottle lotteries, and behind-the-scenes cellar stories—no spam, just good beer.
     form:
       type: FormBlock
-      elementId: sign-up-form
+      elementId: barrel-club
       fields:
-        - name: firstName
-          label: First Name
+        - name: name
+          label: Name
           hideLabel: true
-          placeholder: First Name
+          placeholder: Name
           isRequired: true
-          width: 1/2
-          type: TextFormControl
-        - name: lastName
-          label: Last Name
-          hideLabel: true
-          placeholder: Last Name
-          isRequired: false
           width: 1/2
           type: TextFormControl
         - name: email
@@ -65,42 +57,58 @@ bottomSections:
           hideLabel: true
           placeholder: Email
           isRequired: true
-          width: full
+          width: 1/2
           type: EmailFormControl
-        - name: updatesConsent
-          label: Sign me up to recieve my words
+        - name: favoriteStyle
+          label: Favorite beer style
+          hideLabel: true
+          placeholder: Favorite beer style
           isRequired: false
           width: full
-          type: CheckboxFormControl
-      submitLabel: "Submit \U0001F680"
+          type: TextFormControl
+      submitLabel: Keep me in the loop
       styles:
         self:
           textAlign: center
     styles:
       self:
         height: auto
-        width: wide
+        width: narrow
         padding:
-          - pt-24
-          - pb-24
+          - pt-20
+          - pb-28
           - pr-4
           - pl-4
-        flexDirection: row
         textAlign: left
 ---
 
-Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed ante lorem, tincidunt ac leo efficitur, feugiat tempor odio. Curabitur at auctor sapien. Etiam at cursus enim. Suspendisse sed augue tortor. Nunc eu magna vitae lorem pellentesque fermentum. Sed in facilisis dui. Nulla molestie risus in mi dapibus, eget porta lorem semper. Donec sed facilisis nibh. Curabitur eget dui in libero euismod commodo nec sit amet est. Etiam id ipsum aliquam, vehicula erat sit amet, consequat tortor.
+If you’ve ever wondered what we stash in the walk-in cellar behind the copper tap wall, this month’s **Barrel Bash Tap Takeover** is your backstage pass. We spent the past year trading for barrels, tasting through collabs, and aging a few passion projects to build a six-beer lineup that leans into caramelized sugar, toasted oak, and nuanced fruit.
 
-Etiam facilisis lacus nec pretium lobortis. Praesent dapibus justo non efficitur efficitur. Nullam viverra justo arcu, eget egestas tortor pretium id. Sed imperdiet mattis eleifend. Vivamus suscipit et neque imperdiet venenatis. In malesuada sed urna eget vehicula. Donec fermentum tortor sit amet nisl elementum fringilla. Pellentesque dapibus suscipit faucibus. Nullam malesuada sed urna quis rutrum. Donec facilisis lorem id maximus mattis. Vestibulum quis elit magna. Vestibulum accumsan blandit consequat. Phasellus quis posuere quam.
+## The tap list at a glance
 
-## About Coding
+1. **Cascade Cellars — Cherry Noir 2022**
+   Rich cherry compote, amaretto, and a pleasant tannic finish from Pinot barrels.
+2. **What Ales You × Rose City Spirits — Rye Maple Porter**
+   Our silky porter rested in rye whiskey barrels with maple staves for six months.
+3. **Matchstick Brewing — Coniferous Night**
+   Spruce tips and cacao nibs make this imperial stout equal parts forest walk and dessert.
+4. **North Pier — Amburana Dreams**
+   Brazilian amburana wood brings warm baking spice to a chewy barleywine base.
+5. **Finn’s Cellar Project — Vanilla Orchid Stout**
+   We double conditioned this imperial stout on Tahitian vanilla and toasted coconut.
+6. **Wild Current Meadery — Cocoa Berry Cyser**
+   Technically a mead, but the barrel-aged apple cider base plays beautifully with cocoa nibs.
 
-> “Coding is the language of the future, and every girl should learn it. As I've learned from watching girls grow and learn in our classrooms, coding is fun, collaborative and creative.”
+## How to taste like a pro
 
-Vestibulum ullamcorper risus auctor eleifend consequat. Vivamus mollis in tellus ac ullamcorper. Vestibulum sit amet bibendum ipsum, vitae rutrum ex. Nullam cursus, urna et dapibus aliquam, urna leo euismod metus, eu luctus justo mi eget mauris. Proin felis leo, volutpat et purus in, lacinia luctus eros. Pellentesque lobortis massa scelerisque lorem ullamcorper, sit amet elementum nulla scelerisque. In volutpat efficitur nulla, aliquam ornare lectus ultricies ac. Mauris sagittis ornare dictum. Nulla vel felis ut purus fermentum pretium. Sed id lectus ac diam aliquet venenatis. Etiam ac auctor enim. Nunc velit mauris, viverra vel orci ut, egestas rhoncus diam. Morbi scelerisque nibh tellus, vel varius urna malesuada sed. Etiam ultricies sem consequat, posuere urna non, maximus ex. Mauris gravida diam sed augue condimentum pulvinar vel ac dui. Integer vel convallis justo.
+- **Start light.** Work your way from the cherry-forward sour to the richer stouts so your palate stays sharp.
+- **Share pours.** Every beer clocks in above 9% ABV; grab a friend (or two) and order half pours to sample everything.
+- **Let it warm up.** Barrel-aged beers shine closer to cellar temp. Take your time and chat between sips.
+- **Snack smart.** Chef Lynda created a snack board with smoked almonds, blue cheese, and chocolate sea-salt caramels that bridge the flavors in the lineup.
 
-## Productivity
+## Take home the goods
 
-Nam rutrum magna sed pellentesque lobortis. Etiam quam mauris, iaculis eget ex ac, rutrum scelerisque nisl. Cras finibus dictum ex sed tincidunt. Morbi facilisis neque porta, blandit mauris quis, pharetra odio. Aliquam dictum quam quis elit auctor, at vestibulum ex pulvinar. Quisque lobortis a lectus quis faucibus. Nulla vitae pellentesque nibh, et fringilla erat. Praesent placerat ac est at tincidunt. Praesent ultricies a ex at ultrices. Etiam sed tincidunt elit. Nulla sagittis neque neque, ultrices dignissim sapien pellentesque faucibus. Donec tempor orci sed consectetur dictum. Ut viverra ut enim ac semper. Integer lacinia sem in arcu tempor faucibus eget non urna. Praesent vel nunc eu libero aliquet interdum non vitae elit. Maecenas pharetra ipsum dolor, et iaculis elit ornare ac.
+We’ve set aside a limited number of crowlers for each release. Ask your bartender to reserve one early in the evening, and don’t forget to join the barrel club list below so you’re first in line for future drops.
 
-Aenean scelerisque ullamcorper est aliquet blandit. Donec ac tellus enim. Vivamus quis leo mattis, varius arcu at, convallis diam. Donec ac leo at nunc viverra molestie ac viverra nisi. Proin interdum at turpis at varius. Nunc sit amet ex suscipit, convallis ligula eu, pretium turpis. Sed ultricies neque vel mi malesuada, et mollis risus lobortis. Sed condimentum venenatis mauris, id elementum dolor gravida ac. Sed sodales tempus neque, quis iaculis arcu tincidunt ut. Donec vitae faucibus dui. In hac habitasse platea dictumst. Donec erat ex, ullamcorper a massa a, porttitor porta ligula.
+Cheers to sharing what we’ve been aging—see you at the takeover!
+---

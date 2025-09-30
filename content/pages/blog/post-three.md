@@ -1,31 +1,29 @@
 ---
 type: PostLayout
-title: Composable - the future of web
-colors: colors-b
-date: '2024-01-01'
+title: How we build the Whiskey & Vinyl listening lounge
+colors: colors-a
+date: '2025-01-27'
 author: content/data/team/doris-soto.json
 excerpt: >-
-  More context that may or may not be helpful
+  Maeve shares the rituals behind pairing rare records with small-batch whiskey flights every Wednesday night.
 featuredImage:
   type: ImageBlock
-  url: /images/featured-Image3.jpg
-  altText: Post thumbnail image
-backgroundImage:
-  type: BackgroundImage
-  url: /images/gallery-2.jpg
-  backgroundSize: cover
-  backgroundPosition: center
-  backgroundRepeat: no-repeat
-  opacity: 10
+  url: /images/featured-Image6.jpg
+  altText: Whiskey flight with vinyl records in the background
+media:
+  type: ImageBlock
+  url: /images/post-4.png
+  altText: Stack of vinyl records next to a record player at the pub
 bottomSections:
-  - elementId: ''
-    type: RecentPostsSection
+  - type: RecentPostsSection
     colors: colors-f
     variant: variant-d
-    subtitle: Recent posts
+    subtitle: Explore more taproom stories
     showDate: true
     showAuthor: false
     showExcerpt: true
+    showFeaturedImage: true
+    showReadMoreLink: true
     recentCount: 2
     styles:
       self:
@@ -33,32 +31,23 @@ bottomSections:
         width: wide
         padding:
           - pt-12
-          - pb-56
+          - pb-40
           - pr-4
           - pl-4
         textAlign: left
-    showFeaturedImage: true
-    showReadMoreLink: true
   - type: ContactSection
     backgroundSize: full
-    title: 'Stay up-to-date with my words ✍️'
+    title: Request a song for next week
     colors: colors-f
     form:
       type: FormBlock
-      elementId: sign-up-form
+      elementId: vinyl-request
       fields:
-        - name: firstName
-          label: First Name
+        - name: name
+          label: Name
           hideLabel: true
-          placeholder: First Name
+          placeholder: Name
           isRequired: true
-          width: 1/2
-          type: TextFormControl
-        - name: lastName
-          label: Last Name
-          hideLabel: true
-          placeholder: Last Name
-          isRequired: false
           width: 1/2
           type: TextFormControl
         - name: email
@@ -66,62 +55,58 @@ bottomSections:
           hideLabel: true
           placeholder: Email
           isRequired: true
-          width: full
+          width: 1/2
           type: EmailFormControl
-        - name: updatesConsent
-          label: Sign me up to recieve my words
+        - name: artist
+          label: Artist or album
+          hideLabel: true
+          placeholder: Artist or album
+          isRequired: true
+          width: full
+          type: TextFormControl
+        - name: pairingIdea
+          label: Pairing idea
+          hideLabel: true
+          placeholder: What whiskey or mocktail should we pair with it?
           isRequired: false
           width: full
-          type: CheckboxFormControl
-      submitLabel: "Submit \U0001F680"
+          type: TextareaFormControl
+      submitLabel: Add my request
       styles:
         self:
           textAlign: center
     styles:
       self:
         height: auto
-        width: wide
+        width: narrow
         padding:
-          - pt-24
-          - pb-24
+          - pt-20
+          - pb-28
           - pr-4
           - pl-4
-        flexDirection: row
         textAlign: left
 ---
 
-Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed ante lorem, tincidunt ac leo efficitur, feugiat tempor odio. Curabitur at auctor sapien. Etiam at cursus enim. Suspendisse sed augue tortor. Nunc eu magna vitae lorem pellentesque fermentum. Sed in facilisis dui. Nulla molestie risus in mi dapibus, eget porta lorem semper. Donec sed facilisis nibh. Curabitur eget dui in libero euismod commodo nec sit amet est. Etiam id ipsum aliquam, vehicula erat sit amet, consequat tortor.
+Every Wednesday we dim the lights, drop the needle, and let rare records guide our whiskey flights. Here’s what goes into curating the night.
 
-## What is Composable Web?
+## Digging through crates
 
-Etiam facilisis lacus nec pretium lobortis. Praesent dapibus justo non efficitur efficitur. Nullam viverra justo arcu, eget egestas tortor pretium id. Sed imperdiet mattis eleifend. Vivamus suscipit et neque imperdiet venenatis. In malesuada sed urna eget vehicula. Donec fermentum tortor sit amet nisl elementum fringilla. Pellentesque dapibus suscipit faucibus. Nullam malesuada sed urna quis rutrum. Donec facilisis lorem id maximus mattis. Vestibulum quis elit magna. Vestibulum accumsan blandit consequat. Phasellus quis posuere quam.
+- Maeve spends Monday morning at Musique Boutique scouting for near-mint pressings.
+- We give first dibs to local musicians who want to debut new work between sets.
+- Guest DJs submit mini mixes that inspire our pairing menu.
 
-### Syntax highlighter in Next.js
+## Building the flight
 
-```css
-.colors-a {
-  @apply bg-dark text-on-dark;
-  .sb-input,
-  .sb-select,
-  .sb-textarea {
-    @apply text-on-dark placeholder-on-dark placeholder-opacity-75;
-  }
-  .sb-header-links-primary .sb-component-link:before,
-  .sb-component-header .sb-component-social:before {
-    @apply bg-on-dark;
-  }
-  .sb-header-links-primary .sb-component-link:hover,
-  .sb-component-header .sb-component-social:hover {
-    @apply text-dark;
-  }
-  .sb-header-overlay {
-    @apply bg-dark;
-  }
-}
-```
+1. **Intro pour** — A low-proof bourbon to ease into the evening.
+2. **Feature flight** — Three single barrels chosen to match the night’s genre.
+3. **Wildcard** — Something unexpected from our reserve shelf.
+4. **Zero-proof treat** — A spirit-free cocktail that mirrors the flavor profile of the feature flight.
 
-Vestibulum ullamcorper risus auctor eleifend consequat. Vivamus mollis in tellus ac ullamcorper. Vestibulum sit amet bibendum ipsum, vitae rutrum ex. Nullam cursus, urna et dapibus aliquam, urna leo euismod metus, eu luctus justo mi eget mauris. Proin felis leo, volutpat et purus in, lacinia luctus eros. Pellentesque lobortis massa scelerisque lorem ullamcorper, sit amet elementum nulla scelerisque. In volutpat efficitur nulla, aliquam ornare lectus ultricies ac. Mauris sagittis ornare dictum. Nulla vel felis ut purus fermentum pretium. Sed id lectus ac diam aliquet venenatis. Etiam ac auctor enim. Nunc velit mauris, viverra vel orci ut, egestas rhoncus diam. Morbi scelerisque nibh tellus, vel varius urna malesuada sed. Etiam ultricies sem consequat, posuere urna non, maximus ex. Mauris gravida diam sed augue condimentum pulvinar vel ac dui. Integer vel convallis justo.
+## Setting the vibe
 
-Nam rutrum magna sed pellentesque lobortis. Etiam quam mauris, iaculis eget ex ac, rutrum scelerisque nisl. Cras finibus dictum ex sed tincidunt. Morbi facilisis neque porta, blandit mauris quis, pharetra odio. Aliquam dictum quam quis elit auctor, at vestibulum ex pulvinar. Quisque lobortis a lectus quis faucibus. Nulla vitae pellentesque nibh, et fringilla erat. Praesent placerat ac est at tincidunt. Praesent ultricies a ex at ultrices. Etiam sed tincidunt elit. Nulla sagittis neque neque, ultrices dignissim sapien pellentesque faucibus. Donec tempor orci sed consectetur dictum. Ut viverra ut enim ac semper. Integer lacinia sem in arcu tempor faucibus eget non urna. Praesent vel nunc eu libero aliquet interdum non vitae elit. Maecenas pharetra ipsum dolor, et iaculis elit ornare ac.
+- Candles on every table, plush lounge seating, and a no-shouting policy keep conversations intimate.
+- Requests are welcome—drop yours below and we’ll shout you out when your track spins.
+- Merch alert: we now have limited-edition Whiskey & Vinyl glassware available behind the bar.
 
-Aenean scelerisque ullamcorper est aliquet blandit. Donec ac tellus enim. Vivamus quis leo mattis, varius arcu at, convallis diam. Donec ac leo at nunc viverra molestie ac viverra nisi. Proin interdum at turpis at varius. Nunc sit amet ex suscipit, convallis ligula eu, pretium turpis. Sed ultricies neque vel mi malesuada, et mollis risus lobortis. Sed condimentum venenatis mauris, id elementum dolor gravida ac. Sed sodales tempus neque, quis iaculis arcu tincidunt ut. Donec vitae faucibus dui. In hac habitasse platea dictumst. Donec erat ex, ullamcorper a massa a, porttitor porta ligula.
+See you next Wednesday for another spin around the sun.
+---
