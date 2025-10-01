@@ -1,6 +1,6 @@
 ---
 type: PostFeedLayout
-title: Blog
+title: Taproom Journal
 colors: colors-a
 backgroundImage:
   type: BackgroundImage
@@ -8,7 +8,7 @@ backgroundImage:
   backgroundSize: cover
   backgroundPosition: center
   backgroundRepeat: no-repeat
-  opacity: 75
+  opacity: 65
 postFeed:
   type: PostFeedSection
   colors: colors-f
@@ -25,11 +25,11 @@ postFeed:
         - pt-0
         - pl-4
         - pr-4
-        - pb-12
+        - pb-16
 topSections:
   - type: HeroSection
-    title: Blog
-    subtitle: ''
+    title: The stories behind the pours
+    subtitle: Notes from the cellar, kitchen highlights, and recaps of our favorite nights.
     actions: []
     colors: colors-f
     backgroundSize: full
