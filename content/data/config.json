@@ -4,40 +4,57 @@
     "header": {
         "type": "Header",
         "headerVariant": "variant-c",
-        "isSticky": false,
-        "title": "Personal",
+        "isSticky": true,
+        "title": "The Pub for What Ales You",
         "isTitleVisible": true,
         "primaryLinks": [
             {
                 "type": "Link",
-                "label": "Info",
-                "url": "/info"
+                "label": "Home",
+                "url": "/"
             },
             {
                 "type": "Link",
-                "label": "Projects",
-                "url": "/projects"
+                "label": "Menu",
+                "url": "/menu"
             },
             {
                 "type": "Link",
-                "label": "Blog",
-                "url": "/blog"
+                "label": "Events",
+                "url": "/events"
+            },
+            {
+                "type": "Link",
+                "label": "About",
+                "url": "/about"
+            },
+            {
+                "type": "Link",
+                "label": "Visit",
+                "url": "/#visit"
             }
         ],
         "socialLinks": [
             {
                 "type": "Social",
-                "altText": "X",
-                "label": "X",
-                "url": "https://x.com/BobLemAI",
-                "icon": "twitter"
+                "altText": "Follow The Pub on Instagram",
+                "label": "Instagram",
+                "url": "https://instagram.com/whatalesyou",
+                "icon": "instagram"
             },
             {
                 "type": "Social",
-                "altText": "GitHub",
-                "label": "GitHub",
-                "url": "https://github.com/netlify-templates",
-                "icon": "github"
+                "altText": "Find us on Facebook",
+                "label": "Facebook",
+                "url": "https://facebook.com/whatalesyou",
+                "icon": "facebook"
+            },
+            {
+                "type": "Social",
+                "altText": "Join our email list",
+                "label": "Newsletter",
+                "url": "mailto:cheers@whatalesyou.pub",
+                "icon": "mail"
             }
         ],
         "styles": {
@@ -51,40 +68,40 @@
         "primaryLinks": [
             {
                 "type": "Link",
-                "label": "Info",
-                "url": "/info",
-                "altText": ""
+                "label": "Home",
+                "url": "/",
+                "altText": "Return to the home page"
             },
             {
                 "type": "Link",
-                "label": "Contact",
-                "url": "mailto:thisismyemail.@myemail.me",
-                "altText": ""
+                "label": "Menu",
+                "url": "/menu",
+                "altText": "Explore our food and drink menu"
             },
             {
                 "type": "Link",
-                "label": "Blog",
-                "url": "/blog",
-                "altText": ""
+                "label": "Events",
+                "url": "/events",
+                "altText": "See what’s happening this week"
             },
             {
                 "type": "Link",
-                "label": "GitHub",
-                "url": "https://github.com/netlify-templates",
-                "altText": "Netlify templates"
+                "label": "About",
+                "url": "/about",
+                "altText": "Get to know The Pub for What Ales You"
             }
         ],
         "contacts": {
             "type": "ContactBlock",
-            "title": "Contact details",
-            "phoneNumber": "850-123-5021",
-            "phoneAltText": "My phone number",
-            "email": "thisismyemail.@myemail.me",
-            "emailAltText": "My email",
-            "address": "312 Lovely Street, Brooklyn, NY, 123456",
-            "addressAltText": "My address"
+            "title": "Visit the taproom",
+            "phoneNumber": "(414) 555-2537",
+            "phoneAltText": "Call the pub",
+            "email": "cheers@whatalesyou.pub",
+            "emailAltText": "Email the pub",
+            "address": "215 Taproom Lane, Old Town, OR 97205",
+            "addressAltText": "Taproom address"
         },
-        "copyrightText": "Powered by [Netlify](https://www.netlify.com/)",
+        "copyrightText": "© {{ now | date: 'YYYY' }} The Pub for What Ales You. Crafted with love and local ingredients.",
         "styles": {
             "self": {
                 "width": "narrow",
