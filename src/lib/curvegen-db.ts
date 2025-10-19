@@ -25,7 +25,9 @@ async function getPool() {
                 connectionString,
                 ssl:
                     connectionString.includes('neon.tech') || connectionString.includes('aws.neon')
-                        ? { rejectUnauthorized: false }
+                        ? (process.env.CURVEGEN_ALLOW_INSECURE_DB_SSL === 'true'
+                            ? { rejectUnauthorized: false }
+                            : true)
                         : undefined
             });
         });
