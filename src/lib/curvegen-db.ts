@@ -15,7 +15,7 @@ let poolPromise: Promise<any> | null = null;
 
 async function getPool() {
     if (!connectionString) {
-        throw new Error('CURVEGEN_DATABASE_URL is not configured.');
+        throw new Error('Curvegen database URL is not configured (set CURVEGEN_DATABASE_URL or CURVEGEN_DB_URL).');
     }
 
     if (!poolPromise) {
