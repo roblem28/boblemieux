@@ -2,8 +2,25 @@
 
 ## Prerequisites
 
-- Install [Node.js](https://nodejs.org/) which provides the `npm` command required to install the Netlify CLI.
-- Install the Netlify CLI globally with `npm install -g netlify-cli` (re-open your terminal afterwards so `netlify` is on the PATH).
+1. Install [Node.js](https://nodejs.org/) which also provides the `npm` command required to install the Netlify CLI.
+2. Close and re-open your terminal, then confirm the binaries are available:
+
+   ```bash
+   node --version
+   npm --version
+   ```
+
+3. Install the Netlify CLI globally:
+
+   ```bash
+   npm install -g netlify-cli
+   ```
+
+4. Restart the terminal once more so the global `netlify` binary is on your `PATH`, then verify the installation:
+
+   ```bash
+   netlify --version
+   ```
 
 ## Provisioning steps
 
