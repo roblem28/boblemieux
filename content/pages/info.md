@@ -209,7 +209,7 @@ sections:
     text: |-
       Looking for a controls leader to steady a critical-path project? Reach out
       with a short schedule/EVM brief so we can tailor a working session.
-      [projectcontrols@boblemieux.com](mailto:projectcontrols@boblemieux.com)
+      [roblem28@gmail.com](mailto:roblem28@gmail.com)
   - type: DividerSection
     styles:
       self:
