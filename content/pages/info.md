@@ -25,7 +25,7 @@ sections:
       decisions with clarity.
     media:
       type: ImageBlock
-      url: /images/person-2.jpg
+      url: /images/bob.png
       altText: Bob LeMieux reviewing schedule analytics on site
     styles:
       self:
