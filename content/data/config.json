@@ -27,16 +27,16 @@
         "socialLinks": [
             {
                 "type": "Social",
-                "altText": "X",
-                "label": "X",
-                "url": "https://x.com/BobLemAI",
-                "icon": "twitter"
+                "altText": "Instagram",
+                "label": "Instagram",
+                "url": "https://instagram.com/spazzmaster28",
+                "icon": "instagram"
             },
             {
                 "type": "Social",
                 "altText": "GitHub",
                 "label": "GitHub",
-                "url": "https://github.com/netlify-templates",
+                "url": "https://github.com/roblem28",
                 "icon": "github"
             }
         ],
@@ -70,8 +70,8 @@
             {
                 "type": "Link",
                 "label": "GitHub",
-                "url": "https://github.com/netlify-templates",
-                "altText": "Netlify templates"
+                "url": "https://github.com/roblem28",
+                "altText": "GitHub"
             }
         ],
         "contacts": {

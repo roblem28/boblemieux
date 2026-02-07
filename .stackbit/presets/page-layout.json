@@ -377,9 +377,9 @@
                                 "actions": [
                                     {
                                         "type": "Link",
-                                        "label": "X (Twitter)",
+                                        "label": "Instagram",
                                         "showIcon": false,
-                                        "url": "https://twitter.com/"
+                                        "url": "https://instagram.com/spazzmaster28"
                                     }
                                 ],
                                 "styles": {
