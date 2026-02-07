@@ -15,18 +15,41 @@ sections:
     colors: colors-f
     backgroundSize: full
     title: |-
-      Construction Project Manager
-      Project Superintendent
-      Project Controls Team Leader
+      Digital Leverage
+      Project Leadership
     subtitle: >-
-      I bring four decades of experience delivering billion-dollar capital and
-      industrial projects, guiding teams from concept through mechanical
-      completion. As a proven Construction Manager and Project Controls
-      professional, I have advanced scheduling, cost, and execution performance
-      across energy, infrastructure, and industrial sectors. Today I combine
-      this foundation with data-driven insights and AI-enabled tools to
-      transform project delivery, elevate efficiency, and drive profitable
-      outcomes. Ready to lead at any level, shaping both strategy and execution.
+      **DIGITAL LEVERAGE** — Computers have always been my leverage—how I
+      compress time, reduce friction, and create capability where teams used to
+      accept limits. I don't treat "tech" as a department or a buzzword. It's
+      how I think: systems, signals, automation, and repeatability. Over the
+      years I've built practical tools that behave like software—advanced Excel
+      models, reusable templates, VBA/macros, and automated rollups that
+      eliminate manual reporting. I've normalized messy exports into clean
+      datasets that can actually be analyzed, and I've built dashboards and
+      executive views that show what matters without the noise. More recently,
+      I've pushed into AI-enabled workflows and agent-style systems that can
+      extract meaning from documents, classify and summarize content, and turn
+      raw information into decisions—faster and more consistently than
+      traditional methods. That same mindset drives my special projects,
+      including Marley1: a "small hardware / big capability" concept focused on
+      portable, accessible computing and AI. It's not hype—it's the
+      continuation of what I've always done: build the next layer of tools that
+      makes real work easier, faster, and smarter.
+
+
+      **PROJECT LEADERSHIP** — I bring four decades of experience delivering
+      billion-dollar capital and industrial projects, guiding teams from concept
+      through mechanical completion. As a Construction Manager, Superintendent,
+      and Project Controls leader, I've owned execution at the field level and
+      driven performance through scheduling, cost, forecasting, and turnover
+      readiness across energy, infrastructure, and industrial sectors. My edge
+      is the combination: real-world delivery plus modern enablement. I don't
+      just run plans—I improve the way plans are built, measured, and
+      communicated. I use data-driven methods and AI-enabled tools to tighten
+      execution, surface risk early, reduce cycle time in reporting, and help
+      teams make better decisions with less friction. Ready to lead at any
+      level—shaping both strategy and hands-on execution—while modernizing how
+      project delivery gets done.
     styles:
       self:
         height: auto
