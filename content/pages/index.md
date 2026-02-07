@@ -99,29 +99,122 @@ sections:
         flexDirection: row-reverse
         textAlign: left
     actions: []
-  - type: FeaturedProjectsSection
-    elementId: ''
+  - type: FeaturedItemsSection
+    title: Work Projects
     colors: colors-f
-    variant: variant-b
-    subtitle: Projects
+    columns: 3
+    items:
+      - type: FeaturedItem
+        title: Turnover Readiness Command Center
+        text: >-
+          A unified dashboard system that tracks completion status, punch
+          progress, and handover readiness across hundreds of systems in real
+          time. Built to eliminate spreadsheet chaos and surface delays before
+          they impact commissioning.
+        actions:
+          - type: Link
+            label: Learn more
+            url: /projects/turnover-readiness
+        styles:
+          self:
+            textAlign: left
+      - type: FeaturedItem
+        title: Controls Automation Toolset
+        text: >-
+          Custom-built Excel engines with VBA automation that consolidate
+          schedule, cost, and forecasting data from multiple sources into
+          executive-ready reports. Turns days of manual work into minutes of
+          reliable output.
+        actions:
+          - type: Link
+            label: Learn more
+            url: /projects/controls-automation
+        styles:
+          self:
+            textAlign: left
+      - type: FeaturedItem
+        title: Schedule + Cost Insight Layer
+        text: >-
+          AI-enabled extraction and classification system that reads P6 exports,
+          cost reports, and turnover logs to identify trends, flag risks, and
+          generate summaries for leadership. Faster decisions with less noise.
+        actions:
+          - type: Link
+            label: Learn more
+            url: /projects/schedule-cost-insight
+        styles:
+          self:
+            textAlign: left
     actions:
       - type: Link
-        label: See all projects
-        url: /projects
-    showDate: false
-    showDescription: true
-    showFeaturedImage: true
-    showReadMoreLink: true
-    projects:
-      - content/pages/projects/project-two.md
-      - content/pages/projects/project-three.md
-      - content/pages/projects/project-one.md
+        label: View all Work Projects
+        url: /work-projects
     styles:
       self:
         height: auto
         width: wide
         padding:
           - pt-24
+          - pb-12
+          - pl-4
+          - pr-4
+        textAlign: left
+  - type: FeaturedItemsSection
+    title: Tech Projects
+    colors: colors-f
+    columns: 3
+    items:
+      - type: FeaturedItem
+        title: Marley1
+        text: >-
+          A portable AI + compute platform designed for field-ready
+          intelligence—small hardware, big capability. Built to bring serious
+          processing power and agent-style workflows to environments where
+          traditional setups don't fit.
+        actions:
+          - type: Link
+            label: Learn more
+            url: /projects/marley1
+        styles:
+          self:
+            textAlign: left
+      - type: FeaturedItem
+        title: BobLemieux.ai Personal LLM Ecosystem
+        text: >-
+          A self-hosted AI stack combining local models, fine-tuned agents, and
+          document processing pipelines. Designed to experiment with autonomous
+          systems, knowledge synthesis, and next-generation project intelligence
+          tools.
+        actions:
+          - type: Link
+            label: Learn more
+            url: /projects/boblemieux-ai
+        styles:
+          self:
+            textAlign: left
+      - type: FeaturedItem
+        title: The Lynda Project
+        text: >-
+          An experimental AI companion system focused on memory, context, and
+          conversational continuity. A testbed for human-centered interaction
+          design and long-term agent persistence.
+        actions:
+          - type: Link
+            label: Learn more
+            url: /projects/lynda
+        styles:
+          self:
+            textAlign: left
+    actions:
+      - type: Link
+        label: View all Tech Projects
+        url: /tech-projects
+    styles:
+      self:
+        height: auto
+        width: wide
+        padding:
+          - pt-12
           - pb-24
           - pl-4
           - pr-4
