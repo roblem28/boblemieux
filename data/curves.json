@@ -1,0 +1,20 @@
+{
+  "curves": [
+    {
+      "id": "demo-helix",
+      "name": "Neon Helix",
+      "expression": "sin(x) * cos(2x)",
+      "description": "A twisting waveform ideal for generative neon tunnels and synthwave motion.",
+      "createdAt": "2024-01-01T00:00:00.000Z",
+      "updatedAt": "2024-01-01T00:00:00.000Z"
+    },
+    {
+      "id": "demo-lissajous",
+      "name": "Lissajous Bloom",
+      "expression": "0.5 * sin(3x) + 0.25 * sin(5x)",
+      "description": "Layered harmonics that bloom into a floral oscillation when animated.",
+      "createdAt": "2024-01-02T00:00:00.000Z",
+      "updatedAt": "2024-01-02T00:00:00.000Z"
+    }
+  ]
+}

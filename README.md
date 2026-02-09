@@ -1,53 +1,38 @@
-# Netlify Developer Portfolio Starter (auto-annotated)
+# CurveGen
 
-![Developer Portfolio](https://assets.stackbit.com/docs/personal-nextjs-starter-thumb.png)
+CurveGen is a standalone curve generation workspace built with Next.js and Tailwind CSS. It lets you compose mathematical expressions, preview the resulting curve, and store every experiment in a simple project-level database.
 
-This is a full-fledged portfolio website built with Next.js, Tailwind CSS, [visual editor](https://docs.netlify.com/visual-editor/overview/) and the [Git Content Source](https://docs.netlify.com/create/content-sources/git/).
+## Features
 
-The codebase showcases **how to apply annotations at scale**, meaning: how to make much of your components [highlightable in the visual editor](https://docs.netlify.com/visual-editor/visual-editing/inline-editor/) through data attributes without manually adding code throughout the codebase.
+- ⚡️ Real-time plotting driven by a lightweight expression parser.
+- 💾 Zero-setup persistence backed by a JSON database (`data/curves.json`).
+- 🧰 REST API (`/api/curves`) for listing, creating, and deleting saved curves.
+- 🎨 A polished single-page experience tuned for generative designers.
 
-**This is achieved by:**
+## Getting started
 
-1. Adding an annotation property to the content objects at they're loaded (see `src/utils/content.ts`)
-1. When rendering the page, each content sub-object is dynamically matched to the appropriate component. At this point, wrap each component with an annotation, based on the abovementioned content property. See `src/components/components-registry.tsx`.
-
-**⚡ Demo:** [auto-annotated-portfolio.netlify.app](https://auto-annotated-portfolio.netlify.app)
-
-## Deploying to Netlify
-
-If you click "Deploy to Netlify" button, it will create a new repo for you that looks exactly like this one, and sets that repo up immediately for deployment on Netlify.
-
-[![Deploy to Netlify](https://www.netlify.com/img/deploy/button.svg)](https://app.netlify.com/start/deploy?repository=https://github.com/netlify-templates/auto-annotated-portfolio)
-
-## Getting Started
-
-The typical development process is to begin by working locally. Clone this repository, then run `npm install` in its root directory.
-
-Run the Next.js development server:
-
-```txt
-cd auto-annotated-portfolio
+```bash
+npm install
 npm run dev
 ```
 
-Install the [Netlify visual editor CLI](https://www.npmjs.com/package/@stackbit/cli). Then open a new terminal window in the same project directory and run the Netlify visual editor dev server:
+Then open [http://localhost:3000](http://localhost:3000) to explore the CurveGen workspace.
 
-```txt
-npm install -g @stackbit/cli
-stackbit dev
-```
+> **Note**
+> `data/curves.json` seeds the app with a couple of example expressions. You can safely remove or edit them.
 
-This outputs your own Netlify visual editor URL. Open this, register or sign in, and you will be directed to Netlify's visual editor for your new project.
+## Project structure
 
-![Next.js Dev + Netlify visual editor dev](https://assets.stackbit.com/docs/next-dev-stackbit-dev.png)
+- `src/pages/index.tsx` – marketing content, workspace form, and curve library UI.
+- `src/components/CurvePlot.tsx` – SVG-based plotter that samples equations.
+- `src/pages/api/curves` – REST endpoints for listing, creating, and deleting curves.
+- `src/lib/curve-store.ts` – file-backed data store abstraction.
+- `src/utils/expression.ts` – infix expression parser and evaluator.
 
-## Next Steps
+## Database
 
-Here are a few suggestions on what to do next if you're new to Netlify Visual Editor:
+CurveGen ships with a file-backed JSON database so you can version control curve data alongside your code. The database lives at `data/curves.json` and is manipulated exclusively through the `curve-store` utility. Swap the implementation for SQLite, Postgres, or a hosted service without changing the UI layer.
 
-- Learn [how Netlify Visual Editor works](https://docs.netlify.com/visual-editor/overview/)
-- Check [Netlify visual editor reference documentation](https://visual-editor-reference.netlify.com/)
+## License
 
-## Support
-
-If you get stuck along the way, get help in our [support forums](https://answers.netlify.com/).
+MIT © 2025 CurveGen
