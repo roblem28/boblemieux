@@ -1,3 +1,4 @@
+import Head from 'next/head';
 import { generateGlobalCssVariables } from '@/utils/theme-style-utils';
 import { useEffect, useState } from 'react';
 import '../css/main.css';
@@ -16,6 +17,9 @@ export default function MyApp({ Component, pageProps }) {
 
     return (
         <>
+            <Head>
+                <meta name="google-site-verification" content="BkUOl9UH8oV2bXfQS5cZOAUalf14L19hpGHQRqc7CnE" />
+            </Head>
             <style jsx global>{`
                 :root {
                     ${cssVars}
