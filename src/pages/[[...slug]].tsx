@@ -27,6 +27,7 @@ const Page: React.FC<PageComponentProps> = (props) => {
                 })}
                 <meta name="viewport" content="width=device-width, initial-scale=1" />
                 {site.favicon && <link rel="icon" href={site.favicon} />}
+                <meta name="google-site-verification" content="BkUOl9UH8oV2bXfQS5cZOAUalf14L19hpGHQRqc7CnE" />
             </Head>
             <DynamicComponent {...props} />
         </>
