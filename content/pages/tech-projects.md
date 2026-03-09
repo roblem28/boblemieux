@@ -90,6 +90,49 @@ sections:
         styles:
           self:
             textAlign: left
+      - type: FeaturedItem
+        title: Earth Twin
+        text: >-
+          A browser-based 3D digital twin of Earth built on NASA Blue Marble,
+          VIIRS night lights, ESRI satellite imagery, AWS terrain, and
+          OpenFreeMap 3D buildings. Renders from orbital altitude to street
+          level with day/night mode, animated clouds, and 3D terrain.
+          Zero API keys. Built with MapLibre GL JS.
+        actions:
+          - type: Link
+            label: View project
+            url: /projects/earth-twin
+        styles:
+          self:
+            textAlign: left
+      - type: FeaturedItem
+        title: Moon Twin
+        text: >-
+          Interactive 3D lunar surface using NASA LRO WAC mosaic imagery and
+          LOLA elevation data. Explore from orbit to crater level with terrain
+          exaggeration and hillshade. Quick descent to all Apollo landing sites,
+          Chang'e 4, and the lunar South Pole.
+        actions:
+          - type: Link
+            label: View project
+            url: /projects/moon-twin
+        styles:
+          self:
+            textAlign: left
+      - type: FeaturedItem
+        title: Exoplanet Twin
+        text: >-
+          Procedural 3D visualizer of 12 confirmed exoplanets using real NASA
+          archive data. Every surface generated in real-time with GLSL shaders
+          driven by actual planet parameters. Eight planet types including lava
+          worlds, ocean worlds, and hot Jupiters. Built with Three.js.
+        actions:
+          - type: Link
+            label: View project
+            url: /projects/exoplanet-twin
+        styles:
+          self:
+            textAlign: left
     styles:
       self:
         height: auto
