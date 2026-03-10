@@ -1,11 +1,13 @@
 ---
 type: PostLayout
-title: Habits of highly productive web developers ⌨️
+title: Habits of Highly Productive Developers
 colors: colors-a
 date: '2024-06-10'
-author: content/data/team/doris-soto.json
+author: content/data/team/bob-lemieux.json
 excerpt: >-
-  More context that may or may not be helpful
+  Productivity in development is not about writing more code. It is about
+  building the right systems, eliminating friction, and maintaining focus on
+  outcomes.
 featuredImage:
   type: ImageBlock
   url: /images/featured-Image1.jpg
@@ -90,16 +92,44 @@ bottomSections:
         textAlign: left
 ---
 
-Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed ante lorem, tincidunt ac leo efficitur, feugiat tempor odio. Curabitur at auctor sapien. Etiam at cursus enim. Suspendisse sed augue tortor. Nunc eu magna vitae lorem pellentesque fermentum. Sed in facilisis dui. Nulla molestie risus in mi dapibus, eget porta lorem semper. Donec sed facilisis nibh. Curabitur eget dui in libero euismod commodo nec sit amet est. Etiam id ipsum aliquam, vehicula erat sit amet, consequat tortor.
+Productivity in software development isn't about writing more code — it's about building the right systems, eliminating friction, and maintaining focus on outcomes.
 
-## Good habits
+After decades working in complex environments — from large-scale construction projects to modern data and automation systems — I've noticed that the most productive developers share a common set of habits. These habits have less to do with raw technical skill and more to do with how they structure their work, solve problems, and continuously improve their process.
 
-Etiam facilisis lacus nec pretium lobortis. Praesent dapibus justo non efficitur efficitur. Nullam viverra justo arcu, eget egestas tortor pretium id. Sed imperdiet mattis eleifend. Vivamus suscipit et neque imperdiet venenatis. In malesuada sed urna eget vehicula. Donec fermentum tortor sit amet nisl elementum fringilla. Pellentesque dapibus suscipit faucibus. Nullam malesuada sed urna quis rutrum. Donec facilisis lorem id maximus mattis. Vestibulum quis elit magna. Vestibulum accumsan blandit consequat. Phasellus quis posuere quam.
+## 1. They Think in Systems, Not Just Code
 
-> “Everybody should learn to program a computer, because it teaches you how to think.”
+Highly productive developers don't just write functions — they think about systems and workflows. Before starting development, they ask: What problem are we solving? What data flows through the system? How will this scale? Where are the potential failure points?
 
-Vestibulum ullamcorper risus auctor eleifend consequat. Vivamus mollis in tellus ac ullamcorper. Vestibulum sit amet bibendum ipsum, vitae rutrum ex. Nullam cursus, urna et dapibus aliquam, urna leo euismod metus, eu luctus justo mi eget mauris. Proin felis leo, volutpat et purus in, lacinia luctus eros. Pellentesque lobortis massa scelerisque lorem ullamcorper, sit amet elementum nulla scelerisque. In volutpat efficitur nulla, aliquam ornare lectus ultricies ac. Mauris sagittis ornare dictum. Nulla vel felis ut purus fermentum pretium. Sed id lectus ac diam aliquet venenatis. Etiam ac auctor enim. Nunc velit mauris, viverra vel orci ut, egestas rhoncus diam. Morbi scelerisque nibh tellus, vel varius urna malesuada sed. Etiam ultricies sem consequat, posuere urna non, maximus ex. Mauris gravida diam sed augue condimentum pulvinar vel ac dui. Integer vel convallis justo.
+By thinking about architecture first, they avoid building solutions that become technical debt later.
 
-Nam rutrum magna sed pellentesque lobortis. Etiam quam mauris, iaculis eget ex ac, rutrum scelerisque nisl. Cras finibus dictum ex sed tincidunt. Morbi facilisis neque porta, blandit mauris quis, pharetra odio. Aliquam dictum quam quis elit auctor, at vestibulum ex pulvinar. Quisque lobortis a lectus quis faucibus. Nulla vitae pellentesque nibh, et fringilla erat. Praesent placerat ac est at tincidunt. Praesent ultricies a ex at ultrices. Etiam sed tincidunt elit. Nulla sagittis neque neque, ultrices dignissim sapien pellentesque faucibus. Donec tempor orci sed consectetur dictum. Ut viverra ut enim ac semper. Integer lacinia sem in arcu tempor faucibus eget non urna. Praesent vel nunc eu libero aliquet interdum non vitae elit. Maecenas pharetra ipsum dolor, et iaculis elit ornare ac.
+## 2. They Automate Repetitive Work
 
-Aenean scelerisque ullamcorper est aliquet blandit. Donec ac tellus enim. Vivamus quis leo mattis, varius arcu at, convallis diam. Donec ac leo at nunc viverra molestie ac viverra nisi. Proin interdum at turpis at varius. Nunc sit amet ex suscipit, convallis ligula eu, pretium turpis. Sed ultricies neque vel mi malesuada, et mollis risus lobortis. Sed condimentum venenatis mauris, id elementum dolor gravida ac. Sed sodales tempus neque, quis iaculis arcu tincidunt ut. Donec vitae faucibus dui. In hac habitasse platea dictumst. Donec erat ex, ullamcorper a massa a, porttitor porta ligula.
+One of the biggest productivity multipliers in development is automation. Instead of repeating manual tasks, productive developers build tools or scripts that handle them automatically — automated deployments, CI/CD pipelines, data processing scripts, automated testing, workflow integrations.
+
+The goal is simple: do the work once, automate it forever.
+
+## 3. They Prioritize Clarity Over Cleverness
+
+Clean, readable code always beats complicated smart code. Highly productive developers write code that is easy to read, easy to maintain, and easy for other developers to understand. A simple solution that works reliably will outperform a complex one that requires constant debugging.
+
+## 4. They Break Problems Into Smaller Pieces
+
+Large problems are overwhelming. Productive developers break them down into manageable tasks — define the smallest working version, build core functionality first, then iterate and improve over time. This approach reduces risk and allows projects to move forward quickly.
+
+## 5. They Invest in Their Tools
+
+The right tools can dramatically improve productivity. Experienced developers optimize their environment with powerful editors and extensions, version control workflows, automation frameworks, AI-assisted development tools, and solid debugging and monitoring systems. Good tooling removes friction from the development process.
+
+## 6. They Document What Matters
+
+Documentation often gets overlooked, but it saves enormous time later. Productive developers document system architecture, API behavior, complex logic, and deployment processes. Good documentation ensures that knowledge doesn't disappear when a project changes hands.
+
+## 7. They Focus on Continuous Improvement
+
+Technology evolves quickly, and productive developers stay curious. They regularly experiment with new frameworks, study emerging tools, refine their development workflows, and review past work to improve future projects. The goal is not just writing code — it's continuously improving how work gets done.
+
+## Final Thoughts
+
+Productivity in development isn't about working longer hours. It's about working smarter through structure, automation, and disciplined habits. The best developers consistently focus on building scalable systems, eliminating repetitive work, writing clear maintainable code, and improving their workflow over time.
+
+Those habits compound — and over time they make the difference between simply writing code and building systems that last.
