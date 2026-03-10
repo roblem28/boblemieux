@@ -1,11 +1,11 @@
 ---
 type: PostLayout
-title: Sharing my wisdom with the world 🌎
+title: 'Sharing What I Have Learned After 40+ Years of Building Things'
 colors: colors-a
-date: '2024-02-01'
-author: content/data/team/doris-soto.json
+date: '2026-03-10'
+author: content/data/team/bob-lemieux.json
 excerpt: >-
-  More context that may or may not be helpful
+  Theory only gets you so far. After decades building complex systems in the physical world and now in data, automation, and AI — here is what actually holds true.
 featuredImage:
   type: ImageBlock
   url: /images/featured-Image4.jpg
@@ -83,32 +83,38 @@ bottomSections:
         textAlign: left
 ---
 
-Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed ante lorem, tincidunt ac leo efficitur, feugiat tempor odio. Curabitur at auctor sapien. Etiam at cursus enim. Suspendisse sed augue tortor. Nunc eu magna vitae lorem pellentesque fermentum. Sed in facilisis dui. Nulla molestie risus in mi dapibus, eget porta lorem semper. Donec sed facilisis nibh. Curabitur eget dui in libero euismod commodo nec sit amet est. Etiam id ipsum aliquam, vehicula erat sit amet, consequat tortor.
+Over the course of my career I've had the opportunity to work on complex projects, large teams, and challenging environments where execution really mattered. When you're responsible for delivering results, you quickly learn that theory only gets you so far.
 
-## Heading 2
+What actually counts is understanding systems, solving problems, and making decisions that move things forward.
 
-Etiam facilisis lacus nec pretium lobortis. Praesent dapibus justo non efficitur efficitur. Nullam viverra justo arcu, eget egestas tortor pretium id. Sed imperdiet mattis eleifend. Vivamus suscipit et neque imperdiet venenatis. In malesuada sed urna eget vehicula. Donec fermentum tortor sit amet nisl elementum fringilla. Pellentesque dapibus suscipit faucibus. Nullam malesuada sed urna quis rutrum. Donec facilisis lorem id maximus mattis. Vestibulum quis elit magna. Vestibulum accumsan blandit consequat. Phasellus quis posuere quam.
+For decades that work happened mostly in the physical world — large construction projects, engineering teams, and operational environments where coordination and discipline determined success or failure. I've managed schedules, tracked costs, coordinated turnover across hundreds of systems, and built the reporting infrastructure that executives rely on to make calls under pressure.
 
-### Heading 3
+Today I'm applying many of those same lessons in a different space: data systems, automation, analytics, and artificial intelligence. The tools are different. The thinking behind them is surprisingly similar.
 
-Vestibulum ullamcorper risus auctor eleifend consequat. Vivamus mollis in tellus ac ullamcorper. Vestibulum sit amet bibendum ipsum, vitae rutrum ex. Nullam cursus, urna et dapibus aliquam, urna leo euismod metus, eu luctus justo mi eget mauris. Proin felis leo, volutpat et purus in, lacinia luctus eros. Pellentesque lobortis massa scelerisque lorem ullamcorper, sit amet elementum nulla scelerisque.
+Building a facility, delivering a project, or designing a software system all require the same core principles: clear structure, good information flow, and disciplined execution.
 
-```javascript
-{
-  page.content && (
-    <Markdown
-      options={{ forceBlock: true, overrides: { pre: HighlightedPreBlock } }}
-      className="sb-markdown max-w-3xl mx-auto"
-      data-sb-field-path="content"
-    >
-      {page.content}
-    </Markdown>
-  );
-}
-```
+## Why Experience Still Matters
 
-In volutpat efficitur nulla, aliquam ornare lectus ultricies ac. Mauris sagittis ornare dictum. Nulla vel felis ut purus fermentum pretium. Sed id lectus ac diam aliquet venenatis. Etiam ac auctor enim. Nunc velit mauris, viverra vel orci ut, egestas rhoncus diam. Morbi scelerisque nibh tellus, vel varius urna malesuada sed. Etiam ultricies sem consequat, posuere urna non, maximus ex. Mauris gravida diam sed augue condimentum pulvinar vel ac dui. Integer vel convallis justo.
+Every industry eventually deals with the same underlying challenges — complexity, communication, decision-making, and coordination between people and systems. Technology evolves quickly. These challenges don't.
 
-Nam rutrum magna sed pellentesque lobortis. Etiam quam mauris, iaculis eget ex ac, rutrum scelerisque nisl. Cras finibus dictum ex sed tincidunt. Morbi facilisis neque porta, blandit mauris quis, pharetra odio. Aliquam dictum quam quis elit auctor, at vestibulum ex pulvinar. Quisque lobortis a lectus quis faucibus. Nulla vitae pellentesque nibh, et fringilla erat. Praesent placerat ac est at tincidunt. Praesent ultricies a ex at ultrices. Etiam sed tincidunt elit. Nulla sagittis neque neque, ultrices dignissim sapien pellentesque faucibus. Donec tempor orci sed consectetur dictum. Ut viverra ut enim ac semper. Integer lacinia sem in arcu tempor faucibus eget non urna. Praesent vel nunc eu libero aliquet interdum non vitae elit. Maecenas pharetra ipsum dolor, et iaculis elit ornare ac.
+AI, data analytics, and automation tools are powerful. But they work best when applied with real-world experience and practical thinking. Tools alone don't solve problems. They give us better ways to approach them. What matters most is understanding how systems actually operate — and where improvements make the biggest difference.
 
-Aenean scelerisque ullamcorper est aliquet blandit. Donec ac tellus enim. Vivamus quis leo mattis, varius arcu at, convallis diam. Donec ac leo at nunc viverra molestie ac viverra nisi. Proin interdum at turpis at varius. Nunc sit amet ex suscipit, convallis ligula eu, pretium turpis. Sed ultricies neque vel mi malesuada, et mollis risus lobortis. Sed condimentum venenatis mauris, id elementum dolor gravida ac. Sed sodales tempus neque, quis iaculis arcu tincidunt ut. Donec vitae faucibus dui. In hac habitasse platea dictumst. Donec erat ex, ullamcorper a massa a, porttitor porta ligula.
+I've seen what happens when powerful tools get deployed without that understanding. In construction, it looks like a dashboard nobody trusts. In software, it looks like an automation that breaks the moment conditions change. In both cases, the failure isn't the technology. It's the gap between capability and context.
+
+## Applying Old Lessons to New Technology
+
+What fascinates me about today's technology landscape is how accessible powerful tools have become. A single person can now build systems that once required entire teams.
+
+With modern platforms it's possible to combine AI tools, data analytics, automation workflows, web applications, and real-time dashboards into cohesive systems that actually support decision-making. I've built schedule and cost extraction pipelines on top of P6 exports. I've designed turnover readiness dashboards that track completion status across hundreds of systems in real time. I'm building Marley1 — a portable AI and compute platform designed for field-ready intelligence on small hardware.
+
+These projects exist because the problems are real and the tools are finally good enough to address them without an enterprise budget.
+
+## Why I'm Writing These Posts
+
+The goal of this blog is straightforward. I want to document what I'm learning, share useful ideas, and explore how experience from large-scale physical projects translates into modern digital systems.
+
+There is enormous excitement around AI right now — and rightfully so. But the real value comes when these tools get integrated into thoughtful systems designed to help people work more effectively. Not AI for its own sake. AI in service of better decisions and better execution.
+
+If these posts help someone think differently about technology, systems, or how to close the gap between data and action — they've done their job.
+
+Like any good project, this is just the beginning.
