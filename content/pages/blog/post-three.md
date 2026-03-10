@@ -1,11 +1,11 @@
 ---
 type: PostLayout
-title: Composable - the future of web
+title: 'Composable — The Future of the Web'
 colors: colors-b
-date: '2024-01-01'
-author: content/data/team/doris-soto.json
+date: '2026-03-10'
+author: content/data/team/bob-lemieux.json
 excerpt: >-
-  More context that may or may not be helpful
+  Complex systems work best when built from well-defined components. That principle held true on large capital projects. It holds true in modern software too.
 featuredImage:
   type: ImageBlock
   url: /images/featured-Image3.jpg
@@ -90,38 +90,56 @@ bottomSections:
         textAlign: left
 ---
 
-Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed ante lorem, tincidunt ac leo efficitur, feugiat tempor odio. Curabitur at auctor sapien. Etiam at cursus enim. Suspendisse sed augue tortor. Nunc eu magna vitae lorem pellentesque fermentum. Sed in facilisis dui. Nulla molestie risus in mi dapibus, eget porta lorem semper. Donec sed facilisis nibh. Curabitur eget dui in libero euismod commodo nec sit amet est. Etiam id ipsum aliquam, vehicula erat sit amet, consequat tortor.
+Over the years I've worked on projects where complexity was unavoidable. Large capital projects, engineering environments, and operations with thousands of moving parts all share one common challenge: how to organize complex systems so they remain manageable.
 
-## What is Composable Web?
+That same challenge now exists in modern software and web development.
 
-Etiam facilisis lacus nec pretium lobortis. Praesent dapibus justo non efficitur efficitur. Nullam viverra justo arcu, eget egestas tortor pretium id. Sed imperdiet mattis eleifend. Vivamus suscipit et neque imperdiet venenatis. In malesuada sed urna eget vehicula. Donec fermentum tortor sit amet nisl elementum fringilla. Pellentesque dapibus suscipit faucibus. Nullam malesuada sed urna quis rutrum. Donec facilisis lorem id maximus mattis. Vestibulum quis elit magna. Vestibulum accumsan blandit consequat. Phasellus quis posuere quam.
+As web applications become more sophisticated — combining data platforms, automation systems, analytics dashboards, and AI tools — the traditional approach of building everything as one tightly connected system becomes harder to maintain, harder to scale, and harder to fix when something breaks.
 
-### Syntax highlighter in Next.js
+That's where composable architecture comes in. And from where I sit — having spent decades in systems-heavy environments before moving into software, automation, and AI — this isn't a new idea. It's an old one finally getting the tooling it deserves.
 
-```css
-.colors-a {
-  @apply bg-dark text-on-dark;
-  .sb-input,
-  .sb-select,
-  .sb-textarea {
-    @apply text-on-dark placeholder-on-dark placeholder-opacity-75;
-  }
-  .sb-header-links-primary .sb-component-link:before,
-  .sb-component-header .sb-component-social:before {
-    @apply bg-on-dark;
-  }
-  .sb-header-links-primary .sb-component-link:hover,
-  .sb-component-header .sb-component-social:hover {
-    @apply text-dark;
-  }
-  .sb-header-overlay {
-    @apply bg-dark;
-  }
-}
-```
+## What Composable Actually Means
 
-Vestibulum ullamcorper risus auctor eleifend consequat. Vivamus mollis in tellus ac ullamcorper. Vestibulum sit amet bibendum ipsum, vitae rutrum ex. Nullam cursus, urna et dapibus aliquam, urna leo euismod metus, eu luctus justo mi eget mauris. Proin felis leo, volutpat et purus in, lacinia luctus eros. Pellentesque lobortis massa scelerisque lorem ullamcorper, sit amet elementum nulla scelerisque. In volutpat efficitur nulla, aliquam ornare lectus ultricies ac. Mauris sagittis ornare dictum. Nulla vel felis ut purus fermentum pretium. Sed id lectus ac diam aliquet venenatis. Etiam ac auctor enim. Nunc velit mauris, viverra vel orci ut, egestas rhoncus diam. Morbi scelerisque nibh tellus, vel varius urna malesuada sed. Etiam ultricies sem consequat, posuere urna non, maximus ex. Mauris gravida diam sed augue condimentum pulvinar vel ac dui. Integer vel convallis justo.
+A composable architecture breaks a system into modular parts that operate independently but connect through well-defined interfaces.
 
-Nam rutrum magna sed pellentesque lobortis. Etiam quam mauris, iaculis eget ex ac, rutrum scelerisque nisl. Cras finibus dictum ex sed tincidunt. Morbi facilisis neque porta, blandit mauris quis, pharetra odio. Aliquam dictum quam quis elit auctor, at vestibulum ex pulvinar. Quisque lobortis a lectus quis faucibus. Nulla vitae pellentesque nibh, et fringilla erat. Praesent placerat ac est at tincidunt. Praesent ultricies a ex at ultrices. Etiam sed tincidunt elit. Nulla sagittis neque neque, ultrices dignissim sapien pellentesque faucibus. Donec tempor orci sed consectetur dictum. Ut viverra ut enim ac semper. Integer lacinia sem in arcu tempor faucibus eget non urna. Praesent vel nunc eu libero aliquet interdum non vitae elit. Maecenas pharetra ipsum dolor, et iaculis elit ornare ac.
+Instead of a single monolithic application, a composable system might include separate services for content management, data storage, analytics, automation workflows, authentication, AI services, and front-end rendering. Each component can evolve independently while still contributing to the overall system.
 
-Aenean scelerisque ullamcorper est aliquet blandit. Donec ac tellus enim. Vivamus quis leo mattis, varius arcu at, convallis diam. Donec ac leo at nunc viverra molestie ac viverra nisi. Proin interdum at turpis at varius. Nunc sit amet ex suscipit, convallis ligula eu, pretium turpis. Sed ultricies neque vel mi malesuada, et mollis risus lobortis. Sed condimentum venenatis mauris, id elementum dolor gravida ac. Sed sodales tempus neque, quis iaculis arcu tincidunt ut. Donec vitae faucibus dui. In hac habitasse platea dictumst. Donec erat ex, ullamcorper a massa a, porttitor porta ligula.
+My own stack reflects this. boblemieux.ai runs on Next.js with a headless CMS, deployed via Netlify, with AI services consumed through APIs. Marley1 — my portable AI and compute platform — is designed the same way: modular hardware, modular software, clean interfaces between layers. The Pi 5 doesn't need to know what the Orin Nano is doing. It just needs the interface to work.
+
+## Why This Matters Now
+
+For many years, software platforms tried to solve every problem inside one integrated system. That worked fine for simpler applications. Modern digital systems interact with dozens of different tools and services — a Next.js front end, a headless CMS, AI services, analytics platforms, automation workflows, cloud APIs. Trying to manage all of that inside a single rigid application becomes a liability fast.
+
+Composable architecture lets each part of the system do what it does best. Swap the CMS without touching the front end. Upgrade the AI service layer without rebuilding the data pipeline. Scale the analytics independently of the application server.
+
+This is how resilient systems get built.
+
+## Lessons From Large Projects
+
+One thing decades of project work teaches you is that modularity isn't optional on complex systems — it's survival.
+
+Large capital projects are never built as one giant effort. They are broken into systems: structural, mechanical, electrical, controls, operations. Each is designed and delivered separately. Each must integrate successfully for the overall facility to work. The interfaces between systems matter as much as the systems themselves.
+
+Modern software is evolving in exactly the same direction. Composable architecture treats applications more like systems engineering — components interact through clear interfaces rather than being tightly coupled. That's not a software trend. That's just how complex systems have to work.
+
+## Composable and AI
+
+Artificial intelligence is accelerating the shift toward composable systems — and for good reason.
+
+AI services evolve fast. A model that was state-of-the-art six months ago may already have a better replacement. If your AI capability is baked into a monolithic application, upgrading it means rebuilding. If it's a composable service layer consumed through an API, you swap it out and move on.
+
+I've built AI pipelines that sit as discrete layers on top of construction data workflows — reading P6 exports, classifying cost data, flagging schedule risks — without touching the underlying reporting infrastructure. That's composable thinking applied to enterprise data. It works the same way whether you're building a web platform or an autonomous field system.
+
+## Where This Is Headed
+
+The future of web systems will involve even greater modularity. Applications will increasingly be assembled from specialized services rather than built from a single platform. Teams will adopt new technologies faster, replace components without disrupting the whole system, and integrate emerging tools — especially AI — without architectural rewrites.
+
+From an engineering perspective, this is the only approach that scales. Complex systems with long operational lives can't afford to be rigid. The ones that survive are the ones designed to adapt.
+
+## Final Thoughts
+
+Technology keeps evolving. New tools keep appearing. But the principles behind good systems design stay remarkably consistent.
+
+Whether you're commissioning a processing facility, delivering a large capital project, or building a modern web application — success comes from understanding how the pieces fit together and designing the interfaces between them with care.
+
+Composable architecture applies that thinking to modern digital systems. And as software, automation, and AI continue to converge, that way of thinking will only become more valuable.
