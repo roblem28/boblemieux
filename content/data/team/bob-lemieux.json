@@ -1,0 +1,10 @@
+{
+    "type": "Person",
+    "firstName": "Bob",
+    "lastName": "Lemieux",
+    "image": {
+        "type": "ImageBlock",
+        "url": "/images/about.jpg",
+        "altText": "Bob Lemieux photo"
+    }
+}
