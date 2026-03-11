@@ -1,11 +1,11 @@
 ---
 type: PostLayout
-title: How I started a startup 🚀
+title: 'How I Started Building in the AI Era'
 colors: colors-a
-date: '2021-06-28'
-author: content/data/team/doris-soto.json
+date: '2026-03-10'
+author: content/data/team/bob-lemieux.json
 excerpt: >-
-  More context that may or may not be helpful
+  Starting something new later in your career is an interesting experience. Here is what I have learned building digital systems after decades in the physical world.
 featuredImage:
   type: ImageBlock
   url: /images/featured-Image1.jpg
@@ -89,18 +89,40 @@ bottomSections:
         textAlign: left
 ---
 
-Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed ante lorem, tincidunt ac leo efficitur, feugiat tempor odio. Curabitur at auctor sapien. Etiam at cursus enim. Suspendisse sed augue tortor. Nunc eu magna vitae lorem pellentesque fermentum. Sed in facilisis dui. Nulla molestie risus in mi dapibus, eget porta lorem semper. Donec sed facilisis nibh. Curabitur eget dui in libero euismod commodo nec sit amet est. Etiam id ipsum aliquam, vehicula erat sit amet, consequat tortor.
+Starting something new later in your career is an interesting experience.
 
-Etiam facilisis lacus nec pretium lobortis. Praesent dapibus justo non efficitur efficitur. Nullam viverra justo arcu, eget egestas tortor pretium id. Sed imperdiet mattis eleifend. Vivamus suscipit et neque imperdiet venenatis. In malesuada sed urna eget vehicula. Donec fermentum tortor sit amet nisl elementum fringilla. Pellentesque dapibus suscipit faucibus. Nullam malesuada sed urna quis rutrum. Donec facilisis lorem id maximus mattis. Vestibulum quis elit magna. Vestibulum accumsan blandit consequat. Phasellus quis posuere quam.
+For most of my professional life I worked in environments where execution mattered — large capital projects, engineering teams, and complex systems that had to work reliably in the real world. Those projects taught me how important structure, planning, and systems thinking are when you're trying to deliver something meaningful.
+
+Over the last few years I've been building something different. Instead of physical systems, I've been building digital ones — combining data, automation, analytics, and artificial intelligence to create tools that help people work more effectively. That exploration eventually led me to build this site and start sharing what I'm learning.
+
+In many ways it feels like starting a startup. You're learning new technologies, experimenting with tools, figuring out how everything fits together. The difference is that the technology landscape today moves much faster than traditional industries ever did. And the barrier to entry has dropped dramatically — individuals can now build systems that once required entire organizations.
 
 ## About Coding
 
-> “Coding is the language of the future, and every girl should learn it. As I've learned from watching girls grow and learn in our classrooms, coding is fun, collaborative and creative.”
+I didn't begin my career as a software developer. My background is in managing complex projects and delivering results in environments where coordination and problem-solving were essential. But over time it became clear that modern projects increasingly depend on data and software systems. Learning to code became less about becoming a traditional developer and more about understanding how digital systems are built — and how to use them to solve real problems faster.
 
-Vestibulum ullamcorper risus auctor eleifend consequat. Vivamus mollis in tellus ac ullamcorper. Vestibulum sit amet bibendum ipsum, vitae rutrum ex. Nullam cursus, urna et dapibus aliquam, urna leo euismod metus, eu luctus justo mi eget mauris. Proin felis leo, volutpat et purus in, lacinia luctus eros. Pellentesque lobortis massa scelerisque lorem ullamcorper, sit amet elementum nulla scelerisque. In volutpat efficitur nulla, aliquam ornare lectus ultricies ac. Mauris sagittis ornare dictum. Nulla vel felis ut purus fermentum pretium. Sed id lectus ac diam aliquet venenatis. Etiam ac auctor enim. Nunc velit mauris, viverra vel orci ut, egestas rhoncus diam. Morbi scelerisque nibh tellus, vel varius urna malesuada sed. Etiam ultricies sem consequat, posuere urna non, maximus ex. Mauris gravida diam sed augue condimentum pulvinar vel ac dui. Integer vel convallis justo.
+Coding today is not just about writing programs. It's about connecting tools, automating workflows, and designing systems that move information efficiently. Modern development environments make this more accessible than ever. With frameworks like Next.js, automation platforms, and AI-assisted development tools, it's possible to move from an idea to a working system quickly.
+
+AI in particular has changed the learning curve dramatically. Instead of spending hours searching documentation, you can collaborate with intelligent tools that help you understand problems and generate working solutions. For someone approaching technology from a systems perspective, that's incredibly powerful. I use Claude Code daily — for Unity game development, Python automation scripts, Next.js web work, and data pipeline design. It's become as natural as any other tool in the stack.
 
 ## Productivity
 
-Nam rutrum magna sed pellentesque lobortis. Etiam quam mauris, iaculis eget ex ac, rutrum scelerisque nisl. Cras finibus dictum ex sed tincidunt. Morbi facilisis neque porta, blandit mauris quis, pharetra odio. Aliquam dictum quam quis elit auctor, at vestibulum ex pulvinar. Quisque lobortis a lectus quis faucibus. Nulla vitae pellentesque nibh, et fringilla erat. Praesent placerat ac est at tincidunt. Praesent ultricies a ex at ultrices. Etiam sed tincidunt elit. Nulla sagittis neque neque, ultrices dignissim sapien pellentesque faucibus. Donec tempor orci sed consectetur dictum. Ut viverra ut enim ac semper. Integer lacinia sem in arcu tempor faucibus eget non urna. Praesent vel nunc eu libero aliquet interdum non vitae elit. Maecenas pharetra ipsum dolor, et iaculis elit ornare ac.
+One thing decades of project work teaches you is that productivity isn't about working harder. It's about building better systems.
 
-Aenean scelerisque ullamcorper est aliquet blandit. Donec ac tellus enim. Vivamus quis leo mattis, varius arcu at, convallis diam. Donec ac leo at nunc viverra molestie ac viverra nisi. Proin interdum at turpis at varius. Nunc sit amet ex suscipit, convallis ligula eu, pretium turpis. Sed ultricies neque vel mi malesuada, et mollis risus lobortis. Sed condimentum venenatis mauris, id elementum dolor gravida ac. Sed sodales tempus neque, quis iaculis arcu tincidunt ut. Donec vitae faucibus dui. In hac habitasse platea dictumst. Donec erat ex, ullamcorper a massa a, porttitor porta ligula.
+In large capital projects, inefficiencies come from fragmented information, manual processes, and poor coordination between teams. The same thing happens in digital environments. That's why much of what I'm exploring now focuses on automation, data analytics, AI-assisted workflows, modern web platforms, and systems integration. The goal is always the same: reduce friction so people can focus on solving real problems.
+
+I've built schedule and cost extraction pipelines on top of Primavera P6 exports. Turnover readiness dashboards that track hundreds of systems in real time. Construction reporting tools that replace manual Excel workflows with automated, executive-ready outputs. Each one exists because the problem was real and the tools were finally good enough to address it without an enterprise budget.
+
+Artificial intelligence is accelerating that process. Tasks that once required hours of manual work can now be automated or AI-assisted. But technology alone doesn't solve productivity challenges. Real improvements come from combining tools with thoughtful systems design. That's the part experience provides.
+
+## Looking Forward
+
+What makes this moment in technology particularly interesting is how quickly capabilities are expanding. AI models are improving rapidly. Automation platforms are becoming more powerful. Development frameworks are making it easier to build sophisticated applications faster.
+
+I'm currently building Marley1 — a portable AI and compute platform designed for field-ready intelligence on small hardware. A palm-sized device running anonymized, privacy-first AI capability designed for environments where connectivity and trust are both constrained. That project sits at the intersection of everything I've been learning: systems design, edge compute, AI pipelines, and the kind of operational thinking that only comes from years of working in complex environments.
+
+This site is where I document that journey — exploring how experience from large projects translates into modern digital systems.
+
+In a sense, it's a new kind of startup: building ideas, tools, and systems in an environment where the possibilities keep expanding.
+
+And like any good project, it's just getting started.
