@@ -7,10 +7,6 @@ author: content/data/team/bob-lemieux.json
 excerpt: >-
   A clean Next.js structure is the difference between a project that scales and
   one that bogs down. Here is how I organize mine.
-featuredImage:
-  type: ImageBlock
-  url: /images/featured-Image6.jpg
-  altText: Post thumbnail image
 bottomSections:
   - elementId: ''
     type: RecentPostsSection

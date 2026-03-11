@@ -6,10 +6,6 @@ date: '2026-03-10'
 author: content/data/team/bob-lemieux.json
 excerpt: >-
   Artificial Intelligence has become the hottest topic in technology. Behind the hype, something important is actually happening.
-featuredImage:
-  type: ImageBlock
-  url: /images/featured-Image5.jpg
-  altText: Post thumbnail image
 bottomSections:
   - elementId: ''
     type: RecentPostsSection

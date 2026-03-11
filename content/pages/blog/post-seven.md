@@ -8,17 +8,6 @@ excerpt: >-
   Productivity in development is not about writing more code. It is about
   building the right systems, eliminating friction, and maintaining focus on
   outcomes.
-featuredImage:
-  type: ImageBlock
-  url: /images/featured-Image1.jpg
-  altText: Post thumbnail image
-backgroundImage:
-  type: BackgroundImage
-  url: /images/gallery-3.jpg
-  backgroundSize: cover
-  backgroundPosition: center
-  backgroundRepeat: no-repeat
-  opacity: 20
 bottomSections:
   - elementId: ''
     type: RecentPostsSection

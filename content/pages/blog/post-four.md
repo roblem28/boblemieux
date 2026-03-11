@@ -6,10 +6,6 @@ date: '2026-03-10'
 author: content/data/team/bob-lemieux.json
 excerpt: >-
   Theory only gets you so far. After decades building complex systems in the physical world and now in data, automation, and AI — here is what actually holds true.
-featuredImage:
-  type: ImageBlock
-  url: /images/featured-Image4.jpg
-  altText: Post thumbnail image
 bottomSections:
   - elementId: ''
     type: RecentPostsSection

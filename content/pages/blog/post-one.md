@@ -6,16 +6,6 @@ date: '2026-03-10'
 author: content/data/team/bob-lemieux.json
 excerpt: >-
   After decades delivering complex projects, I'm now building AI systems, automation pipelines, and digital tools that improve how work gets done.
-featuredImage:
-  type: ImageBlock
-  url: /images/featured-Image1.jpg
-  altText: Post thumbnail image
-media:
-  url: /images/post-2.jpg
-  altText: altText of the image
-  caption: Caption of the image
-  elementId: ''
-  type: ImageBlock
 bottomSections:
   - elementId: ''
     type: RecentPostsSection

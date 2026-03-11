@@ -2,21 +2,10 @@
 type: PostLayout
 title: The Great Unbundling
 colors: colors-a
-backgroundImage:
-  type: BackgroundImage
-  url: /images/bg2.jpg
-  backgroundSize: cover
-  backgroundPosition: center
-  backgroundRepeat: no-repeat
-  opacity: 75
 date: '2026-03-10'
 author: content/data/team/bob-lemieux.json
 excerpt: >-
   Monolithic platforms are giving way to modular systems. That shift feels familiar to anyone who has spent decades breaking complex projects into components that actually work.
-featuredImage:
-  type: ImageBlock
-  url: /images/featured-Image2.jpg
-  altText: Post thumbnail image
 bottomSections:
   - elementId: ''
     type: RecentPostsSection
