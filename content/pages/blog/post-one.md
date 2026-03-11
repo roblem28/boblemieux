@@ -5,7 +5,7 @@ colors: colors-a
 date: '2026-03-10'
 author: content/data/team/bob-lemieux.json
 excerpt: >-
-  Starting something new later in your career is an interesting experience. Here is what I have learned building digital systems after decades in the physical world.
+  After decades delivering complex projects, I'm now building AI systems, automation pipelines, and digital tools that improve how work gets done.
 featuredImage:
   type: ImageBlock
   url: /images/featured-Image1.jpg
@@ -126,3 +126,4 @@ This site is where I document that journey — exploring how experience from lar
 In a sense, it's a new kind of startup: building ideas, tools, and systems in an environment where the possibilities keep expanding.
 
 And like any good project, it's just getting started.
+
