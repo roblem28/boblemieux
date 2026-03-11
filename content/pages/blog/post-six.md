@@ -2,6 +2,13 @@
 type: PostLayout
 title: How I Structure and Organize a Modern Next.js Project
 colors: colors-a
+backgroundImage:
+  type: BackgroundImage
+  url: /images/bg1.jpg
+  backgroundSize: cover
+  backgroundPosition: center
+  backgroundRepeat: no-repeat
+  opacity: 75
 date: '2024-06-03'
 author: content/data/team/bob-lemieux.json
 excerpt: >-

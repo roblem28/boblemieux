@@ -2,6 +2,13 @@
 type: PostLayout
 title: 'Sharing What I Have Learned After 40+ Years of Building Things'
 colors: colors-a
+backgroundImage:
+  type: BackgroundImage
+  url: /images/bg1.jpg
+  backgroundSize: cover
+  backgroundPosition: center
+  backgroundRepeat: no-repeat
+  opacity: 75
 date: '2026-03-10'
 author: content/data/team/bob-lemieux.json
 excerpt: >-
