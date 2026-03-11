@@ -2,6 +2,13 @@
 type: ProjectLayout
 title: Marley1
 colors: colors-a
+backgroundImage:
+  type: BackgroundImage
+  url: /images/bg1.jpg
+  backgroundSize: cover
+  backgroundPosition: center
+  backgroundRepeat: no-repeat
+  opacity: 75
 date: '2025-02-01'
 client: ''
 description: >-

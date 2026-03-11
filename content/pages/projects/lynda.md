@@ -2,6 +2,13 @@
 type: ProjectLayout
 title: The Lynda Project
 colors: colors-a
+backgroundImage:
+  type: BackgroundImage
+  url: /images/bg1.jpg
+  backgroundSize: cover
+  backgroundPosition: center
+  backgroundRepeat: no-repeat
+  opacity: 75
 date: '2025-01-20'
 client: ''
 description: >-

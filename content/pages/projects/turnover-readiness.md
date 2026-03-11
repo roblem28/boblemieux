@@ -2,6 +2,13 @@
 type: ProjectLayout
 title: Turnover Readiness Command Center
 colors: colors-a
+backgroundImage:
+  type: BackgroundImage
+  url: /images/bg1.jpg
+  backgroundSize: cover
+  backgroundPosition: center
+  backgroundRepeat: no-repeat
+  opacity: 75
 date: '2025-01-15'
 client: ''
 description: >-

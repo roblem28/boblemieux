@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(powershell.exe -Command \"cd 'C:\\\\Users\\\\roble\\\\OneDrive\\\\Documents\\\\GitHub\\\\boblemieux'; git add content/pages/blog/post-four.md content/data/team/bob-lemieux.json; git commit -m 'Update post-four: Bob Lemieux authorship, embellished 40 years article'; git push origin preview\")",
+      "Bash(powershell.exe -Command \"cd 'C:\\\\Users\\\\roble\\\\OneDrive\\\\Documents\\\\GitHub\\\\boblemieux'; git add content/pages/blog/post-three.md content/data/team/bob-lemieux.json; git commit -m 'Update post-three: Bob Lemieux authorship, embellished composable architecture article'; git push origin preview\")",
+      "Bash(powershell.exe -Command \"cd 'C:\\\\Users\\\\roble\\\\OneDrive\\\\Documents\\\\GitHub\\\\boblemieux'; git log --oneline -5\")",
+      "Bash(powershell.exe -Command \"cd 'C:\\\\Users\\\\roble\\\\OneDrive\\\\Documents\\\\GitHub\\\\boblemieux'; git checkout main; git merge preview; git push origin main\")",
+      "Bash(powershell.exe -Command \"cd 'C:\\\\Users\\\\roble\\\\OneDrive\\\\Documents\\\\GitHub\\\\boblemieux'; git pull origin main --no-edit; git push origin main\")",
+      "Bash(powershell.exe -Command \"cd 'C:\\\\Users\\\\roble\\\\OneDrive\\\\Documents\\\\GitHub\\\\boblemieux'; git add content/data/team/bob-lemieux.json; git commit -m 'Resolve merge conflict in bob-lemieux.json: keep both email/url and image'; git push origin main\")",
+      "Bash(powershell.exe -Command \"cd 'C:\\\\Users\\\\roble\\\\OneDrive\\\\Documents\\\\GitHub\\\\boblemieux'; git add content/pages/blog/post-five.md; git commit -m 'Update post-five: Bob Lemieux authorship, embellished AI article'; git push origin main\")"
+    ]
+  }
+}

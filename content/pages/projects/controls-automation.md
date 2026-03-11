@@ -2,6 +2,13 @@
 type: ProjectLayout
 title: Controls Automation Toolset
 colors: colors-a
+backgroundImage:
+  type: BackgroundImage
+  url: /images/bg1.jpg
+  backgroundSize: cover
+  backgroundPosition: center
+  backgroundRepeat: no-repeat
+  opacity: 75
 date: '2025-01-10'
 client: ''
 description: >-
