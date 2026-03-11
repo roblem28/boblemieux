@@ -9,10 +9,10 @@ backgroundImage:
   backgroundPosition: center
   backgroundRepeat: no-repeat
   opacity: 75
-date: '2021-11-03'
-author: content/data/team/doris-soto.json
+date: '2026-03-10'
+author: content/data/team/bob-lemieux.json
 excerpt: >-
-  More context that may or may not be helpful
+  Monolithic platforms are giving way to modular systems. That shift feels familiar to anyone who has spent decades breaking complex projects into components that actually work.
 featuredImage:
   type: ImageBlock
   url: /images/featured-Image2.jpg
@@ -96,12 +96,56 @@ bottomSections:
         textAlign: left
 ---
 
-Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed ante lorem, tincidunt ac leo efficitur, feugiat tempor odio. Curabitur at auctor sapien. Etiam at cursus enim. Suspendisse sed augue tortor. Nunc eu magna vitae lorem pellentesque fermentum. Sed in facilisis dui. Nulla molestie risus in mi dapibus, eget porta lorem semper. Donec sed facilisis nibh. Curabitur eget dui in libero euismod commodo nec sit amet est. Etiam id ipsum aliquam, vehicula erat sit amet, consequat tortor.
+Technology tends to evolve in cycles.
 
-Etiam facilisis lacus nec pretium lobortis. Praesent dapibus justo non efficitur efficitur. Nullam viverra justo arcu, eget egestas tortor pretium id. Sed imperdiet mattis eleifend. Vivamus suscipit et neque imperdiet venenatis. In malesuada sed urna eget vehicula. Donec fermentum tortor sit amet nisl elementum fringilla. Pellentesque dapibus suscipit faucibus. Nullam malesuada sed urna quis rutrum. Donec facilisis lorem id maximus mattis. Vestibulum quis elit magna. Vestibulum accumsan blandit consequat. Phasellus quis posuere quam.
+First things get bundled together into large systems that try to do everything. Over time those systems become complicated, slow to adapt, and difficult to change. Eventually something breaks the model apart.
 
-Vestibulum ullamcorper risus auctor eleifend consequat. Vivamus mollis in tellus ac ullamcorper. Vestibulum sit amet bibendum ipsum, vitae rutrum ex. Nullam cursus, urna et dapibus aliquam, urna leo euismod metus, eu luctus justo mi eget mauris. Proin felis leo, volutpat et purus in, lacinia luctus eros. Pellentesque lobortis massa scelerisque lorem ullamcorper, sit amet elementum nulla scelerisque. In volutpat efficitur nulla, aliquam ornare lectus ultricies ac. Mauris sagittis ornare dictum. Nulla vel felis ut purus fermentum pretium. Sed id lectus ac diam aliquet venenatis. Etiam ac auctor enim. Nunc velit mauris, viverra vel orci ut, egestas rhoncus diam. Morbi scelerisque nibh tellus, vel varius urna malesuada sed. Etiam ultricies sem consequat, posuere urna non, maximus ex. Mauris gravida diam sed augue condimentum pulvinar vel ac dui. Integer vel convallis justo.
+That's when unbundling begins.
 
-Nam rutrum magna sed pellentesque lobortis. Etiam quam mauris, iaculis eget ex ac, rutrum scelerisque nisl. Cras finibus dictum ex sed tincidunt. Morbi facilisis neque porta, blandit mauris quis, pharetra odio. Aliquam dictum quam quis elit auctor, at vestibulum ex pulvinar. Quisque lobortis a lectus quis faucibus. Nulla vitae pellentesque nibh, et fringilla erat. Praesent placerat ac est at tincidunt. Praesent ultricies a ex at ultrices. Etiam sed tincidunt elit. Nulla sagittis neque neque, ultrices dignissim sapien pellentesque faucibus. Donec tempor orci sed consectetur dictum. Ut viverra ut enim ac semper. Integer lacinia sem in arcu tempor faucibus eget non urna. Praesent vel nunc eu libero aliquet interdum non vitae elit. Maecenas pharetra ipsum dolor, et iaculis elit ornare ac.
+We're seeing that happen again today across software, data platforms, and artificial intelligence. Large monolithic systems are giving way to smaller, specialized tools that can be combined into more flexible, resilient architectures.
 
-Aenean scelerisque ullamcorper est aliquet blandit. Donec ac tellus enim. Vivamus quis leo mattis, varius arcu at, convallis diam. Donec ac leo at nunc viverra molestie ac viverra nisi. Proin interdum at turpis at varius. Nunc sit amet ex suscipit, convallis ligula eu, pretium turpis. Sed ultricies neque vel mi malesuada, et mollis risus lobortis. Sed condimentum venenatis mauris, id elementum dolor gravida ac. Sed sodales tempus neque, quis iaculis arcu tincidunt ut. Donec vitae faucibus dui. In hac habitasse platea dictumst. Donec erat ex, ullamcorper a massa a, porttitor porta ligula.
+From my perspective, this shift feels familiar. For most of my career I worked on large industrial and capital projects where complex systems had to be broken down into manageable components. You simply cannot deliver a massive project without dividing it into clear systems and subsystems with well-defined interfaces between them. Modern technology is moving in exactly the same direction — and for exactly the same reasons.
+
+## From Monolithic Platforms to Modular Systems
+
+In the early days of enterprise software, companies relied on large platforms that tried to do everything — data storage, reporting, workflow management, analytics, user interfaces, integrations — all bundled together. That simplified procurement but created rigid environments where innovation moved slowly and change was expensive.
+
+Today the model is shifting. Instead of relying on a single platform, organizations are building systems from best-of-breed components that connect through APIs and shared data layers. A modern system might combine a composable web front-end, specialized analytics platforms, automation workflows, AI services, cloud infrastructure, and custom applications. This allows organizations to move faster and adopt new technology without replacing entire systems.
+
+I've built exactly these kinds of stacks. The construction data platform I run pulls from P6, Procore, and custom Excel engines — each doing what it does best, connected through clean data interfaces. The same principle applies whether you're managing a capital project or designing a software architecture.
+
+## The Role of APIs and Cloud Platforms
+
+A major driver behind the great unbundling is the rise of cloud infrastructure and APIs. In the past, connecting different systems required complicated integration projects. Today most platforms are designed from the start to communicate with other services.
+
+That means individual components can evolve independently while still functioning as part of a larger ecosystem. This has dramatically lowered the barrier to building sophisticated digital systems. What once required a large development organization can now be done by small teams — or even individuals who understand how the pieces fit together.
+
+That's not a small thing. It's a structural shift in who gets to build.
+
+## Where AI Fits Into the Picture
+
+Artificial intelligence is accelerating the unbundling process. AI capabilities are increasingly delivered as services rather than built directly into large applications. You plug them into existing workflows through APIs and automation tools.
+
+I use AI this way across multiple systems — document analysis, schedule risk flagging, code generation, decision support. Because these services evolve rapidly, modular architectures let you adopt improvements without rebuilding everything around them. Marley1, my portable AI and compute platform, is designed on this principle: modular hardware, modular software, composable intelligence layers. Swap a model, upgrade a service, add a capability — without touching the rest of the system.
+
+In many ways, AI is becoming just another component in a composable architecture. A powerful one, but a component nonetheless.
+
+## Lessons From Large Projects
+
+One thing decades of working on large projects teaches you is that complex systems only succeed when they are structured carefully. You break systems down into components. You define clear interfaces between those components. You ensure each part performs its function reliably. And you design for the reality that things will change.
+
+That approach translates directly to modern digital systems. Whether you're building infrastructure, software platforms, or AI-enabled workflows, the challenge is the same: design systems that can evolve without collapsing under their own complexity. Unbundling allows that evolution to happen.
+
+## The Opportunity Ahead
+
+The great unbundling is creating an environment where innovation can happen much faster. Instead of waiting for large vendors to update their platforms, organizations can assemble systems using the best available tools — and individuals who understand both systems thinking and modern technology can build things that would have required entire teams a decade ago.
+
+That's the opportunity. And it's wide open for people who know how the pieces fit together.
+
+## Final Thoughts
+
+Every generation of technology reshapes how systems are built. Today we are moving away from rigid monolithic platforms toward flexible composable systems made up of specialized components.
+
+For someone who spent decades working in environments where complex systems had to function reliably under pressure, this transition makes complete sense. Good systems — whether physical or digital — are rarely built as one giant structure. They're built piece by piece, with each component designed to do its job well.
+
+That principle is just as relevant in the age of AI as it was in the age of large industrial projects. In many ways, it's only becoming more important.
