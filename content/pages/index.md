@@ -100,6 +100,51 @@ sections:
         textAlign: left
     actions: []
   - type: FeaturedItemsSection
+    title: What I Build
+    subtitle: >-
+      I design systems that turn complex project information into clear operational intelligence. After decades delivering large capital projects, I now focus on building tools that reduce friction between data, decisions, and execution. My work sits at the intersection of project systems, automation, and artificial intelligence.
+    colors: colors-f
+    columns: 2
+    items:
+      - type: FeaturedItem
+        title: Project Intelligence Systems
+        text: >-
+          Platforms that ingest schedule, cost, and completion data and transform it into real-time operational insight. Examples include turnover readiness command centers, schedule and cost analytics layers, and automated executive reporting pipelines.
+        styles:
+          self:
+            textAlign: left
+      - type: FeaturedItem
+        title: Automation Infrastructure
+        text: >-
+          Tools that replace manual project workflows with automated data pipelines and reporting systems. These reduce reporting cycles from days to minutes while improving consistency and auditability.
+        styles:
+          self:
+            textAlign: left
+      - type: FeaturedItem
+        title: AI-Assisted Decision Systems
+        text: >-
+          AI pipelines that analyze project data, summarize conditions, and identify emerging risks before they become problems. Instead of reading hundreds of pages of reports, leadership gets actionable intelligence.
+        styles:
+          self:
+            textAlign: left
+      - type: FeaturedItem
+        title: Experimental Systems
+        text: >-
+          Edge AI, digital twins, and visualization platforms that explore how emerging technology can improve field operations and project intelligence.
+        styles:
+          self:
+            textAlign: left
+    styles:
+      self:
+        height: auto
+        width: wide
+        padding:
+          - pt-24
+          - pb-12
+          - pl-4
+          - pr-4
+        textAlign: left
+  - type: FeaturedItemsSection
     title: Work Projects
     colors: colors-f
     columns: 3
