@@ -4,7 +4,7 @@ title: Marley1
 colors: colors-a
 backgroundImage:
   type: BackgroundImage
-  url: /images/bg1.jpg
+  url: /images/marley1.jpg
   backgroundSize: cover
   backgroundPosition: center
   backgroundRepeat: no-repeat
@@ -17,11 +17,11 @@ description: >-
   agent-style workflows to environments where traditional setups don't fit.
 featuredImage:
   type: ImageBlock
-  url: /images/bg1.jpg
+  url: /images/marley1.jpg
   altText: Marley1
 media:
   type: ImageBlock
-  url: /images/bg1.jpg
+  url: /images/marley1.jpg
   altText: Marley1
 ---
 
