@@ -16,7 +16,7 @@ sections:
     backgroundSize: full
     title: Digital Leverage
     text: >-
-      <img src="/images/bob.png" alt="Bob LeMieux" style="float: right; width: 200px; margin: 0 0 16px 24px; border-radius: 8px;" />
+      <img src="/images/bob.jpg" alt="Bob LeMieux" style="float: right; width: 200px; margin: 0 0 16px 24px; border-radius: 8px;" />
 
       Computers have always been my leverage—how I compress time, reduce
       friction, and create capability where teams used to accept limits. I

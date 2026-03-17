@@ -32,7 +32,7 @@ sections:
       the clarity to make better decisions faster.
     media:
       type: ImageBlock
-      url: /images/bob.png
+      url: /images/bob.jpg
       altText: Bob LeMieux
     styles:
       self:
