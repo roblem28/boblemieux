@@ -8,13 +8,6 @@ metaDescription: >-
   leading controls on a $1.4B program at Integra.
 socialImage: /images/bob.jpg
 colors: colors-a
-backgroundImage:
-  type: BackgroundImage
-  url: /images/bg1.jpg
-  backgroundSize: cover
-  backgroundPosition: center
-  backgroundRepeat: no-repeat
-  opacity: 75
 sections:
   - type: HeroSection
     elementId: ''

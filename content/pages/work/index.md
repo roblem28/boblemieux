@@ -8,13 +8,6 @@ metaDescription: >-
   40+ years delivering on programs from $300M to $20B.
 socialImage: /images/bob.jpg
 colors: colors-a
-backgroundImage:
-  type: BackgroundImage
-  url: /images/bg1.jpg
-  backgroundSize: cover
-  backgroundPosition: center
-  backgroundRepeat: no-repeat
-  opacity: 75
 sections:
   - type: HeroSection
     title: Selected Work Experience

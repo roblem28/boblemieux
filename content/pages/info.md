@@ -8,13 +8,6 @@ metaDescription: >-
   at Integra on a $1.4B capital program.
 socialImage: /images/bob.jpg
 colors: colors-a
-backgroundImage:
-  type: BackgroundImage
-  url: /images/bg1.jpg
-  backgroundSize: cover
-  backgroundPosition: center
-  backgroundRepeat: no-repeat
-  opacity: 75
 sections:
   - elementId: ''
     colors: colors-f

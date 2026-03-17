@@ -2,13 +2,6 @@
 type: PostLayout
 title: The Great Unbundling
 colors: colors-a
-backgroundImage:
-  type: BackgroundImage
-  url: /images/bg1.jpg
-  backgroundSize: cover
-  backgroundPosition: center
-  backgroundRepeat: no-repeat
-  opacity: 75
 date: '2026-02-10'
 author: content/data/team/bob-lemieux.json
 excerpt: >-

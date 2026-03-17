@@ -7,13 +7,6 @@ metaDescription: >-
   emerging technology in capital project delivery.
 socialImage: /images/bob.jpg
 colors: colors-a
-backgroundImage:
-  type: BackgroundImage
-  url: /images/bg1.jpg
-  backgroundSize: cover
-  backgroundPosition: center
-  backgroundRepeat: no-repeat
-  opacity: 75
 postFeed:
   type: PostFeedSection
   colors: colors-f
