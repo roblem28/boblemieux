@@ -1,6 +1,12 @@
 ---
 type: PageLayout
 title: Home
+metaTitle: Bob LeMieux — Project Controls & Scheduling Manager
+metaDescription: >-
+  40+ years delivering billion-dollar capital programs. Project controls,
+  scheduling, AI-enabled workflows, and construction automation. Currently
+  leading controls on a $1.4B program at Integra.
+socialImage: /images/bob.jpg
 colors: colors-a
 backgroundImage:
   type: BackgroundImage

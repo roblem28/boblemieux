@@ -1,6 +1,8 @@
 {
     "type": "Config",
     "favicon": "/images/favicon.svg",
+    "titleSuffix": "| Bob LeMieux",
+    "defaultSocialImage": "/images/bob.jpg",
     "header": {
         "type": "Header",
         "headerVariant": "variant-c",

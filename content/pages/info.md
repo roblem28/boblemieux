@@ -1,6 +1,12 @@
 ---
 type: PageLayout
 title: About
+metaTitle: Bob LeMieux — About
+metaDescription: >-
+  Project Controls and Scheduling Manager with 40+ years across EPC,
+  mission-critical, data center, and industrial construction. Currently
+  at Integra on a $1.4B capital program.
+socialImage: /images/bob.jpg
 colors: colors-a
 backgroundImage:
   type: BackgroundImage
