@@ -204,52 +204,14 @@ sections:
           - pl-4
           - pr-4
         textAlign: left
-  - type: FeaturedItemsSection
+  - type: RecentProjectsSection
     title: Tech Projects
+    recentCount: 6
+    showFeaturedImage: true
+    showDescription: true
+    showReadMoreLink: true
+    variant: variant-b
     colors: colors-f
-    columns: 3
-    items:
-      - type: FeaturedItem
-        title: Marley1
-        text: >-
-          A portable AI + compute platform designed for field-ready
-          intelligence—small hardware, big capability. Built to bring serious
-          processing power and agent-style workflows to environments where
-          traditional setups don't fit.
-        actions:
-          - type: Link
-            label: Learn more
-            url: /projects/marley1
-        styles:
-          self:
-            textAlign: left
-      - type: FeaturedItem
-        title: BobLemieux.ai Personal LLM Ecosystem
-        text: >-
-          A self-hosted AI stack combining local models, fine-tuned agents, and
-          document processing pipelines. Designed to experiment with autonomous
-          systems, knowledge synthesis, and next-generation project intelligence
-          tools.
-        actions:
-          - type: Link
-            label: Learn more
-            url: /projects/boblemieux-ai
-        styles:
-          self:
-            textAlign: left
-      - type: FeaturedItem
-        title: The Lynda Project
-        text: >-
-          An experimental AI companion system focused on memory, context, and
-          conversational continuity. A testbed for human-centered interaction
-          design and long-term agent persistence.
-        actions:
-          - type: Link
-            label: Learn more
-            url: /projects/lynda
-        styles:
-          self:
-            textAlign: left
     actions:
       - type: Link
         label: View all Tech Projects
