@@ -11,18 +11,18 @@ description: >-
   cracker built in the U.S. in more than a decade.
 featuredImage:
   type: ImageBlock
-  url: /images/gallery-4.jpg
+  url: /images/cpchem-cedar-bayou.jpg
   altText: CPChem Cedar Bayou Ethane Cracker — Baytown Texas
 media:
   type: ImageBlock
-  url: /images/gallery-4.jpg
+  url: /images/cpchem-cedar-bayou.jpg
   altText: CPChem Cedar Bayou — Fluor EPC program
 metaTitle: CPChem Cedar Bayou Ethane Cracker — Bob LeMieux Project Controls
 metaDescription: >-
   Project Controls Scheduling Lead at Fluor on Chevron Phillips Chemical's
   Cedar Bayou ethane cracker — one of the world's largest ethane crackers
   and the first new U.S. greenfield cracker in over a decade.
-socialImage: /images/gallery-4.jpg
+socialImage: /images/cpchem-cedar-bayou.jpg
 ---
 
 I served as Project Controls Scheduling Lead at Fluor Enterprises on Chevron Phillips Chemical's Cedar Bayou ethane cracker in Baytown, Texas — part of CPChem's U.S. Gulf Coast Petrochemicals Project (USGCPP). The cracker commenced operations in March 2018 and at peak production delivers 1.5 million metric tons (3.3 billion pounds) of ethylene per year. Fluor's own case study describes it as one of the largest and most energy-efficient ethane crackers in the world — and it was the first greenfield cracker built in the U.S. in more than a decade.
