@@ -28,7 +28,7 @@ sections:
       $300M and contributed as a key controls leader on programs up to $20B.
       Currently serving as a project controls leader at Integra on a $1.4B
       capital program. Previous work includes scheduling and controls for
-      [Harvard's Center for Brain Science](/projects/harvard-brain-science) and 60 Oxford Street Data Center,
+      [Harvard's Center for Brain Science](/work/harvard-brain-science) and 60 Oxford Street Data Center,
       $400M+ annual capital programs at Cargill, and 26 years at Fluor
       Enterprises on flagship EPC programs including ExxonMobil Baytown
       Expansion, Dow LHC-9, BP Whiting Refinery, and Chevron Phillips
@@ -67,31 +67,22 @@ sections:
           - pr-4
         borderWidth: 1
         borderStyle: solid
-  - type: MediaGallerySection
+  - type: FeaturedProjectsSection
     colors: colors-f
-    subtitle: Selected projects and programs
-    images:
-      - type: ImageBlock
-        url: /images/gallery-1.jpg
-        altText: Project controls on large capital program
-        caption: Integra — $1.4B capital program, project controls lead (current)
-      - type: ImageBlock
-        url: /images/gallery-2.jpg
-        altText: Harvard Center for Brain Science
-        caption: Harvard Center for Brain Science — labs, clean rooms, controls
-      - type: ImageBlock
-        url: /images/gallery-3.jpg
-        altText: Harvard 60 Oxford Street Data Center
-        caption: Harvard 60 Oxford Street Data Center — server rooms, faculty labs
-      - type: ImageBlock
-        url: /images/gallery-4.jpg
-        altText: ExxonMobil Baytown Expansion
-        caption: ExxonMobil Baytown Expansion — $20B EPC program, Fluor
-    spacing: 3
-    columns: 4
-    aspectRatio: auto
-    showCaption: true
-    enableHover: false
+    subtitle: Selected work experience
+    variant: variant-b
+    showFeaturedImage: true
+    showDescription: true
+    showReadMoreLink: true
+    projects:
+      - content/pages/work/integra.md
+      - content/pages/work/harvard-brain-science.md
+      - content/pages/work/harvard-60-oxford.md
+      - content/pages/work/exxonmobil-baytown.md
+    actions:
+      - type: Link
+        label: View all work experience
+        url: /work
     styles:
       self:
         width: wide
@@ -185,7 +176,7 @@ sections:
 
           Lead Scheduler and Project Controls Specialist on $400M+ annual
           capital programs. Delivered scheduling and controls for
-          [Harvard's Center for Brain Science](/projects/harvard-brain-science)
+          [Harvard's Center for Brain Science](/work/harvard-brain-science)
           (labs, clean rooms, controls) and Harvard's 60 Oxford Street Data
           Center (server rooms, faculty labs, classrooms). Introduced
           AI-enabled workflows using Microsoft Copilot and ChatGPT Enterprise

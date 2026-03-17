@@ -17,6 +17,11 @@
             },
             {
                 "type": "Link",
+                "label": "Work",
+                "url": "/work"
+            },
+            {
+                "type": "Link",
                 "label": "Projects",
                 "url": "/projects"
             },
