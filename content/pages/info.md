@@ -28,7 +28,7 @@ sections:
       $300M and contributed as a key controls leader on programs up to $20B.
       Currently serving as a project controls leader at Integra on a $1.4B
       capital program. Previous work includes scheduling and controls for
-      Harvard's Center for Brain Science and 60 Oxford Street Data Center,
+      [Harvard's Center for Brain Science](/projects/harvard-brain-science) and 60 Oxford Street Data Center,
       $400M+ annual capital programs at Cargill, and 26 years at Fluor
       Enterprises on flagship EPC programs including ExxonMobil Baytown
       Expansion, Dow LHC-9, BP Whiting Refinery, and Chevron Phillips
@@ -184,11 +184,12 @@ sections:
           **2021–2024 — PMA Consultants / Cargill**
 
           Lead Scheduler and Project Controls Specialist on $400M+ annual
-          capital programs. Delivered scheduling and controls for Harvard's
-          Center for Brain Science (labs, clean rooms, controls) and Harvard's
-          60 Oxford Street Data Center (server rooms, faculty labs, classrooms).
-          Introduced AI-enabled workflows using Microsoft Copilot and ChatGPT
-          Enterprise to streamline reporting and documentation.
+          capital programs. Delivered scheduling and controls for
+          [Harvard's Center for Brain Science](/projects/harvard-brain-science)
+          (labs, clean rooms, controls) and Harvard's 60 Oxford Street Data
+          Center (server rooms, faculty labs, classrooms). Introduced
+          AI-enabled workflows using Microsoft Copilot and ChatGPT Enterprise
+          to streamline reporting and documentation.
 
           **2017–2021 — PFES (DTE, DP&L/AES)**
 
