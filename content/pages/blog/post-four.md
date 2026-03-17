@@ -9,7 +9,7 @@ backgroundImage:
   backgroundPosition: center
   backgroundRepeat: no-repeat
   opacity: 75
-date: '2026-03-10'
+date: '2026-03-03'
 author: content/data/team/bob-lemieux.json
 excerpt: >-
   Theory only gets you so far. After decades building complex systems in the physical world and now in data, automation, and AI — here is what actually holds true.

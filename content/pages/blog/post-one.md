@@ -9,7 +9,7 @@ backgroundImage:
   backgroundPosition: center
   backgroundRepeat: no-repeat
   opacity: 75
-date: '2026-03-10'
+date: '2026-02-24'
 author: content/data/team/bob-lemieux.json
 excerpt: >-
   After decades delivering complex projects, I'm now building AI systems, automation pipelines, and digital tools that improve how work gets done.

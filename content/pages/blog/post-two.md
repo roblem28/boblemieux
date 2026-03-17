@@ -9,7 +9,7 @@ backgroundImage:
   backgroundPosition: center
   backgroundRepeat: no-repeat
   opacity: 75
-date: '2026-03-10'
+date: '2026-02-10'
 author: content/data/team/bob-lemieux.json
 excerpt: >-
   Monolithic platforms are giving way to modular systems. That shift feels familiar to anyone who has spent decades breaking complex projects into components that actually work.

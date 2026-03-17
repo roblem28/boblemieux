@@ -9,7 +9,7 @@ backgroundImage:
   backgroundPosition: center
   backgroundRepeat: no-repeat
   opacity: 75
-date: '2026-03-10'
+date: '2026-02-17'
 author: content/data/team/bob-lemieux.json
 excerpt: >-
   Complex systems work best when built from well-defined components. That principle held true on large capital projects. It holds true in modern software too.
