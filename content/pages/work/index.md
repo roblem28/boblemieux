@@ -38,7 +38,7 @@ sections:
     projects:
       - content/pages/work/integra.md
       - content/pages/work/harvard-brain-science.md
-      - content/pages/work/harvard-60-oxford.md
+      - content/pages/work/bp-whiting.md
       - content/pages/work/cpchem-cedar-bayou.md
     styles:
       self:
