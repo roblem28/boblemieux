@@ -12,18 +12,18 @@ description: >-
   investment in Indiana history.
 featuredImage:
   type: ImageBlock
-  url: /images/gallery-3.jpg
+  url: /images/bp-whiting.jpg
   altText: BP Whiting Refinery Modernization
 media:
   type: ImageBlock
-  url: /images/gallery-3.jpg
+  url: /images/bp-whiting.jpg
   altText: BP Whiting Refinery — Fluor EPC program
 metaTitle: BP Whiting Refinery Modernization — Bob LeMieux Project Controls
 metaDescription: >-
   Project Controls Manager on BP's Whiting Refinery Modernization — a $3.8B+
   EPC program at one of the largest refineries in the Midwest, executed
   under Fluor Enterprises.
-socialImage: /images/gallery-3.jpg
+socialImage: /images/bp-whiting.jpg
 ---
 
 I served as Project Controls Manager at Fluor Enterprises on BP's Whiting Refinery Modernization in Whiting, Indiana, responsible for scheduling and earned value across the program. The project involved major process-unit upgrades at one of the largest refineries in the Midwest — including a new 102,000 BPD coker, hydroprocessing-related improvements, and state-of-the-art environmental controls for water treatment and air emissions. Publicly reported project value was approximately $3.8B–$4.0B.
