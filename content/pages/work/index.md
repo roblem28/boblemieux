@@ -39,7 +39,7 @@ sections:
       - content/pages/work/integra.md
       - content/pages/work/harvard-brain-science.md
       - content/pages/work/harvard-60-oxford.md
-      - content/pages/work/exxonmobil-baytown.md
+      - content/pages/work/cpchem-cedar-bayou.md
     styles:
       self:
         height: auto
