@@ -1,44 +1,32 @@
 ---
 type: ProjectLayout
-title: Integra — $1.4B Capital Program
+title: Integra Mission Critical
 colors: colors-a
 date: '2024-06-01'
 client: Integra
 description: >-
-  Project controls leadership on an active $1.4B capital program.
-  Schedule management, cost control, and reporting infrastructure for a
-  large-scale capital delivery across multiple concurrent scopes.
+  Senior Construction Schedule and EVM Manager on mission-critical data center
+  construction programs. Integra delivers turnkey data center solutions through
+  an integrated model spanning design, manufacturing, construction,
+  commissioning, and service.
 featuredImage:
   type: ImageBlock
-  url: /images/gallery-1.jpg
-  altText: Integra capital program project controls
+  url: /images/integra.jpg
+  altText: Integra Mission Critical
 media:
   type: ImageBlock
-  url: /images/gallery-1.jpg
-  altText: Integra capital program — project controls lead
-metaTitle: Integra $1.4B Capital Program — Bob LeMieux Project Controls
+  url: /images/integra.jpg
+  altText: Integra Mission Critical — data center construction
+metaTitle: Integra Mission Critical — Bob LeMieux Schedule and EVM Manager
 metaDescription: >-
-  Project controls leadership on Integra's $1.4B capital program. Schedule
-  management, cost control, and reporting infrastructure for large-scale capital delivery.
-socialImage: /images/gallery-1.jpg
+  Senior Construction Schedule and EVM Manager at Integra Mission Critical,
+  managing schedule and earned value performance for turnkey data center
+  construction programs.
+socialImage: /images/integra.jpg
 ---
 
-Integra is a large-scale capital program currently in active delivery. As project controls lead, I'm responsible for the controls framework that keeps the program structured — schedule management, cost tracking and forecasting, reporting cadences, and the infrastructure that connects field progress to executive visibility.
+I manage schedule and earned value performance for mission-critical data center construction programs at Integra. The company delivers turnkey data center solutions through an integrated model spanning design, manufacturing, construction, commissioning, and service. Working in that environment means maintaining control across fast-moving, high-density data center infrastructure projects where schedule integrity, progress measurement, and execution discipline matter every day.
 
-## Program Scale and Scope
+**Role — Senior Construction Schedule and EVM Manager.** I own the scheduling and earned value function across active programs: integrated master schedule development and maintenance, progress measurement, EVM reporting, critical path analysis, and the reporting cadences that connect field performance to executive visibility. In a fast-cycle data center environment, the controls framework has to keep pace with the program — not lag it.
 
-At $1.4B, this program operates across multiple concurrent scopes with distinct delivery teams, multiple contractors, and complex interdependencies. Maintaining controls discipline at that scale requires more than tools — it requires consistent process, clear reporting lines, and a controls team that can hold the baseline while adapting to change.
-
-## Role — Project Controls Lead
-
-My responsibilities span the full controls function:
-
-Schedule management is the backbone. I maintain the integrated master schedule, track progress against baseline, identify float erosion and critical path shifts, and produce schedule health reporting that leadership can act on. Earned value analysis ties schedule performance to cost — surfacing variances before they compound.
-
-Cost control and forecasting run in parallel. I manage the cost reporting cycle, track actuals against budget, maintain the forecast, and support change order review and documentation. On a program this size, cost control is a daily function, not a monthly report.
-
-Reporting infrastructure is the output. Weekly and monthly deliverables translate raw controls data into actionable summaries for owners, executives, and stakeholders who need clarity without noise.
-
-## Current Status
-
-This is ongoing, active work. The program is in delivery and the controls framework is continuously refined as scope evolves and field progress matures.
+Integra's integrated delivery model — owning design through commissioning under one roof — creates a controls environment that differs from traditional GC or EPC programs. Interdependencies between design release, manufacturing, and field construction are tighter, sequencing decisions have compounding effects, and schedule control has to account for the full delivery chain, not just site activity.

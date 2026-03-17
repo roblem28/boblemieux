@@ -5,7 +5,7 @@ metaTitle: Bob LeMieux — About
 metaDescription: >-
   Project Controls and Scheduling Manager with 40+ years across EPC,
   mission-critical, data center, and industrial construction. Currently
-  at Integra on a $1.4B capital program.
+  at Integra on mission-critical data center construction programs.
 socialImage: /images/bob.jpg
 colors: colors-a
 sections:
@@ -19,8 +19,8 @@ sections:
       decades of experience across EPC, mission-critical, data center, and
       industrial construction. He has directly led controls on projects up to
       $300M and contributed as a key controls leader on programs up to $20B.
-      Currently serving as a project controls leader at Integra on a $1.4B
-      capital program. Previous work includes scheduling and controls for
+      Currently serving as Senior Construction Schedule and EVM Manager
+      at Integra on mission-critical data center construction programs. Previous work includes scheduling and controls for
       [Harvard's Center for Brain Science](/work/harvard-brain-science) and 60 Oxford Street Data Center,
       $400M+ annual capital programs at Cargill, and 26 years at Fluor
       Enterprises on flagship EPC programs including ExxonMobil Baytown
@@ -163,7 +163,7 @@ sections:
         text: |-
           **Current — Integra**
 
-          Project controls leadership on a $1.4B capital program.
+          Senior Construction Schedule and EVM Manager on mission-critical data center construction programs.
 
           **2021–2024 — PMA Consultants / Cargill**
 
