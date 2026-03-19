@@ -17,7 +17,7 @@ sections:
     text: >-
       <img src="/images/bob.jpg" alt="Bob LeMieux" style="float: right; width: 200px; margin: 0 0 16px 24px; border-radius: 8px;" />
 
-      COMPUTERS have always been my leverage—how I compress time, reduce
+      Computers have always been my leverage—how I compress time, reduce
       friction, and create capability where teams used to accept limits. I
       don't treat "tech" as a department or a buzzword. It's how I think:
       systems, signals, automation, and repeatability. Over the years I've
