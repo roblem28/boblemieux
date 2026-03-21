@@ -13,6 +13,10 @@ The codebase showcases **how to apply annotations at scale**, meaning: how to ma
 
 **⚡ Demo:** [auto-annotated-portfolio.netlify.app](https://auto-annotated-portfolio.netlify.app)
 
+## Q-Bert Laser Game
+
+This site now includes a small Q-Bert inspired game with a new laser mechanic. Visit `/qbert` after starting the dev server to try it out.
+
 ## Deploying to Netlify
 
 If you click "Deploy to Netlify" button, it will create a new repo for you that looks exactly like this one, and sets that repo up immediately for deployment on Netlify.

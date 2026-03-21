@@ -20,7 +20,8 @@ export type SectionModels =
     | RecentPostsSection
     | RecentProjectsSection
     | TestimonialsSection
-    | TextSection;
+    | TextSection
+    | QbertGameSection;
 
 export type ContentObject =
     | BackgroundImage
@@ -64,6 +65,7 @@ export type ContentObject =
     | TextareaFormControl
     | TextFormControl
     | TextSection
+    | QbertGameSection
     | ThemeStyle
     | VideoBlock;
 
@@ -109,6 +111,7 @@ export type ContentObjectType =
     | 'TextareaFormControl'
     | 'TextFormControl'
     | 'TextSection'
+    | 'QbertGameSection'
     | 'ThemeStyle'
     | 'VideoBlock';
 
@@ -697,4 +700,11 @@ export type VideoBlock = BaseContentObject & {
     muted?: boolean;
     controls?: boolean;
     aspectRatio?: '4:3' | '16:9';
+};
+
+export type QbertGameSection = BaseContentObject & {
+    type: 'QbertGameSection';
+    elementId?: string;
+    colors?: 'colors-a' | 'colors-b' | 'colors-c' | 'colors-d' | 'colors-e' | 'colors-f';
+    styles?: any;
 };
