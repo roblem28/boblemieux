@@ -88,16 +88,26 @@ const PropsResolvers: Partial<Record<ContentObjectType, ResolverFunction>> = {
     }
 };
 
+const postsCache = new WeakMap<ContentObject[], PostLayout[]>();
 function getAllPostsSorted(objects: ContentObject[]) {
+    if (postsCache.has(objects)) {
+        return postsCache.get(objects)!;
+    }
     const all = objects.filter((object) => object.__metadata?.modelName === 'PostLayout') as PostLayout[];
     const sorted = all.sort((postA, postB) => new Date(postB.date).getTime() - new Date(postA.date).getTime());
+    postsCache.set(objects, sorted);
     return sorted;
 }
 
+const projectsCache = new WeakMap<ContentObject[], ProjectLayout[]>();
 function getAllProjectsSorted(objects: ContentObject[]) {
+    if (projectsCache.has(objects)) {
+        return projectsCache.get(objects)!;
+    }
     const all = objects.filter((object) => object.__metadata?.modelName === 'ProjectLayout') as ProjectLayout[];
     const sorted = all.sort(
         (projectA, projectB) => new Date(projectB.date).getTime() - new Date(projectA.date).getTime()
     );
+    projectsCache.set(objects, sorted);
     return sorted;
 }
