@@ -1,14 +1,13 @@
----
+﻿---
 type: PageLayout
 title: Home
+metaTitle: Bob LeMieux — Project Controls & Scheduling Manager
+metaDescription: >-
+  40+ years delivering billion-dollar capital programs. Project controls,
+  scheduling, AI-enabled workflows, and construction automation. Currently
+  leading schedule and EVM on mission-critical data center programs at Integra.
+socialImage: /images/bob.jpg
 colors: colors-a
-backgroundImage:
-  type: BackgroundImage
-  url: /images/bg1.jpg
-  backgroundSize: cover
-  backgroundPosition: center
-  backgroundRepeat: no-repeat
-  opacity: 75
 sections:
   - type: HeroSection
     elementId: ''
@@ -16,7 +15,7 @@ sections:
     backgroundSize: full
     title: Digital Leverage
     text: >-
-      <img src="/images/bob.png" alt="Bob LeMieux" style="float: right; width: 200px; margin: 0 0 16px 24px; border-radius: 8px;" />
+      <img src="/images/bob.jpg" alt="Bob LeMieux" style="float: right; width: 200px; margin: 0 0 16px 24px; border-radius: 8px;" />
 
       Computers have always been my leverage—how I compress time, reduce
       friction, and create capability where teams used to accept limits. I
@@ -35,6 +34,7 @@ sections:
       computing and AI. It's not hype—it's the continuation of what I've
       always done: build the next layer of tools that makes real work easier,
       faster, and smarter.
+    actions: []
     styles:
       self:
         height: auto
@@ -45,20 +45,19 @@ sections:
           - ml-0
           - mr-0
         padding:
-          - pt-36
-          - pb-24
+          - pt-16
+          - pb-16
           - pl-4
           - pr-4
         flexDirection: row-reverse
         textAlign: left
-    actions: []
   - type: DividerSection
     styles:
       self:
         width: wide
         padding:
-          - pt-0
-          - pb-0
+          - pt-8
+          - pb-8
           - pl-4
           - pr-4
         borderWidth: 1
@@ -68,7 +67,7 @@ sections:
     colors: colors-f
     backgroundSize: full
     title: Project Leadership
-    subtitle: >-
+    text: >-
       I bring four decades of experience delivering billion-dollar capital and
       industrial projects, guiding teams from concept through mechanical
       completion. As a Construction Manager, Superintendent, and Project
@@ -82,6 +81,7 @@ sections:
       better decisions with less friction. Ready to lead at any level—shaping
       both strategy and hands-on execution—while modernizing how project
       delivery gets done.
+    actions: []
     styles:
       self:
         height: auto
@@ -92,13 +92,93 @@ sections:
           - ml-0
           - mr-0
         padding:
-          - pt-24
-          - pb-48
+          - pt-16
+          - pb-16
           - pl-4
           - pr-4
         flexDirection: row-reverse
         textAlign: left
-    actions: []
+  - type: DividerSection
+    styles:
+      self:
+        width: wide
+        padding:
+          - pt-8
+          - pb-8
+          - pl-4
+          - pr-4
+        borderWidth: 1
+        borderStyle: solid
+  - type: FeaturedItemsSection
+    title: What I Build
+    subtitle: >-
+      I design systems that turn complex project information into clear
+      operational intelligence. After decades delivering large capital projects,
+      I now focus on building tools that reduce friction between data, decisions,
+      and execution. My work sits at the intersection of project systems,
+      automation, and artificial intelligence.
+    colors: colors-f
+    columns: 2
+    items:
+      - type: FeaturedItem
+        title: Project Intelligence Systems
+        text: >-
+          Platforms that ingest schedule, cost, and completion data and
+          transform it into real-time operational insight. Examples include
+          turnover readiness command centers, schedule and cost analytics layers,
+          and automated executive reporting pipelines.
+        styles:
+          self:
+            textAlign: left
+      - type: FeaturedItem
+        title: Automation Infrastructure
+        text: >-
+          Tools that replace manual project workflows with automated data
+          pipelines and reporting systems. These reduce reporting cycles from
+          days to minutes while improving consistency and auditability.
+        styles:
+          self:
+            textAlign: left
+      - type: FeaturedItem
+        title: AI-Assisted Decision Systems
+        text: >-
+          AI pipelines that analyze project data, summarize conditions, and
+          identify emerging risks before they become problems. Instead of
+          reading hundreds of pages of reports, leadership gets actionable
+          intelligence.
+        styles:
+          self:
+            textAlign: left
+      - type: FeaturedItem
+        title: Experimental Systems
+        text: >-
+          Edge AI, digital twins, and visualization platforms that explore how
+          emerging technology can improve field operations and project
+          intelligence.
+        styles:
+          self:
+            textAlign: left
+    styles:
+      self:
+        height: auto
+        width: wide
+        padding:
+          - pt-16
+          - pb-16
+          - pl-4
+          - pr-4
+        textAlign: left
+  - type: DividerSection
+    styles:
+      self:
+        width: wide
+        padding:
+          - pt-8
+          - pb-8
+          - pl-4
+          - pr-4
+        borderWidth: 1
+        borderStyle: solid
   - type: FeaturedItemsSection
     title: Work Projects
     colors: colors-f
@@ -154,57 +234,30 @@ sections:
         height: auto
         width: wide
         padding:
-          - pt-24
-          - pb-12
+          - pt-16
+          - pb-16
           - pl-4
           - pr-4
         textAlign: left
-  - type: FeaturedItemsSection
+  - type: DividerSection
+    styles:
+      self:
+        width: wide
+        padding:
+          - pt-8
+          - pb-8
+          - pl-4
+          - pr-4
+        borderWidth: 1
+        borderStyle: solid
+  - type: RecentProjectsSection
     title: Tech Projects
+    recentCount: 6
+    showFeaturedImage: true
+    showDescription: true
+    showReadMoreLink: true
+    variant: variant-b
     colors: colors-f
-    columns: 3
-    items:
-      - type: FeaturedItem
-        title: Marley1
-        text: >-
-          A portable AI + compute platform designed for field-ready
-          intelligence—small hardware, big capability. Built to bring serious
-          processing power and agent-style workflows to environments where
-          traditional setups don't fit.
-        actions:
-          - type: Link
-            label: Learn more
-            url: /projects/marley1
-        styles:
-          self:
-            textAlign: left
-      - type: FeaturedItem
-        title: BobLemieux.ai Personal LLM Ecosystem
-        text: >-
-          A self-hosted AI stack combining local models, fine-tuned agents, and
-          document processing pipelines. Designed to experiment with autonomous
-          systems, knowledge synthesis, and next-generation project intelligence
-          tools.
-        actions:
-          - type: Link
-            label: Learn more
-            url: /projects/boblemieux-ai
-        styles:
-          self:
-            textAlign: left
-      - type: FeaturedItem
-        title: The Lynda Project
-        text: >-
-          An experimental AI companion system focused on memory, context, and
-          conversational continuity. A testbed for human-centered interaction
-          design and long-term agent persistence.
-        actions:
-          - type: Link
-            label: Learn more
-            url: /projects/lynda
-        styles:
-          self:
-            textAlign: left
     actions:
       - type: Link
         label: View all Tech Projects
@@ -214,11 +267,22 @@ sections:
         height: auto
         width: wide
         padding:
-          - pt-12
-          - pb-24
+          - pt-16
+          - pb-16
           - pl-4
           - pr-4
         textAlign: left
+  - type: DividerSection
+    styles:
+      self:
+        width: wide
+        padding:
+          - pt-8
+          - pb-8
+          - pl-4
+          - pr-4
+        borderWidth: 1
+        borderStyle: solid
   - type: FeaturedPostsSection
     elementId: ''
     colors: colors-f
@@ -241,11 +305,22 @@ sections:
         height: auto
         width: narrow
         padding:
-          - pt-28
-          - pb-48
+          - pt-16
+          - pb-16
           - pl-4
           - pr-4
         textAlign: left
+  - type: DividerSection
+    styles:
+      self:
+        width: wide
+        padding:
+          - pt-8
+          - pb-8
+          - pl-4
+          - pr-4
+        borderWidth: 1
+        borderStyle: solid
   - type: ContactSection
     colors: colors-f
     backgroundSize: full
@@ -275,15 +350,15 @@ sections:
           isRequired: true
           width: 1/2
           type: EmailFormControl
-        - name: address
-          label: Address
+        - name: message
+          label: Message
           hideLabel: true
-          placeholder: Address
+          placeholder: What are you working on?
           isRequired: true
-          width: 1/2
-          type: TextFormControl
+          width: full
+          type: TextareaFormControl
         - name: updatesConsent
-          label: Sign me up to recieve updates
+          label: Sign me up to receive updates
           isRequired: false
           width: full
           type: CheckboxFormControl
@@ -301,8 +376,8 @@ sections:
           - ml-0
           - mr-0
         padding:
-          - pt-24
-          - pb-24
+          - pt-16
+          - pb-16
           - pr-4
           - pl-4
         flexDirection: row

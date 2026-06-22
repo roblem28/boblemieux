@@ -9,13 +9,15 @@ import { PageModelType } from '@/types/generated';
 
 type BaseLayoutProps = React.PropsWithChildren & PageComponentProps & PageModelType;
 
+const DEFAULT_BACKGROUND = { url: '/images/bg1.jpg', opacity: 75 };
+
 const BaseLayout: React.FC<BaseLayoutProps> = (props) => {
     const { global, ...page } = props;
     const { site } = global;
 
     return (
         <div className="flex flex-col grow">
-            {page?.backgroundImage && <BackgroundImage {...page?.backgroundImage} />}
+            <BackgroundImage {...(page?.backgroundImage ?? DEFAULT_BACKGROUND)} />
             {site.header && (
                 <Annotated content={site}>
                     <Annotated content={site.header}>

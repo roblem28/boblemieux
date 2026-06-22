@@ -2,14 +2,7 @@
 type: PostLayout
 title: 'Sharing What I Have Learned After 40+ Years of Building Things'
 colors: colors-a
-backgroundImage:
-  type: BackgroundImage
-  url: /images/bg1.jpg
-  backgroundSize: cover
-  backgroundPosition: center
-  backgroundRepeat: no-repeat
-  opacity: 75
-date: '2026-03-10'
+date: '2026-03-03'
 author: content/data/team/bob-lemieux.json
 excerpt: >-
   Theory only gets you so far. After decades building complex systems in the physical world and now in data, automation, and AI — here is what actually holds true.
@@ -65,7 +58,7 @@ bottomSections:
           width: full
           type: EmailFormControl
         - name: updatesConsent
-          label: Sign me up to recieve my words
+          label: Sign me up to receive my words
           isRequired: false
           width: full
           type: CheckboxFormControl

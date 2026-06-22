@@ -1,17 +1,24 @@
 {
     "type": "Config",
     "favicon": "/images/favicon.svg",
+    "titleSuffix": "| Bob LeMieux",
+    "defaultSocialImage": "/images/bob.jpg",
     "header": {
         "type": "Header",
         "headerVariant": "variant-c",
         "isSticky": false,
-        "title": "Personal",
+        "title": "Bob Lemieux",
         "isTitleVisible": true,
         "primaryLinks": [
             {
                 "type": "Link",
                 "label": "Info",
                 "url": "/info"
+            },
+            {
+                "type": "Link",
+                "label": "Work",
+                "url": "/work"
             },
             {
                 "type": "Link",
@@ -38,6 +45,13 @@
                 "label": "GitHub",
                 "url": "https://github.com/roblem28",
                 "icon": "github"
+            },
+            {
+                "type": "Social",
+                "altText": "LinkedIn",
+                "label": "LinkedIn",
+                "url": "https://linkedin.com/in/boblemieux",
+                "icon": "linkedin"
             }
         ],
         "styles": {
@@ -72,6 +86,12 @@
                 "label": "GitHub",
                 "url": "https://github.com/roblem28",
                 "altText": "GitHub"
+            },
+            {
+                "type": "Link",
+                "label": "LinkedIn",
+                "url": "https://linkedin.com/in/boblemieux",
+                "altText": "LinkedIn"
             }
         ],
         "contacts": {
@@ -84,7 +104,7 @@
             "address": "USA",
             "addressAltText": "My location"
         },
-        "copyrightText": "Powered by [Netlify](https://www.netlify.com/)",
+        "copyrightText": "© 2026 Bob Lemieux",
         "styles": {
             "self": {
                 "width": "narrow",

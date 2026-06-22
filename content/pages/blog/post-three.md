@@ -2,14 +2,7 @@
 type: PostLayout
 title: 'Composable — The Future of the Web'
 colors: colors-a
-backgroundImage:
-  type: BackgroundImage
-  url: /images/bg1.jpg
-  backgroundSize: cover
-  backgroundPosition: center
-  backgroundRepeat: no-repeat
-  opacity: 75
-date: '2026-03-10'
+date: '2026-02-17'
 author: content/data/team/bob-lemieux.json
 excerpt: >-
   Complex systems work best when built from well-defined components. That principle held true on large capital projects. It holds true in modern software too.
@@ -65,7 +58,7 @@ bottomSections:
           width: full
           type: EmailFormControl
         - name: updatesConsent
-          label: Sign me up to recieve my words
+          label: Sign me up to receive my words
           isRequired: false
           width: full
           type: CheckboxFormControl

@@ -2,14 +2,7 @@
 type: PostLayout
 title: 'How I Started Building in the AI Era'
 colors: colors-a
-backgroundImage:
-  type: BackgroundImage
-  url: /images/bg1.jpg
-  backgroundSize: cover
-  backgroundPosition: center
-  backgroundRepeat: no-repeat
-  opacity: 75
-date: '2026-03-10'
+date: '2026-02-24'
 author: content/data/team/bob-lemieux.json
 excerpt: >-
   After decades delivering complex projects, I'm now building AI systems, automation pipelines, and digital tools that improve how work gets done.
@@ -65,7 +58,7 @@ bottomSections:
           width: full
           type: EmailFormControl
         - name: updatesConsent
-          label: Sign me up to recieve my words
+          label: Sign me up to receive my words
           isRequired: false
           width: full
           type: CheckboxFormControl

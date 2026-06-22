@@ -2,13 +2,6 @@
 type: PostLayout
 title: Habits of Highly Productive Developers
 colors: colors-a
-backgroundImage:
-  type: BackgroundImage
-  url: /images/bg1.jpg
-  backgroundSize: cover
-  backgroundPosition: center
-  backgroundRepeat: no-repeat
-  opacity: 75
 date: '2024-06-10'
 author: content/data/team/bob-lemieux.json
 excerpt: >-
@@ -67,7 +60,7 @@ bottomSections:
           width: full
           type: EmailFormControl
         - name: updatesConsent
-          label: Sign me up to recieve my words
+          label: Sign me up to receive my words
           isRequired: false
           width: full
           type: CheckboxFormControl

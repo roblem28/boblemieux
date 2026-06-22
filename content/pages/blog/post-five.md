@@ -2,13 +2,6 @@
 type: PostLayout
 title: 'AI Is So Hot Right Now 🔥'
 colors: colors-a
-backgroundImage:
-  type: BackgroundImage
-  url: /images/bg1.jpg
-  backgroundSize: cover
-  backgroundPosition: center
-  backgroundRepeat: no-repeat
-  opacity: 75
 date: '2026-03-10'
 author: content/data/team/bob-lemieux.json
 excerpt: >-
@@ -65,7 +58,7 @@ bottomSections:
           width: full
           type: EmailFormControl
         - name: updatesConsent
-          label: Sign me up to recieve my words
+          label: Sign me up to receive my words
           isRequired: false
           width: full
           type: CheckboxFormControl

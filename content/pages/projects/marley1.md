@@ -2,6 +2,13 @@
 type: ProjectLayout
 title: Marley1
 colors: colors-a
+backgroundImage:
+  type: BackgroundImage
+  url: /images/marley1.jpg
+  backgroundSize: cover
+  backgroundPosition: center
+  backgroundRepeat: no-repeat
+  opacity: 75
 date: '2025-02-01'
 client: ''
 description: >-
@@ -10,11 +17,11 @@ description: >-
   agent-style workflows to environments where traditional setups don't fit.
 featuredImage:
   type: ImageBlock
-  url: /images/bg1.jpg
+  url: /images/marley1.jpg
   altText: Marley1
 media:
   type: ImageBlock
-  url: /images/bg1.jpg
+  url: /images/marley1.jpg
   altText: Marley1
 ---
 
