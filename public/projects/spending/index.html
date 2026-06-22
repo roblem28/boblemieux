@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Federal Award Explorer — USAspending.gov</title>
+  <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" />
+  <link rel="stylesheet" href="./style.css" />
+</head>
+<body>
+  <div id="app">
+    <!-- ===================== MAP (top) ===================== -->
+    <div id="map-wrap">
+      <div id="map"></div>
+
+      <!-- Controls panel -->
+      <div id="panel" class="panel">
+        <h1>Federal Award Explorer</h1>
+        <p class="sub">USAspending.gov · contracts by place of performance</p>
+
+        <section class="group">
+          <label class="field-label" for="fy">Fiscal years</label>
+          <select id="fy" multiple size="4"></select>
+          <span class="hint">Ctrl/Cmd-click to multi-select</span>
+        </section>
+
+        <section class="group">
+          <label class="field-label" for="states">States (place of performance)</label>
+          <select id="states" multiple size="6"></select>
+        </section>
+
+        <section class="group">
+          <label class="field-label" for="naics">NAICS codes (comma-separated)</label>
+          <input type="text" id="naics" value="236220, 237130, 518210" />
+          <span class="hint">e.g. 236220 = commercial/institutional construction</span>
+        </section>
+
+        <section class="group">
+          <span class="field-label">Award types</span>
+          <div class="checks" id="award-types">
+            <label><input type="checkbox" value="A" checked /> A — BPA Call</label>
+            <label><input type="checkbox" value="B" checked /> B — Purchase Order</label>
+            <label><input type="checkbox" value="C" checked /> C — Delivery Order</label>
+            <label><input type="checkbox" value="D" checked /> D — Definitive Contract</label>
+          </div>
+        </section>
+
+        <section class="group">
+          <span class="field-label">Map geography</span>
+          <div class="seg">
+            <label><input type="radio" name="geo" value="state" checked /> State</label>
+            <label><input type="radio" name="geo" value="county" /> County</label>
+          </div>
+        </section>
+
+        <section class="group">
+          <button id="apply">Apply filters</button>
+          <div id="status" class="status">Initializing…</div>
+        </section>
+
+        <section class="group legend">
+          <h2>Total obligated ($)</h2>
+          <ul id="legend" class="legend-list"></ul>
+        </section>
+
+        <footer>Data: USAspending.gov API v2 · Not an official product</footer>
+      </div>
+    </div>
+
+    <!-- ===================== TABLE (bottom) ===================== -->
+    <div id="table-wrap">
+      <div class="table-bar">
+        <h2 id="table-title">Awards</h2>
+        <div class="table-actions">
+          <span id="page-info" class="page-info"></span>
+          <button id="prev" disabled>‹ Prev</button>
+          <button id="next" disabled>Next ›</button>
+          <button id="export">⤓ Export to Excel</button>
+        </div>
+      </div>
+      <div class="table-scroll">
+        <table id="awards">
+          <thead>
+            <tr>
+              <th data-key="Recipient Name">Recipient</th>
+              <th data-key="Award Amount" class="num">Award Amount</th>
+              <th data-key="Awarding Agency">Awarding Agency</th>
+              <th data-key="naics_code">NAICS</th>
+              <th data-key="Place of Performance State Code">Place</th>
+              <th data-key="Award ID">Award ID</th>
+            </tr>
+          </thead>
+          <tbody id="awards-body"></tbody>
+        </table>
+        <div id="empty" class="empty" hidden>No awards match these filters.</div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/topojson-client@3"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script src="./app.js"></script>
+</body>
+</html>

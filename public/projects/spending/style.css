@@ -1,0 +1,112 @@
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; color: #1a1a1a; }
+
+#app { display: flex; flex-direction: column; height: 100vh; }
+
+/* ---- Map (top half) ---- */
+#map-wrap { position: relative; flex: 1 1 58%; min-height: 280px; }
+#map { position: absolute; inset: 0; }
+
+.panel {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  z-index: 10;
+  width: 300px;
+  max-height: calc(100% - 24px);
+  overflow-y: auto;
+  background: rgba(255, 255, 255, 0.96);
+  border-radius: 10px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.25);
+  padding: 14px 16px;
+  backdrop-filter: blur(4px);
+}
+.panel h1 { font-size: 16px; margin: 0; }
+.panel .sub { font-size: 11px; color: #666; margin: 2px 0 0; }
+.panel h2 { font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; color: #555; margin: 0 0 6px; }
+
+.group { border-top: 1px solid #eee; padding: 10px 0; }
+.group:first-of-type { border-top: none; }
+
+.field-label { display: block; font-size: 12px; font-weight: 600; color: #333; margin-bottom: 4px; }
+.hint { display: block; font-size: 10px; color: #999; margin-top: 3px; }
+
+select, input[type="text"] {
+  width: 100%;
+  font-size: 12px;
+  padding: 5px 6px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  font-family: inherit;
+}
+select[multiple] { padding: 2px; }
+
+.checks { display: flex; flex-direction: column; gap: 3px; font-size: 12px; }
+.checks label { display: flex; align-items: center; gap: 6px; cursor: pointer; }
+.seg { display: flex; gap: 14px; font-size: 13px; }
+.seg label { display: flex; align-items: center; gap: 5px; cursor: pointer; }
+
+button {
+  font-family: inherit;
+  border: none;
+  border-radius: 6px;
+  background: #1565c0;
+  color: #fff;
+  font-size: 13px;
+  padding: 8px 12px;
+  cursor: pointer;
+}
+button:hover { background: #0d47a1; }
+button:disabled { background: #b0bec5; cursor: not-allowed; }
+#apply { width: 100%; }
+
+.status { font-size: 11px; color: #555; margin-top: 8px; min-height: 14px; }
+.status.error { color: #c62828; }
+
+.legend-list { list-style: none; margin: 0; padding: 0; font-size: 12px; }
+.legend-list li { display: flex; align-items: center; gap: 6px; padding: 1px 0; }
+.legend-list .sw { width: 16px; height: 14px; border-radius: 3px; border: 1px solid rgba(0,0,0,0.25); flex: none; }
+
+footer { font-size: 10px; color: #888; border-top: 1px solid #eee; padding-top: 8px; margin-top: 4px; }
+
+/* ---- Table (bottom half) ---- */
+#table-wrap { flex: 1 1 42%; min-height: 200px; display: flex; flex-direction: column; border-top: 2px solid #ddd; background: #fff; }
+
+.table-bar { display: flex; align-items: center; justify-content: space-between; padding: 8px 14px; border-bottom: 1px solid #eee; gap: 12px; flex-wrap: wrap; }
+.table-bar h2 { font-size: 15px; margin: 0; }
+.table-actions { display: flex; align-items: center; gap: 8px; }
+.page-info { font-size: 12px; color: #666; margin-right: 4px; }
+.table-actions button { background: #37474f; padding: 6px 10px; font-size: 12px; }
+.table-actions button:hover { background: #263238; }
+#export { background: #2e7d32; }
+#export:hover { background: #1b5e20; }
+
+.table-scroll { flex: 1; overflow: auto; position: relative; }
+
+table#awards { border-collapse: collapse; width: 100%; font-size: 13px; }
+table#awards thead th {
+  position: sticky;
+  top: 0;
+  background: #f5f5f5;
+  text-align: left;
+  padding: 8px 12px;
+  border-bottom: 2px solid #ddd;
+  cursor: pointer;
+  white-space: nowrap;
+  user-select: none;
+}
+table#awards thead th:hover { background: #eceff1; }
+table#awards thead th.num { text-align: right; }
+table#awards thead th .arrow { color: #1565c0; font-size: 11px; }
+table#awards tbody td { padding: 7px 12px; border-bottom: 1px solid #f0f0f0; vertical-align: top; }
+table#awards tbody td.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+table#awards tbody tr:hover { background: #f9fbfd; }
+table#awards a { color: #1565c0; text-decoration: none; }
+table#awards a:hover { text-decoration: underline; }
+
+.empty { padding: 30px; text-align: center; color: #888; font-size: 14px; }
+
+/* Map popups */
+.maplibregl-popup { max-width: 260px !important; }
+.popup { font-size: 13px; line-height: 1.4; }
+.popup strong { font-size: 14px; }

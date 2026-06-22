@@ -125,6 +125,30 @@ sections:
         styles:
           self:
             textAlign: left
+      - type: FeaturedItem
+        title: Weather Map
+        text: >-
+          An interactive MapLibre weather map with live NOAA/NWS radar, precip
+          type, and severe-weather warnings and watches.
+        actions:
+          - type: Link
+            label: Learn more
+            url: /projects/weather
+        styles:
+          self:
+            textAlign: left
+      - type: FeaturedItem
+        title: Federal Award Explorer
+        text: >-
+          A USAspending.gov dashboard mapping federal contract dollars by place
+          of performance, with a sortable, Excel-exportable award table.
+        actions:
+          - type: Link
+            label: Learn more
+            url: /projects/spending
+        styles:
+          self:
+            textAlign: left
     actions:
       - type: Link
         label: View all Tech Projects

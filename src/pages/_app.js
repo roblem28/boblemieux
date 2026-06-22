@@ -2,6 +2,9 @@ import Head from 'next/head';
 import { generateGlobalCssVariables } from '@/utils/theme-style-utils';
 import { useEffect, useState } from 'react';
 import '../css/main.css';
+// MapLibre base styles for the /projects/weather map (namespaced .maplibregl-*;
+// contains no html/body rules, so it does not affect site-wide styling).
+import 'maplibre-gl/dist/maplibre-gl.css';
 
 export default function MyApp({ Component, pageProps }) {
     const { global, ...page } = pageProps;
