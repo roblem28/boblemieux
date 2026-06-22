@@ -82,14 +82,71 @@ sections:
           - pl-4
           - pr-4
         textAlign: left
-  - type: RecentProjectsSection
+  - type: FeaturedItemsSection
     title: Tech Projects
-    recentCount: 6
-    showFeaturedImage: true
-    showDescription: true
-    showReadMoreLink: true
-    variant: variant-b
     colors: colors-f
+    columns: 3
+    items:
+      - type: FeaturedItem
+        title: Marley1
+        text: >-
+          A portable AI + compute platform designed for field-ready
+          intelligence—small hardware, big capability.
+        actions:
+          - type: Link
+            label: Learn more
+            url: /projects/marley1
+        styles:
+          self:
+            textAlign: left
+      - type: FeaturedItem
+        title: BobLemieux.ai Personal LLM Ecosystem
+        text: >-
+          A self-hosted AI stack combining local models, fine-tuned agents, and
+          document processing pipelines.
+        actions:
+          - type: Link
+            label: Learn more
+            url: /projects/boblemieux-ai
+        styles:
+          self:
+            textAlign: left
+      - type: FeaturedItem
+        title: The Lynda Project
+        text: >-
+          An experimental AI companion system focused on memory, context, and
+          conversational continuity.
+        actions:
+          - type: Link
+            label: Learn more
+            url: /projects/lynda
+        styles:
+          self:
+            textAlign: left
+      - type: FeaturedItem
+        title: Weather Map
+        text: >-
+          An interactive MapLibre weather map with live NOAA/NWS radar, precip
+          type, and severe-weather warnings and watches.
+        actions:
+          - type: Link
+            label: Learn more
+            url: /projects/weather
+        styles:
+          self:
+            textAlign: left
+      - type: FeaturedItem
+        title: Federal Award Explorer
+        text: >-
+          A USAspending.gov dashboard mapping federal contract dollars by place
+          of performance, with a sortable, Excel-exportable award table.
+        actions:
+          - type: Link
+            label: Learn more
+            url: /projects/spending
+        styles:
+          self:
+            textAlign: left
     actions:
       - type: Link
         label: View all Tech Projects
