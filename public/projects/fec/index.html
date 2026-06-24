@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>FEC Campaign Finance Explorer — OpenFEC</title>
+  <link rel="stylesheet" href="./style.css" />
+</head>
+<body>
+  <div id="app">
+    <header class="app-head">
+      <h1>FEC Campaign Finance Explorer</h1>
+      <p class="sub">OpenFEC API · contributions, committees, candidates, expenditures, filings &amp; a contractor cross-reference</p>
+      <nav class="tabs" id="tabs">
+        <button class="tab active" data-tab="contributions">Contributions</button>
+        <button class="tab" data-tab="committees">Committees</button>
+        <button class="tab" data-tab="candidates">Candidates</button>
+        <button class="tab" data-tab="expenditures">Expenditures</button>
+        <button class="tab" data-tab="filings">Filings</button>
+        <button class="tab" data-tab="xref">Cross-Reference</button>
+      </nav>
+    </header>
+
+    <main>
+      <!-- ===================== CONTRIBUTIONS (Schedule A) ===================== -->
+      <section class="panel-view active" id="view-contributions">
+        <div class="filters">
+          <div class="field"><label class="field-label" for="c_name">Contributor name</label><input type="text" id="c_name" placeholder="e.g. Fisher" /></div>
+          <div class="field"><label class="field-label" for="c_employer">Employer</label><input type="text" id="c_employer" placeholder="e.g. Fisher Sand & Gravel" /></div>
+          <div class="field"><label class="field-label" for="c_occupation">Occupation</label><input type="text" id="c_occupation" placeholder="e.g. Executive" /></div>
+          <div class="field"><label class="field-label" for="c_state">State</label><input type="text" id="c_state" placeholder="2-letter, e.g. ND" maxlength="2" /></div>
+          <div class="field"><label class="field-label" for="c_committee">Committee ID</label><input type="text" id="c_committee" placeholder="e.g. C00401224" /></div>
+          <div class="field"><label class="field-label" for="c_min_date">Min date</label><input type="date" id="c_min_date" /></div>
+          <div class="field"><label class="field-label" for="c_max_date">Max date</label><input type="date" id="c_max_date" /></div>
+          <div class="field"><label class="field-label" for="c_min_amt">Min amount $</label><input type="number" id="c_min_amt" placeholder="0" /></div>
+          <div class="field"><label class="field-label" for="c_max_amt">Max amount $</label><input type="number" id="c_max_amt" placeholder="" /></div>
+          <div class="field actions"><button data-search="contributions">Search</button></div>
+        </div>
+        <div class="status" data-status="contributions"></div>
+        <div class="table-bar">
+          <h2>Contributions (Schedule A)</h2>
+          <div class="table-actions">
+            <span class="page-info" data-pageinfo="contributions"></span>
+            <button class="secondary" data-prev="contributions" disabled>‹ Prev</button>
+            <button class="secondary" data-next="contributions" disabled>Next ›</button>
+            <button class="btn-csv" data-csv="contributions">⤓ CSV</button>
+            <button class="btn-xlsx" data-xlsx="contributions">⤓ Excel</button>
+          </div>
+        </div>
+        <div class="table-scroll">
+          <table class="data" data-table="contributions">
+            <thead><tr>
+              <th data-key="contributor_name">Contributor</th>
+              <th data-key="contributor_employer">Employer</th>
+              <th data-key="contributor_occupation">Occupation</th>
+              <th data-key="contributor_state">State</th>
+              <th data-key="contribution_receipt_amount" class="num">Amount</th>
+              <th data-key="contribution_receipt_date">Date</th>
+              <th data-key="committee_name">Recipient committee</th>
+            </tr></thead>
+            <tbody></tbody>
+          </table>
+          <div class="empty" hidden>No contributions match these filters.</div>
+        </div>
+      </section>
+
+      <!-- ===================== COMMITTEES ===================== -->
+      <section class="panel-view" id="view-committees">
+        <div class="filters">
+          <div class="field"><label class="field-label" for="cm_q">Name / keyword</label><input type="text" id="cm_q" placeholder="e.g. Cramer for Senate" /></div>
+          <div class="field"><label class="field-label" for="cm_state">State</label><input type="text" id="cm_state" placeholder="2-letter" maxlength="2" /></div>
+          <div class="field"><label class="field-label" for="cm_type">Committee type</label>
+            <select id="cm_type">
+              <option value="">Any</option>
+              <option value="P">P — Presidential</option>
+              <option value="H">H — House</option>
+              <option value="S">S — Senate</option>
+              <option value="N">N — PAC (nonqualified)</option>
+              <option value="Q">Q — PAC (qualified)</option>
+              <option value="O">O — Super PAC</option>
+              <option value="U">U — Single-candidate ind. exp.</option>
+              <option value="X">X — Party (nonqualified)</option>
+              <option value="Y">Y — Party (qualified)</option>
+            </select>
+          </div>
+          <div class="field actions"><button data-search="committees">Search</button></div>
+        </div>
+        <div class="status" data-status="committees"></div>
+        <div class="table-bar">
+          <h2>Committees</h2>
+          <div class="table-actions">
+            <span class="page-info" data-pageinfo="committees"></span>
+            <button class="secondary" data-prev="committees" disabled>‹ Prev</button>
+            <button class="secondary" data-next="committees" disabled>Next ›</button>
+            <button class="btn-csv" data-csv="committees">⤓ CSV</button>
+            <button class="btn-xlsx" data-xlsx="committees">⤓ Excel</button>
+          </div>
+        </div>
+        <div class="table-scroll">
+          <table class="data" data-table="committees">
+            <thead><tr>
+              <th data-key="name">Committee</th>
+              <th data-key="committee_id">ID</th>
+              <th data-key="committee_type_full">Type</th>
+              <th data-key="treasurer_name">Treasurer</th>
+              <th data-key="state">State</th>
+              <th data-key="party_full">Party</th>
+            </tr></thead>
+            <tbody></tbody>
+          </table>
+          <div class="empty" hidden>No committees match these filters.</div>
+        </div>
+      </section>
+
+      <!-- ===================== CANDIDATES ===================== -->
+      <section class="panel-view" id="view-candidates">
+        <div class="filters">
+          <div class="field"><label class="field-label" for="cd_q">Name</label><input type="text" id="cd_q" placeholder="e.g. Cramer" /></div>
+          <div class="field"><label class="field-label" for="cd_state">State</label><input type="text" id="cd_state" placeholder="2-letter" maxlength="2" /></div>
+          <div class="field"><label class="field-label" for="cd_office">Office</label>
+            <select id="cd_office">
+              <option value="">Any</option>
+              <option value="P">President</option>
+              <option value="S">Senate</option>
+              <option value="H">House</option>
+            </select>
+          </div>
+          <div class="field"><label class="field-label" for="cd_cycle">Cycle</label><input type="number" id="cd_cycle" placeholder="e.g. 2026" step="2" /></div>
+          <div class="field actions"><button data-search="candidates">Search</button></div>
+        </div>
+        <div class="status" data-status="candidates"></div>
+        <div class="table-bar">
+          <h2>Candidates</h2>
+          <div class="table-actions">
+            <span class="page-info" data-pageinfo="candidates"></span>
+            <button class="secondary" data-prev="candidates" disabled>‹ Prev</button>
+            <button class="secondary" data-next="candidates" disabled>Next ›</button>
+            <button class="btn-csv" data-csv="candidates">⤓ CSV</button>
+            <button class="btn-xlsx" data-xlsx="candidates">⤓ Excel</button>
+          </div>
+        </div>
+        <div class="table-scroll">
+          <table class="data" data-table="candidates">
+            <thead><tr>
+              <th data-key="name">Candidate</th>
+              <th data-key="party_full">Party</th>
+              <th data-key="office_full">Office</th>
+              <th data-key="state">State</th>
+              <th data-key="district">Dist.</th>
+              <th data-key="incumbent_challenge_full">Status</th>
+              <th data-key="candidate_id">Links</th>
+            </tr></thead>
+            <tbody></tbody>
+          </table>
+          <div class="empty" hidden>No candidates match these filters.</div>
+        </div>
+      </section>
+
+      <!-- ===================== EXPENDITURES (Schedule E) ===================== -->
+      <section class="panel-view" id="view-expenditures">
+        <div class="filters">
+          <div class="field"><label class="field-label" for="e_candidate">Candidate name</label><input type="text" id="e_candidate" placeholder="e.g. Cramer" /></div>
+          <div class="field"><label class="field-label" for="e_committee">Spending committee ID</label><input type="text" id="e_committee" placeholder="e.g. C00xxxxxx" /></div>
+          <div class="field"><label class="field-label" for="e_support">Support / oppose</label>
+            <select id="e_support"><option value="">Any</option><option value="S">Support</option><option value="O">Oppose</option></select>
+          </div>
+          <div class="field"><label class="field-label" for="e_min_date">Min date</label><input type="date" id="e_min_date" /></div>
+          <div class="field"><label class="field-label" for="e_max_date">Max date</label><input type="date" id="e_max_date" /></div>
+          <div class="field actions"><button data-search="expenditures">Search</button></div>
+        </div>
+        <div class="status" data-status="expenditures"></div>
+        <div class="table-bar">
+          <h2>Independent Expenditures (Schedule E)</h2>
+          <div class="table-actions">
+            <span class="page-info" data-pageinfo="expenditures"></span>
+            <button class="secondary" data-prev="expenditures" disabled>‹ Prev</button>
+            <button class="secondary" data-next="expenditures" disabled>Next ›</button>
+            <button class="btn-csv" data-csv="expenditures">⤓ CSV</button>
+            <button class="btn-xlsx" data-xlsx="expenditures">⤓ Excel</button>
+          </div>
+        </div>
+        <div class="table-scroll">
+          <table class="data" data-table="expenditures">
+            <thead><tr>
+              <th data-key="committee_name">Spending committee</th>
+              <th data-key="candidate_name">Candidate</th>
+              <th data-key="support_oppose_indicator">S/O</th>
+              <th data-key="expenditure_amount" class="num">Amount</th>
+              <th data-key="expenditure_date">Date</th>
+              <th data-key="expenditure_description">Purpose</th>
+            </tr></thead>
+            <tbody></tbody>
+          </table>
+          <div class="empty" hidden>No expenditures match these filters.</div>
+        </div>
+      </section>
+
+      <!-- ===================== FILINGS ===================== -->
+      <section class="panel-view" id="view-filings">
+        <div class="filters">
+          <div class="field"><label class="field-label" for="f_committee">Committee ID</label><input type="text" id="f_committee" placeholder="e.g. C00401224" /></div>
+          <div class="field"><label class="field-label" for="f_candidate">Candidate ID</label><input type="text" id="f_candidate" placeholder="e.g. H6MN08138" /></div>
+          <div class="field"><label class="field-label" for="f_cycle">Cycle</label><input type="number" id="f_cycle" placeholder="e.g. 2026" step="2" /></div>
+          <div class="field actions"><button data-search="filings">Search</button></div>
+        </div>
+        <div class="status" data-status="filings"></div>
+        <div class="table-bar">
+          <h2>Filings</h2>
+          <div class="table-actions">
+            <span class="page-info" data-pageinfo="filings"></span>
+            <button class="secondary" data-prev="filings" disabled>‹ Prev</button>
+            <button class="secondary" data-next="filings" disabled>Next ›</button>
+            <button class="btn-csv" data-csv="filings">⤓ CSV</button>
+            <button class="btn-xlsx" data-xlsx="filings">⤓ Excel</button>
+          </div>
+        </div>
+        <div class="table-scroll">
+          <table class="data" data-table="filings">
+            <thead><tr>
+              <th data-key="committee_name">Committee</th>
+              <th data-key="form_type">Form</th>
+              <th data-key="document_description">Description</th>
+              <th data-key="coverage_end_date">Coverage end</th>
+              <th data-key="receipt_date">Received</th>
+              <th data-key="total_receipts" class="num">Total receipts</th>
+              <th data-key="pdf_url">PDF</th>
+            </tr></thead>
+            <tbody></tbody>
+          </table>
+          <div class="empty" hidden>No filings match these filters.</div>
+        </div>
+      </section>
+
+      <!-- ===================== CROSS-REFERENCE ===================== -->
+      <section class="panel-view" id="view-xref">
+        <p class="intro">
+          <strong>Contributor ↔ Federal contract cross-reference.</strong>
+          Pulls FEC contributions (Schedule A) for a set of contributor names + employer, scores each row's
+          match confidence (0–100 from employer / occupation / state / name signals), and joins against
+          <code>USAspending.gov</code> federal contract awards for the same recipient — so donations and contract
+          dollars appear side by side. Defaults to the <strong>Fisher Sand &amp; Gravel</strong> principals
+          (ND/AZ), excluding the unrelated "Fisher Investments" / Ken Fisher. Name-only matches are flagged
+          <span class="flag-review">REVIEW</span>.
+        </p>
+        <div class="filters">
+          <div class="field" style="grid-column: 1 / -1;"><label class="field-label" for="x_names">Contributor names (comma-separated)</label><input type="text" id="x_names" value="Thomas Fisher, Tommy Fisher, Grant Fisher, Ryan Fisher" /></div>
+          <div class="field"><label class="field-label" for="x_employer">Employer contains</label><input type="text" id="x_employer" value="Fisher Sand" /></div>
+          <div class="field"><label class="field-label" for="x_states">States (comma-separated)</label><input type="text" id="x_states" value="ND, AZ" /></div>
+          <div class="field"><label class="field-label" for="x_exclude">Exclude employer/name contains</label><input type="text" id="x_exclude" value="Fisher Investments, Kenneth Fisher, Ken Fisher" /></div>
+          <div class="field"><label class="field-label" for="x_naics">USAspending NAICS (contract join)</label><input type="text" id="x_naics" value="237310, 237110, 237130" /></div>
+          <div class="field actions"><button data-search="xref">Run cross-reference</button></div>
+        </div>
+        <div class="status" data-status="xref"></div>
+        <div class="table-bar">
+          <h2>Matches</h2>
+          <div class="table-actions">
+            <span class="page-info" data-pageinfo="xref"></span>
+            <button class="btn-csv" data-csv="xref">⤓ CSV</button>
+            <button class="btn-xlsx" data-xlsx="xref">⤓ Excel</button>
+          </div>
+        </div>
+        <div class="table-scroll">
+          <table class="data" data-table="xref">
+            <thead><tr>
+              <th data-key="score" class="num">Score</th>
+              <th data-key="contributor_name">Contributor</th>
+              <th data-key="contributor_employer">Employer</th>
+              <th data-key="contributor_state">State</th>
+              <th data-key="contribution_receipt_amount" class="num">Donation</th>
+              <th data-key="contribution_receipt_date">Date</th>
+              <th data-key="committee_name">Recipient committee</th>
+              <th data-key="award_total" class="num">Fed. contract $ (recipient)</th>
+            </tr></thead>
+            <tbody></tbody>
+          </table>
+          <div class="empty" hidden>No matches found.</div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="compliance">
+      <strong>Compliance &amp; use:</strong> FEC data is provided for research and transparency purposes only.
+      Under <strong>52 U.S.C. § 30111(a)(4)</strong>, contributor information (including names and addresses) may
+      <strong>not</strong> be used for commercial purposes or to solicit contributions or donations.
+      Sources: <a href="https://api.open.fec.gov/developers/" target="_blank" rel="noopener">OpenFEC API</a> ·
+      <a href="https://www.usaspending.gov/" target="_blank" rel="noopener">USAspending.gov</a>. Not an official government product.
+    </footer>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script src="./app.js"></script>
+</body>
+</html>

@@ -147,6 +147,19 @@ sections:
         styles:
           self:
             textAlign: left
+      - type: FeaturedItem
+        title: FEC Campaign Finance Explorer
+        text: >-
+          An OpenFEC explorer for contributions, committees, candidates,
+          independent expenditures, and filings — plus a contributor-to-federal-
+          contract cross-reference with match confidence scoring.
+        actions:
+          - type: Link
+            label: Learn more
+            url: /projects/fec
+        styles:
+          self:
+            textAlign: left
     actions:
       - type: Link
         label: View all Tech Projects

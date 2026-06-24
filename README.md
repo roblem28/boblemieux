@@ -48,6 +48,42 @@ Here are a few suggestions on what to do next if you're new to Netlify Visual Ed
 - Learn [how Netlify Visual Editor works](https://docs.netlify.com/visual-editor/overview/)
 - Check [Netlify visual editor reference documentation](https://visual-editor-reference.netlify.com/)
 
+## Projects: FEC Campaign Finance Explorer
+
+`/projects/fec` is a self-contained explorer for FEC campaign-finance data
+(OpenFEC API), following the same pattern as the Federal Award Explorer
+(`/projects/spending`): a static app in `public/projects/fec/` embedded via an
+iframe, backed by an in-repo API route.
+
+- **Proxy:** `src/pages/api/fec.js` — a generic, allow-listed proxy that injects
+  the server-side `FEC_API_KEY`, forwards to `https://api.open.fec.gov/v1`, and
+  handles 429 rate limits with backoff. The key is **never** exposed to the browser.
+- **Tabs:** Contributions (Schedule A), Committees, Candidates, Independent
+  Expenditures (Schedule E), Filings, and a Cross-Reference tab that joins FEC
+  contributions to USAspending federal contract awards with a 0–100 match
+  confidence score (name-only matches are flagged `REVIEW`).
+- **Health check:** `GET /api/fec?health=1` hits `/candidates/search?q=cramer`
+  to confirm the key works end to end.
+
+### Setting `FEC_API_KEY`
+
+Get a key at [api.data.gov/signup](https://api.data.gov/signup/).
+
+- **Local:** add `FEC_API_KEY=your_key_here` to `.env.local` (gitignored — never commit it).
+- **Production (Netlify):** add it as an environment variable, then redeploy:
+  ```txt
+  netlify env:set FEC_API_KEY your_key_here
+  ```
+  or in the UI: **Site settings → Environment variables → Add a variable**
+  (key `FEC_API_KEY`, scope: all / Functions). Do not commit the key.
+
+### Compliance & use
+
+FEC data is provided for **research and transparency purposes only**. Under
+52 U.S.C. § 30111(a)(4), contributor information (including names and addresses)
+may **not** be used for commercial purposes or to solicit contributions or
+donations. This is not an official government product.
+
 ## Support
 
 If you get stuck along the way, get help in our [support forums](https://answers.netlify.com/).
