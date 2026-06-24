@@ -90,14 +90,20 @@ const PropsResolvers: Partial<Record<ContentObjectType, ResolverFunction>> = {
 
 function getAllPostsSorted(objects: ContentObject[]) {
     const all = objects.filter((object) => object.__metadata?.modelName === 'PostLayout') as PostLayout[];
-    const sorted = all.sort((postA, postB) => new Date(postB.date).getTime() - new Date(postA.date).getTime());
-    return sorted;
+    const mapped = all.map((post) => ({
+        post,
+        time: new Date(post.date).getTime()
+    }));
+    mapped.sort((a, b) => b.time - a.time);
+    return mapped.map((item) => item.post);
 }
 
 function getAllProjectsSorted(objects: ContentObject[]) {
     const all = objects.filter((object) => object.__metadata?.modelName === 'ProjectLayout') as ProjectLayout[];
-    const sorted = all.sort(
-        (projectA, projectB) => new Date(projectB.date).getTime() - new Date(projectA.date).getTime()
-    );
-    return sorted;
+    const mapped = all.map((project) => ({
+        project,
+        time: new Date(project.date).getTime()
+    }));
+    mapped.sort((a, b) => b.time - a.time);
+    return mapped.map((item) => item.project);
 }
