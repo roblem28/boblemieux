@@ -102,7 +102,12 @@ function contentUrl(obj: types.ContentObject) {
     return url;
 }
 
+let cachedContent: types.ContentObject[] | null = null;
 export function allContent(): types.ContentObject[] {
+    if (!isDev && cachedContent) {
+        return cachedContent.map((e) => deepClone(e));
+    }
+
     let objects = contentFilesInPath(contentBaseDir).map((file) => readContent(file));
 
     allPages(objects).forEach((obj) => {
@@ -114,6 +119,10 @@ export function allContent(): types.ContentObject[] {
 
     objects = objects.map((e) => deepClone(e));
     objects.forEach((e) => annotateContentObject(e));
+
+    if (!isDev) {
+        cachedContent = objects;
+    }
 
     return objects;
 }
@@ -161,6 +170,6 @@ function annotateContentObject(o: any, prefix = '', depth = 0) {
     });
 }
 
-function deepClone(o: object) {
-    return JSON.parse(JSON.stringify(o));
+function deepClone<T>(o: T): T {
+    return structuredClone(o);
 }
