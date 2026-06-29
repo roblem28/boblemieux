@@ -65,9 +65,9 @@
     cursor: pointer;
     color: #1565c0;
 }
-.wrapper :global(.panel.collapsed .panel-body) {
-    display: none;
-}
+/* NOTE: the `.collapsed` collapse rule lives only inside the <=640px media query.
+ * The panel ships with class="panel collapsed" so it's collapsed from first paint
+ * on phones (no JS-timing flash); on wide screens `.collapsed` is a no-op. */
 .wrapper :global(.panel h2) {
     font-size: 12px;
     text-transform: uppercase;
@@ -293,34 +293,56 @@
 }
 
 /* --- narrow / phone layout (<=640px) -------------------------------------- */
-/* Capability-driven (viewport width + touch), not user-agent sniffing. */
+/* Capability-driven (viewport width), not user-agent sniffing. */
 @media (max-width: 640px) {
-    /* Full-bleed map; dvh (not vh) so iOS Safari's address bar can't cause overflow. */
+    /* Edge-to-edge map sized to fit BELOW the site header within one screen, so
+     * nothing requires page-scrolling (which would slide top-anchored overlays
+     * out of view). dvh (not vh) keeps it correct under the iOS address bar.
+     * The 96px budget covers a typical relative site header + page padding. */
     .wrapper {
-        height: 100dvh;
-        min-height: 0;
+        height: calc(100dvh - 96px);
+        min-height: 420px;
         border-radius: 0;
-        /* Break out of the page's horizontal padding for an edge-to-edge map. */
         margin-left: -1rem;
         margin-right: -1rem;
         width: calc(100% + 2rem);
     }
 
-    /* Controls become a collapsible top bar instead of a side panel. */
+    /* Controls become a BOTTOM sheet — thumb-reachable and never clipped by the
+     * top header. Collapsed by default to just its header bar; expands upward
+     * with internal scrolling so no control is ever cut off. */
     .wrapper :global(.panel) {
-        top: 0;
+        top: auto;
+        bottom: 0;
         left: 0;
         right: 0;
         width: auto;
-        max-height: 70dvh;
-        border-radius: 0 0 12px 12px;
+        max-height: 62dvh;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+        border-radius: 12px 12px 0 0;
         padding: 10px 14px;
-        /* Respect the notch / status bar at the top. */
-        padding-top: calc(10px + env(safe-area-inset-top));
+        padding-bottom: calc(10px + env(safe-area-inset-bottom));
+    }
+    .wrapper :global(.panel.collapsed) {
+        overflow: hidden;
+    }
+    .wrapper :global(.panel.collapsed .panel-body) {
+        display: none;
+    }
+    /* Keep the title + toggle pinned and tappable while the body scrolls. */
+    .wrapper :global(.panel-head) {
+        position: sticky;
+        top: 0;
+        z-index: 1;
+        background: rgba(255, 255, 255, 0.97);
+        padding-bottom: 6px;
     }
     .wrapper :global(.panel-toggle) {
         display: inline-block;
         min-height: 44px;
+        padding: 8px 14px;
+        font-size: 14px;
     }
 
     /* Bigger tap targets. */
@@ -338,14 +360,17 @@
         font-size: 15px;
     }
 
-    /* Forecast becomes a bottom sheet, clear of the home-bar inset. */
+    /* Forecast sheet sits just ABOVE the collapsed controls bar (which the
+     * forecast handler auto-collapses to), so the two never overlap. */
     .wrapper :global(.forecast) {
         left: 0;
         right: 0;
-        bottom: 0;
+        top: auto;
+        bottom: calc(72px + env(safe-area-inset-bottom));
         width: auto;
+        max-height: 48dvh;
+        overflow-y: auto;
         border-radius: 12px 12px 0 0;
-        padding-bottom: env(safe-area-inset-bottom);
     }
     .wrapper :global(.forecast-close) {
         min-width: 44px;

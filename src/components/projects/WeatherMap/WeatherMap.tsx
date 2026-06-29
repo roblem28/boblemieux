@@ -113,6 +113,13 @@ export default function WeatherMap() {
         let radarTimeISO = roundedNowISO(); // changing this busts the WMS tile cache → fresh radar
         const visible: Record<string, boolean> = { radar: true, precip: false, warnings: true, hazards: true };
 
+        // Cached alert features from the last fetch, so the status line can recount
+        // what's *in the current map view* on pan/zoom (without re-fetching).
+        let loadedWarnings: any[] = [];
+        let loadedHazards: any[] = [];
+        let loadedStorms: any[] = [];
+        let lastUpdated = '';
+
         // Id of the basemap's lowest symbol (label) layer.
         let labelLayerId: string | undefined;
 
@@ -311,18 +318,61 @@ export default function WeatherMap() {
                 const sSrc = map.getSource(STORM_SOURCE) as any;
                 if (sSrc) sSrc.setData(storms);
 
-                const arrowNote = storms.features.length ? ` · ${storms.features.length} storm-motion arrow(s)` : '';
-                if (warnings.length === 0 && hazards.length === 0) {
-                    setStatus(`No active alerts.${arrowNote}`);
-                } else {
-                    setStatus(
-                        `${warnings.length} warning(s), ${hazards.length} watch/hazard(s)${arrowNote} · updated ${new Date().toLocaleTimeString()}`
-                    );
-                }
+                // Cache for viewport-scoped recounting on pan/zoom.
+                loadedWarnings = warnings;
+                loadedHazards = hazards;
+                loadedStorms = storms.features;
+                lastUpdated = new Date().toLocaleTimeString();
+                updateAlertStatus();
             } catch (e: any) {
                 setStatus(`Alert fetch failed: ${e.message}`, true);
             } finally {
                 if (btn) btn.disabled = false;
+            }
+        }
+
+        // Geographic bbox [w, s, e, n] of a GeoJSON geometry's coordinates.
+        function geomBbox(geom: any): [number, number, number, number] | null {
+            if (!geom || !geom.coordinates) return null;
+            let w = 180,
+                s = 90,
+                e = -180,
+                n = -90;
+            const visit = (c: any) => {
+                if (typeof c[0] === 'number') {
+                    const [lon, lat] = c;
+                    if (lon < w) w = lon;
+                    if (lon > e) e = lon;
+                    if (lat < s) s = lat;
+                    if (lat > n) n = lat;
+                } else for (const x of c) visit(x);
+            };
+            visit(geom.coordinates);
+            return [w, s, e, n];
+        }
+
+        function featureInView(f: any, b: maplibregl.LngLatBounds) {
+            const bb = geomBbox(f.geometry);
+            if (!bb) return false;
+            // bbox-vs-bounds intersection test.
+            return !(bb[2] < b.getWest() || bb[0] > b.getEast() || bb[3] < b.getSouth() || bb[1] > b.getNorth());
+        }
+
+        // Recompute the status line from cached features, scoped to the current view.
+        // The bug we're fixing: the old line reported all loaded (national) alerts,
+        // and could appear to show the same number for both categories.
+        function updateAlertStatus() {
+            if (!lastUpdated) return; // nothing fetched yet
+            const b = map.getBounds();
+            const wIn = loadedWarnings.filter((f) => featureInView(f, b)).length;
+            const hIn = loadedHazards.filter((f) => featureInView(f, b)).length;
+            const aIn = loadedStorms.filter((f) => b.contains(f.geometry.coordinates as [number, number])).length;
+            const arrowNote = aIn ? ` · ${aIn} storm-motion arrow(s)` : '';
+            const total = loadedWarnings.length + loadedHazards.length;
+            if (wIn === 0 && hIn === 0) {
+                setStatus(`No alerts in view${total ? ` (${total} active in the US)` : ''}. · updated ${lastUpdated}`);
+            } else {
+                setStatus(`${wIn} warning(s), ${hIn} watch/hazard(s) in view${arrowNote} · updated ${lastUpdated}`);
             }
         }
 
@@ -464,8 +514,9 @@ export default function WeatherMap() {
                     'icon-rotation-alignment': 'map',
                     'icon-allow-overlap': true,
                     'icon-ignore-placement': true,
-                    // Scale by speed: faster storm -> bigger arrow.
-                    'icon-size': ['interpolate', ['linear'], ['get', 'speedKt'], 0, 0.6, 60, 1.5],
+                    // Scale by speed: faster storm -> bigger arrow. Floor kept high
+                    // enough to stay legible on dense high-DPR phone screens.
+                    'icon-size': ['interpolate', ['linear'], ['get', 'speedKt'], 0, 0.9, 60, 1.8],
                     'text-field': ['concat', ['to-string', ['get', 'speedMph']], ' mph'],
                     'text-font': ['Open Sans Regular', 'Arial Unicode MS Regular'],
                     'text-size': 11,
@@ -505,6 +556,9 @@ export default function WeatherMap() {
         }
 
         async function loadForecast(lat: number, lon: number) {
+            // On phones the controls + forecast are both bottom sheets; collapse the
+            // controls so the forecast sheet is unobstructed.
+            if (narrowMq.matches) setPanelCollapsed(true);
             setForecastBody('<p class="fc-loading">Loading forecast…</p>');
             try {
                 const pRes = await fetch(`/api/alerts/?resource=point&lat=${lat.toFixed(4)}&lon=${lon.toFixed(4)}`);
@@ -593,7 +647,8 @@ export default function WeatherMap() {
             }
         }
 
-        // Narrow-viewport behavior: collapse the panel into a top bar by default.
+        // Narrow-viewport behavior. The panel ships collapsed (class in markup), so
+        // we only need to toggle on tap; no JS-timing default is required.
         const narrowMq = window.matchMedia('(max-width: 640px)');
         function setPanelCollapsed(collapsed: boolean) {
             const panel = document.getElementById('panel');
@@ -627,7 +682,7 @@ export default function WeatherMap() {
 
             (document.getElementById('locate') as HTMLButtonElement).addEventListener('click', useMyLocation);
 
-            // Collapsible panel (matters on narrow screens; harmless on wide).
+            // Collapsible panel (matters on narrow screens; the toggle is hidden on wide).
             const toggle = document.getElementById('panel-toggle');
             if (toggle)
                 toggle.addEventListener('click', () => {
@@ -642,12 +697,6 @@ export default function WeatherMap() {
                     const card = document.getElementById('forecast');
                     if (card) card.hidden = true;
                 });
-
-            // Default to collapsed on phones; expanded on wide. React to rotation/resize.
-            setPanelCollapsed(narrowMq.matches);
-            const onMq = (ev: MediaQueryListEvent) => setPanelCollapsed(ev.matches);
-            if (narrowMq.addEventListener) narrowMq.addEventListener('change', onMq);
-            else narrowMq.addListener(onMq); // older Safari
         }
 
         // --- boot ----------------------------------------------------------------
@@ -670,6 +719,9 @@ export default function WeatherMap() {
             // Tap/click anywhere on the map -> point forecast for that spot.
             map.on('click', (e: any) => loadForecast(e.lngLat.lat, e.lngLat.lng));
 
+            // Recount in-view alerts when the user pans/zooms.
+            map.on('moveend', updateAlertStatus);
+
             // Alerts change frequently; auto-refresh every 5 minutes.
             refreshIntervalId = setInterval(() => {
                 refreshRadar();
@@ -690,11 +742,11 @@ export default function WeatherMap() {
         <div className={styles.wrapper}>
             <div id="map" ref={mapRef}></div>
 
-            <div id="panel" className="panel">
+            <div id="panel" className="panel collapsed">
                 <div className="panel-head">
                     <h1>Weather Map</h1>
-                    <button id="panel-toggle" type="button" className="panel-toggle" aria-expanded="true" aria-label="Toggle controls">
-                        Layers
+                    <button id="panel-toggle" type="button" className="panel-toggle" aria-expanded="false" aria-label="Toggle controls">
+                        Layers ▾
                     </button>
                 </div>
 
