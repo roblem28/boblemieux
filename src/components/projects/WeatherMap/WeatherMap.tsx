@@ -119,6 +119,56 @@ export default function WeatherMap() {
         let loadedHazards: any[] = [];
         let loadedStorms: any[] = [];
         let lastUpdated = '';
+        // The set of states the last fetch was bounded to; used to refetch only
+        // when panning into a different region.
+        let lastAreaKey = '';
+
+        // Generously-padded [W, S, E, N] bbox per US state/territory. Used only to
+        // pick which states to request alerts for (api.weather.gov has no bbox
+        // filter, but accepts ?area=<state codes>). Over-inclusion is safe — the
+        // exact in-view count is still computed against real geometry below.
+        const STATE_BBOX: Record<string, [number, number, number, number]> = {
+            AL: [-89, 30, -84.5, 35.5], AZ: [-115, 31, -109, 37.5], AR: [-94.8, 32.5, -89.5, 36.7],
+            CA: [-124.6, 32, -114, 42.4], CO: [-109.4, 36.8, -101.5, 41.3], CT: [-73.9, 40.9, -71.7, 42.2],
+            DE: [-75.9, 38.4, -74.9, 39.9], DC: [-77.2, 38.7, -76.8, 39.1], FL: [-87.8, 24, -79.8, 31.2],
+            GA: [-85.8, 30.3, -80.7, 35.2], ID: [-117.3, 41.9, -110.9, 49.1], IL: [-91.6, 36.9, -87.4, 42.6],
+            IN: [-88.2, 37.7, -84.7, 41.9], IA: [-96.7, 40.3, -90, 43.6], KS: [-102.2, 36.9, -94.5, 40.1],
+            KY: [-89.6, 36.4, -81.9, 39.2], LA: [-94.1, 28.8, -88.7, 33.1], ME: [-71.2, 42.9, -66.8, 47.6],
+            MD: [-79.6, 37.8, -74.9, 39.8], MA: [-73.6, 41.1, -69.8, 42.9], MI: [-90.5, 41.6, -82.3, 48.4],
+            MN: [-97.3, 43.4, -89.4, 49.5], MS: [-91.7, 30, -88, 35], MO: [-95.9, 35.9, -89, 40.7],
+            MT: [-116.1, 44.3, -104, 49.1], NE: [-104.1, 39.9, -95.2, 43.1], NV: [-120.1, 35, -114, 42.1],
+            NH: [-72.6, 42.6, -70.6, 45.4], NJ: [-75.6, 38.8, -73.8, 41.4], NM: [-109.1, 31.2, -102.9, 37.1],
+            NY: [-79.8, 40.4, -71.8, 45.1], NC: [-84.4, 33.7, -75.4, 36.7], ND: [-104.1, 45.8, -96.5, 49.1],
+            OH: [-84.9, 38.3, -80.4, 42.4], OK: [-103.1, 33.5, -94.4, 37.1], OR: [-124.6, 41.9, -116.4, 46.4],
+            PA: [-80.6, 39.6, -74.6, 42.3], RI: [-71.9, 41.1, -71.1, 42.1], SC: [-83.4, 32, -78.5, 35.3],
+            SD: [-104.1, 42.4, -96.4, 46], TN: [-90.4, 34.9, -81.6, 36.7], TX: [-106.7, 25.7, -93.4, 36.6],
+            UT: [-114.1, 36.9, -109, 42.1], VT: [-73.5, 42.7, -71.4, 45.1], VA: [-83.7, 36.5, -75.1, 39.5],
+            WA: [-124.9, 45.5, -116.9, 49.1], WV: [-82.7, 37.1, -77.7, 40.7], WI: [-92.9, 42.4, -86.8, 47.1],
+            WY: [-111.1, 40.9, -104, 45.1], AK: [-179.2, 51, -129.9, 71.5], HI: [-160.3, 18.8, -154.8, 22.3],
+            PR: [-67.3, 17.9, -65.6, 18.6]
+        };
+
+        function statesInView(b: maplibregl.LngLatBounds): string[] {
+            const W = b.getWest(), E = b.getEast(), S = b.getSouth(), N = b.getNorth();
+            const out: string[] = [];
+            for (const [code, bb] of Object.entries(STATE_BBOX)) {
+                if (!(bb[2] < W || bb[0] > E || bb[3] < S || bb[1] > N)) out.push(code);
+            }
+            return out;
+        }
+
+        // Build the alerts request URL, bounded to the states in view when that's a
+        // tractable regional set; otherwise national (zoomed-out or over open water,
+        // where marine alerts have no state area). Returns the area key for change
+        // detection so we only refetch when the region actually changes.
+        function alertsRequest(): { url: string; areaKey: string } {
+            const codes = statesInView(map.getBounds()).sort();
+            // 1..18 states -> bound the fetch; else national (full coverage / marine).
+            if (codes.length >= 1 && codes.length <= 18) {
+                return { url: `/api/alerts/?resource=alerts&area=${codes.join(',')}`, areaKey: codes.join(',') };
+            }
+            return { url: '/api/alerts/?resource=alerts', areaKey: '*' };
+        }
 
         // Id of the basemap's lowest symbol (label) layer.
         let labelLayerId: string | undefined;
@@ -294,8 +344,12 @@ export default function WeatherMap() {
             const btn = document.getElementById('refresh') as HTMLButtonElement | null;
             if (btn) btn.disabled = true;
             try {
-                // Trailing slash: next.config has trailingSlash:true, so this avoids a 308 redirect hop.
-                const res = await fetch('/api/alerts/?resource=alerts', { headers: { Accept: 'application/geo+json' } });
+                // Bound the fetch to the region in view so we never pull the whole
+                // (cap-prone) national feed for a regional map. Trailing slash:
+                // next.config has trailingSlash:true, so this avoids a 308 hop.
+                const req = alertsRequest();
+                lastAreaKey = req.areaKey;
+                const res = await fetch(req.url, { headers: { Accept: 'application/geo+json' } });
                 if (!res.ok) throw new Error(`HTTP ${res.status}`);
                 const geojson = await res.json();
                 const all: any[] = Array.isArray(geojson.features) ? geojson.features : [];
@@ -370,7 +424,7 @@ export default function WeatherMap() {
             const arrowNote = aIn ? ` · ${aIn} storm-motion arrow(s)` : '';
             const total = loadedWarnings.length + loadedHazards.length;
             if (wIn === 0 && hIn === 0) {
-                setStatus(`No alerts in view${total ? ` (${total} active in the US)` : ''}. · updated ${lastUpdated}`);
+                setStatus(`No alerts in view${total ? ` (${total} loaded for this region)` : ''} · updated ${lastUpdated}`);
             } else {
                 setStatus(`${wIn} warning(s), ${hIn} watch/hazard(s) in view${arrowNote} · updated ${lastUpdated}`);
             }
@@ -719,8 +773,18 @@ export default function WeatherMap() {
             // Tap/click anywhere on the map -> point forecast for that spot.
             map.on('click', (e: any) => loadForecast(e.lngLat.lat, e.lngLat.lng));
 
-            // Recount in-view alerts when the user pans/zooms.
-            map.on('moveend', updateAlertStatus);
+            // On pan/zoom: recount in-view instantly from cached data, and if the
+            // user moved into a different region, refetch that region (debounced).
+            let regionTimer: ReturnType<typeof setTimeout> | undefined;
+            map.on('moveend', () => {
+                updateAlertStatus();
+                if (regionTimer) clearTimeout(regionTimer);
+                regionTimer = setTimeout(() => {
+                    const codes = statesInView(map.getBounds()).sort();
+                    const key = codes.length >= 1 && codes.length <= 18 ? codes.join(',') : '*';
+                    if (key !== lastAreaKey) refreshAlerts();
+                }, 700);
+            });
 
             // Alerts change frequently; auto-refresh every 5 minutes.
             refreshIntervalId = setInterval(() => {

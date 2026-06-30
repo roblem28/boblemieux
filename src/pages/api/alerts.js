@@ -38,8 +38,14 @@ function resolveUpstream(qp) {
   const resource = qp.resource || 'alerts';
 
   if (resource === 'alerts') {
-    // All active alerts; each feature carries geometry (polygon) and, for
-    // convective products, parameters.eventMotionDescription.
+    // Active alerts; each feature carries geometry (polygon) and, for convective
+    // products, parameters.eventMotionDescription. Optional `area` bounds the
+    // result to a set of state/territory codes (the map sends the states in view)
+    // so we don't pull the whole national feed. Validated to plain 2-letter codes.
+    const area = String(qp.area || '').toUpperCase();
+    if (area && /^[A-Z]{2}(,[A-Z]{2})*$/.test(area)) {
+      return `${BASE}/alerts/active?area=${encodeURIComponent(area)}`;
+    }
     return `${BASE}/alerts/active`;
   }
 
