@@ -40,10 +40,34 @@
     padding: 14px 16px;
     backdrop-filter: blur(4px);
 }
+.wrapper :global(.panel-head) {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
 .wrapper :global(.panel h1) {
     font-size: 16px;
     margin: 0 0 10px;
 }
+.wrapper :global(.panel-head h1) {
+    margin-bottom: 0;
+}
+
+/* Collapse toggle: hidden on wide screens, shown as a button on narrow ones. */
+.wrapper :global(.panel-toggle) {
+    display: none;
+    border: 1px solid #cfd8dc;
+    background: #fff;
+    border-radius: 6px;
+    padding: 6px 10px;
+    font-size: 12px;
+    cursor: pointer;
+    color: #1565c0;
+}
+/* NOTE: the `.collapsed` collapse rule lives only inside the <=640px media query.
+ * The panel ships with class="panel collapsed" so it's collapsed from first paint
+ * on phones (no JS-timing flash); on wide screens `.collapsed` is a no-op. */
 .wrapper :global(.panel h2) {
     font-size: 12px;
     text-transform: uppercase;
@@ -83,7 +107,8 @@
     width: 100%;
 }
 
-.wrapper :global(button#refresh) {
+.wrapper :global(button#refresh),
+.wrapper :global(button#locate) {
     width: 100%;
     padding: 8px;
     border: none;
@@ -92,13 +117,27 @@
     color: #fff;
     font-size: 13px;
     cursor: pointer;
+    margin-bottom: 6px;
+}
+.wrapper :global(button#locate) {
+    background: #2e7d32;
 }
 .wrapper :global(button#refresh:hover) {
     background: #0d47a1;
 }
-.wrapper :global(button#refresh:disabled) {
+.wrapper :global(button#locate:hover) {
+    background: #1b5e20;
+}
+.wrapper :global(button#refresh:disabled),
+.wrapper :global(button#locate:disabled) {
     background: #90a4ae;
     cursor: progress;
+}
+
+.wrapper :global(.motion-note) {
+    font-size: 11px;
+    color: #555;
+    line-height: 1.3;
 }
 
 .wrapper :global(.status) {
@@ -175,4 +214,166 @@
 }
 .wrapper :global(.popup a) {
     color: #1565c0;
+}
+.wrapper :global(.popup .sub) {
+    margin: 0 0 6px;
+    font-size: 12px;
+    color: #444;
+}
+
+/* --- point forecast card -------------------------------------------------- */
+/* Wide screens: floating card, bottom-left (clear of nav + scale controls). */
+.wrapper :global(.forecast) {
+    position: absolute;
+    left: 12px;
+    bottom: 28px;
+    z-index: 11;
+    width: 240px;
+    background: rgba(255, 255, 255, 0.97);
+    border-radius: 10px;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.25);
+    backdrop-filter: blur(4px);
+    overflow: hidden;
+}
+.wrapper :global(.forecast-head) {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 12px;
+    background: #1565c0;
+    color: #fff;
+}
+.wrapper :global(.forecast-title) {
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+.wrapper :global(.forecast-close) {
+    border: none;
+    background: transparent;
+    color: #fff;
+    font-size: 14px;
+    cursor: pointer;
+    line-height: 1;
+    padding: 4px;
+}
+.wrapper :global(.forecast-body) {
+    padding: 10px 12px 12px;
+}
+.wrapper :global(.fc-place) {
+    font-size: 13px;
+    font-weight: 600;
+    color: #222;
+}
+.wrapper :global(.fc-temp) {
+    font-size: 30px;
+    font-weight: 700;
+    color: #0d47a1;
+    line-height: 1.1;
+    margin: 2px 0;
+}
+.wrapper :global(.fc-period) {
+    font-size: 12px;
+    color: #555;
+}
+.wrapper :global(.fc-short) {
+    font-size: 13px;
+    color: #222;
+    margin: 4px 0 2px;
+}
+.wrapper :global(.fc-wind) {
+    font-size: 12px;
+    color: #555;
+}
+.wrapper :global(.fc-loading),
+.wrapper :global(.fc-empty) {
+    font-size: 13px;
+    color: #555;
+    margin: 0;
+}
+
+/* --- narrow / phone layout (<=640px) -------------------------------------- */
+/* Capability-driven (viewport width), not user-agent sniffing. */
+@media (max-width: 640px) {
+    /* Edge-to-edge map sized to fit BELOW the site header within one screen, so
+     * nothing requires page-scrolling (which would slide top-anchored overlays
+     * out of view). dvh (not vh) keeps it correct under the iOS address bar.
+     * The 96px budget covers a typical relative site header + page padding. */
+    .wrapper {
+        height: calc(100dvh - 96px);
+        min-height: 420px;
+        border-radius: 0;
+        margin-left: -1rem;
+        margin-right: -1rem;
+        width: calc(100% + 2rem);
+    }
+
+    /* Controls become a BOTTOM sheet — thumb-reachable and never clipped by the
+     * top header. Collapsed by default to just its header bar; expands upward
+     * with internal scrolling so no control is ever cut off. */
+    .wrapper :global(.panel) {
+        top: auto;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        width: auto;
+        max-height: 62dvh;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+        border-radius: 12px 12px 0 0;
+        padding: 10px 14px;
+        padding-bottom: calc(10px + env(safe-area-inset-bottom));
+    }
+    .wrapper :global(.panel.collapsed) {
+        overflow: hidden;
+    }
+    .wrapper :global(.panel.collapsed .panel-body) {
+        display: none;
+    }
+    /* Keep the title + toggle pinned and tappable while the body scrolls. */
+    .wrapper :global(.panel-head) {
+        position: sticky;
+        top: 0;
+        z-index: 1;
+        background: rgba(255, 255, 255, 0.97);
+        padding-bottom: 6px;
+    }
+    .wrapper :global(.panel-toggle) {
+        display: inline-block;
+        min-height: 44px;
+        padding: 8px 14px;
+        font-size: 14px;
+    }
+
+    /* Bigger tap targets. */
+    .wrapper :global(.toggle) {
+        min-height: 44px;
+        font-size: 15px;
+    }
+    .wrapper :global(.toggle input) {
+        width: 22px;
+        height: 22px;
+    }
+    .wrapper :global(button#refresh),
+    .wrapper :global(button#locate) {
+        min-height: 44px;
+        font-size: 15px;
+    }
+
+    /* Forecast sheet sits just ABOVE the collapsed controls bar (which the
+     * forecast handler auto-collapses to), so the two never overlap. */
+    .wrapper :global(.forecast) {
+        left: 0;
+        right: 0;
+        top: auto;
+        bottom: calc(72px + env(safe-area-inset-bottom));
+        width: auto;
+        max-height: 48dvh;
+        overflow-y: auto;
+        border-radius: 12px 12px 0 0;
+    }
+    .wrapper :global(.forecast-close) {
+        min-width: 44px;
+        min-height: 44px;
+    }
 }

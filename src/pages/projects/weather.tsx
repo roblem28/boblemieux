@@ -16,7 +16,7 @@ export default function WeatherPage(props: any) {
                     name="description"
                     content="Live NOAA/NWS radar, precip type, and severe-weather alerts on an interactive MapLibre map."
                 />
-                <meta name="viewport" content="width=device-width, initial-scale=1" />
+                <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
             </Head>
             <BaseLayout {...props}>
                 <div className="px-4 py-8">
