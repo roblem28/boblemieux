@@ -39,6 +39,31 @@ export const LinkModel: Model = {
             required: true
         },
         {
+            type: 'enum',
+            name: 'target',
+            group: 'settings',
+            label: 'Target',
+            description: 'Where to open the linked URL',
+            options: [
+                {
+                    label: 'Same tab',
+                    value: '_self'
+                },
+                {
+                    label: 'New tab',
+                    value: '_blank'
+                }
+            ]
+        },
+        {
+            type: 'string',
+            name: 'rel',
+            group: 'settings',
+            label: 'Rel',
+            description: 'The rel attribute, e.g. "noopener noreferrer" for links that open in a new tab',
+            default: ''
+        },
+        {
             type: 'boolean',
             name: 'showIcon',
             group: 'styles',

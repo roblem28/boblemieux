@@ -1,0 +1,2701 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+<title>VoxelCraft — Three.js Minecraft Clone</title>
+
+<!-- ==========================================================================
+     The ONLY external resource this file loads is the Three.js module below.
+     Everything else — fonts, styles, textures — is embedded or generated.
+     ========================================================================== -->
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.160.0/build/three.module.js"
+  }
+}
+</script>
+
+<style>
+  /* Press Start 2P (latin subset), SIL Open Font License 1.1, embedded as a
+     data: URI so the page has no font-CDN dependency. */
+  @font-face {
+    font-family: 'Press Start 2P';
+    font-style: normal;
+    font-weight: 400;
+    font-display: block;
+    src: url(data:font/woff2;base64,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) format('woff2');
+  }
+
+  :root { --ui: 'Press Start 2P', 'Courier New', monospace; }
+
+  /* --- minimal reset (replaces Tailwind preflight) --- */
+  *, *::before, *::after { box-sizing: border-box; }
+  h1, p { margin: 0; font-size: inherit; font-weight: inherit; }
+  button { font: inherit; color: inherit; background: none; border: 0; }
+
+  html, body { margin:0; padding:0; width:100%; height:100%; overflow:hidden; background:#0b1020; }
+  body { font-family: var(--ui); -webkit-user-select:none; user-select:none; }
+
+  #game { position:fixed; inset:0; display:block; }
+
+  /* ---------- Crosshair ---------- */
+  #crosshair { position:fixed; left:50%; top:50%; width:22px; height:22px; margin:-11px 0 0 -11px; pointer-events:none; opacity:.85; }
+  #crosshair::before, #crosshair::after {
+    content:''; position:absolute; background:#fff; mix-blend-mode:difference; border-radius:1px;
+  }
+  #crosshair::before { left:50%; top:0; width:2px; height:100%; margin-left:-1px; }
+  #crosshair::after  { top:50%; left:0; height:2px; width:100%; margin-top:-1px; }
+
+  /* ---------- Hotbar ---------- */
+  .slot {
+    width:56px; height:56px; position:relative;
+    background:rgba(12,12,16,.62);
+    border:3px solid #3a3a44;
+    box-shadow: inset 0 0 0 2px rgba(0,0,0,.55);
+    transition: transform .09s ease-out, border-color .09s ease-out;
+  }
+  .slot .ico {
+    position:absolute; inset:7px; background-size:100% 100%; image-rendering:pixelated;
+    filter: drop-shadow(0 2px 0 rgba(0,0,0,.45));
+  }
+  .slot .num {
+    position:absolute; top:1px; left:3px; font-size:8px; color:#cfd3dc; text-shadow:1px 1px 0 #000; opacity:.8;
+  }
+  .slot.active { border-color:#f2f2f2; transform: translateY(-6px) scale(1.06); }
+  .slot.active::after {
+    content:''; position:absolute; inset:-7px; border:2px solid rgba(255,255,255,.9); pointer-events:none;
+  }
+
+  /* ---------- HUD ---------- */
+  #hud {
+    position:fixed; top:12px; left:12px; pointer-events:none;
+    font-size:9px; line-height:16px; color:#f1f5f9; text-shadow:1px 1px 0 #000;
+  }
+  #hudSave:not(:empty) { margin-top:6px; color:#fbbf24; }
+
+  /* ---------- Hotbar layout ---------- */
+  #hotbarWrap {
+    position:fixed; left:0; right:0; bottom:0; padding-bottom:16px;
+    display:flex; flex-direction:column; align-items:center; pointer-events:none;
+  }
+  #hotbar {
+    display:flex; gap:6px; padding:6px;
+    background:rgba(0,0,0,.35); border:3px solid #2b2f3a;
+  }
+  #blockName {
+    margin-bottom:12px; font-size:10px; color:#fff;
+    text-shadow:2px 2px 0 #000; opacity:0; transition: opacity .35s ease;
+  }
+
+  /* ---------- Overlays ---------- */
+  #menu, #loading {
+    position:fixed; inset:0; display:flex; align-items:center; justify-content:center;
+  }
+  #menu { background:rgba(6,8,14,.55); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); }
+  #loading { background:#0a0d16; }
+
+  .panel {
+    background:rgba(9,10,16,.86);
+    border:4px solid #2b2f3a;
+    box-shadow: 0 0 0 4px rgba(0,0,0,.6), 0 18px 60px rgba(0,0,0,.7);
+    padding:36px 40px; text-align:center; max-width:680px;
+  }
+  .panel h1 { font-size:26px; color:#fff; margin-bottom:8px; text-shadow:3px 3px 0 #000; }
+  .subtitle { font-size:9px; color:#6ee7b7; margin-bottom:28px; }
+
+  .keys {
+    display:grid; grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap:40px; row-gap:12px;
+    font-size:8px; color:#cbd5e1; text-align:left;
+  }
+
+  .btnRow { display:flex; gap:14px; justify-content:center; flex-wrap:wrap; margin-bottom:32px; }
+  .btn {
+    font-family:var(--ui); font-size:12px; letter-spacing:1px;
+    background:linear-gradient(#7aa93c,#5d8a2a); color:#fff;
+    border:3px solid #2f4416; padding:14px 26px; cursor:pointer;
+    box-shadow: inset 0 -4px 0 rgba(0,0,0,.35), 0 4px 0 rgba(0,0,0,.4);
+    transition: filter .1s;
+  }
+  .btnAlt { background:linear-gradient(#6b7280,#4b5563); border-color:#2c313b; }
+  .kidBtn { background:linear-gradient(#7c8598,#5b6474); border-color:#333a47; padding:14px 18px; }
+  .kidBtn.kidOn { background:linear-gradient(#34d07f,#1f9d55); border-color:#14653a; color:#f2fff8; }
+
+  /* ---------- Kid mode: minimap ---------- */
+  #minimap {
+    position:fixed; top:14px; right:14px; width:180px; height:180px;
+    border-radius:50%; display:none; pointer-events:none;
+    background:rgba(10,12,18,.55);
+    border:3px solid rgba(255,255,255,.28);
+    box-shadow:0 6px 22px rgba(0,0,0,.55);
+  }
+  body.kid.mapOn #minimap { display:block; }
+
+  /* ---------- Kid mode: objective card ---------- */
+  #objCard {
+    position:fixed; top:16px; left:50%; transform:translateX(-50%);
+    display:none; align-items:center; gap:14px;
+    padding:12px 22px 12px 14px;
+    background:rgba(9,10,16,.82);
+    border:4px solid #2b2f3a;
+    box-shadow:0 0 0 4px rgba(0,0,0,.5), 0 10px 30px rgba(0,0,0,.6);
+    pointer-events:none;
+  }
+  body.kid #objCard { display:flex; }
+  #objIcon { width:52px; height:52px; background-size:100% 100%; image-rendering:pixelated; }
+  #objLabel { font-size:15px; color:#fff; text-shadow:2px 2px 0 #000; letter-spacing:1px; }
+  #objDots { display:flex; gap:6px; margin-top:9px; }
+  #objDots i {
+    width:11px; height:11px; background:rgba(255,255,255,.20);
+    border:2px solid rgba(0,0,0,.5); display:block;
+  }
+  #objDots i.on { background:#ffc93c; }
+  #objCard.pop { animation: objpop .4s ease-out; }
+  #objCard.slide { animation: objslide .45s ease-out; }
+  @keyframes objpop   { 0%{transform:translateX(-50%) scale(1)} 45%{transform:translateX(-50%) scale(1.14)} 100%{transform:translateX(-50%) scale(1)} }
+  @keyframes objslide { 0%{transform:translateX(-50%) translateY(-26px); opacity:0} 100%{transform:translateX(-50%) translateY(0); opacity:1} }
+
+  /* ---------- Kid mode: larger, calmer UI ---------- */
+  body.kid #crosshair { width:44px; height:44px; margin:-22px 0 0 -22px; }
+  body.kid #crosshair::before { width:4px; margin-left:-2px; }
+  body.kid #crosshair::after  { height:4px; margin-top:-2px; }
+  body.kid .slot { width:80px; height:80px; }
+  body.kid .slot .ico { inset:10px; }
+  body.kid .slot .num { font-size:11px; top:3px; left:5px; }
+  body.kid #blockName { font-size:14px; margin-bottom:16px; }
+  .btn:hover { filter:brightness(1.12); }
+  .btn:active { transform:translateY(2px); box-shadow: inset 0 -2px 0 rgba(0,0,0,.35), 0 2px 0 rgba(0,0,0,.4); }
+
+  .loadBox { text-align:center; width:420px; }
+  .loadTitle { font-size:20px; color:#fff; margin-bottom:24px; text-shadow:3px 3px 0 #000; }
+  #bar { height:14px; background:#151821; border:2px solid #333846; }
+  #barFill { height:100%; width:0%; background:linear-gradient(90deg,#78b83a,#a9d95a); transition:width .12s linear; }
+  #loadTxt { margin-top:16px; font-size:8px; color:#94a3b8; }
+
+  .kbd { display:inline-block; min-width:22px; text-align:center; background:#20242f; border:2px solid #3c4252;
+         padding:3px 6px; margin-right:8px; color:#e9edf6; font-size:9px; }
+
+  /* Damage / vignette flash */
+  #vignette { position:fixed; inset:0; pointer-events:none;
+    background: radial-gradient(ellipse at center, rgba(0,0,0,0) 55%, rgba(0,0,0,.45) 100%); }
+</style>
+</head>
+
+<body>
+
+<canvas id="game"></canvas>
+<div id="vignette"></div>
+<div id="crosshair"></div>
+
+<!-- ===================== HUD (debug / stats) ===================== -->
+<div id="hud">
+  <div id="hudFps">FPS --</div>
+  <div id="hudPos">XYZ --</div>
+  <div id="hudChunk">CHUNKS --</div>
+  <div id="hudBiome">BIOME --</div>
+  <div id="hudTime">TIME --</div>
+  <div id="hudSave"></div>
+</div>
+
+<!-- ============ Kid mode: minimap + objective card ============ -->
+<canvas id="minimap" width="180" height="180"></canvas>
+
+<div id="objCard">
+  <div id="objIcon"></div>
+  <div id="objText">
+    <div id="objLabel">GO HOME</div>
+    <div id="objDots"></div>
+  </div>
+</div>
+
+<!-- ===================== Hotbar ===================== -->
+<div id="hotbarWrap">
+  <div id="blockName">Grass</div>
+  <div id="hotbar"></div>
+</div>
+
+<!-- ===================== Pause / Start menu ===================== -->
+<div id="menu">
+  <div class="panel">
+    <h1>VoxelCraft</h1>
+    <p class="subtitle">INFINITE PROCEDURAL VOXEL WORLD</p>
+
+    <div class="btnRow">
+      <button id="playBtn" class="btn">CLICK TO PLAY</button>
+      <button id="newWorldBtn" class="btn btnAlt">NEW WORLD</button>
+      <button id="kidBtn" class="btn kidBtn" role="switch" aria-checked="false">KID MODE: OFF</button>
+    </div>
+
+    <div class="keys">
+      <div><span class="kbd">W A S D</span>Move</div>
+      <div><span class="kbd">MOUSE</span>Look</div>
+      <div><span class="kbd">SPACE</span>Jump / Fly up</div>
+      <div><span class="kbd">C</span>Crouch / Fly down</div>
+      <div><span class="kbd">SHIFT</span>Sprint</div>
+      <div><span class="kbd">F</span>Toggle flight</div>
+      <div><span class="kbd">LMB</span>Break block</div>
+      <div><span class="kbd">RMB</span>Place block</div>
+      <div><span class="kbd">MMB</span>Pick block</div>
+      <div><span class="kbd">1-7</span>Select block</div>
+      <div><span class="kbd">WHEEL</span>Cycle blocks</div>
+      <div><span class="kbd">ESC</span>Pause</div>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== Loading screen ===================== -->
+<div id="loading">
+  <div class="loadBox">
+    <div class="loadTitle">Generating World</div>
+    <div id="bar"><div id="barFill"></div></div>
+    <div id="loadTxt">Seeding terrain…</div>
+  </div>
+</div>
+
+<!-- ============================================================================
+     GAME CODE
+     ============================================================================ -->
+<script type="module">
+import * as THREE from 'three';
+
+/* ============================================================================
+ * 0. CONFIGURATION
+ * ========================================================================== */
+const CS            = 16;    // chunk width/depth in blocks
+const WH            = 72;    // world height in blocks
+const RD            = 5;     // render distance, in chunks (radius)
+const DAY_LENGTH    = 240;   // seconds for a full day/night cycle
+const REACH         = 6;     // block interaction distance
+const GRAVITY       = 30;
+const JUMP_SPEED    = 9.2;
+const SEED          = 20260725;  // default seed for a brand-new world
+
+/* Persistence */
+const SAVE_KEY      = 'voxelcraft-save-v1';
+const SAVE_VERSION  = 2;   // 2 adds kid-mode guidance state
+const SAVE_INTERVAL = 10000;     // ms; also acts as the autosave debounce window
+
+/* ---------------------------------------------------------------------------
+ * KID MODE — a gentler ruleset for very young players.
+ * Kept as a lookup table rather than scattered `if (kidMode)` constants so the
+ * adult column is provably untouched, and so every value is read at the point
+ * of use: toggling mid-session takes effect on the next frame, no reload.
+ * ------------------------------------------------------------------------- */
+const KID_KEY   = 'voxelcraft-kidmode-v1';  // separate from the save: survives NEW WORLD
+const KID_NOON  = 0.25;                     // dayTime value that puts the sun overhead
+const KID_STEP_SMOOTH = 0.12;               // seconds to ease the camera up a step
+let kidMode = false;
+
+const ADULT = {
+  sensitivity:  0.0022,
+  pitchLimit:   Math.PI / 2 - 0.001,        // +/- 90 degrees
+  reach:        REACH,                      // 6
+  holdInterval: 0.22,                       // seconds between repeats
+  voidFloor:    -20,
+};
+const KID = {
+  sensitivity:  0.0011,                     // half
+  pitchLimit:   75 * Math.PI / 180,         // +/- 75 degrees
+  reach:        7,
+  holdInterval: 0.25,
+  voidFloor:    -10,
+};
+const tune = () => kidMode ? KID : ADULT;
+
+/* Block IDs */
+const AIR = 0, GRASS = 1, DIRT = 2, STONE = 3, WOOD = 4, LEAVES = 5, SAND = 6, BRICK = 7;
+
+/* ============================================================================
+ * 1. DETERMINISTIC RANDOM + SIMPLEX NOISE
+ * ========================================================================== */
+function mulberry32(a) {
+  return function () {
+    a |= 0; a = (a + 0x6D2B79F5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+/* Integer hash -> [0,1). Used for scattering features deterministically. */
+function hash2(x, z) {
+  let h = Math.imul(x | 0, 374761393) ^ Math.imul(z | 0, 668265263);
+  h = Math.imul(h ^ (h >>> 13), 1274126177);
+  h ^= h >>> 16;
+  return (h >>> 0) / 4294967296;
+}
+
+const GRAD3 = new Float32Array([
+  1, 1, 0, -1, 1, 0, 1, -1, 0, -1, -1, 0,
+  1, 0, 1, -1, 0, 1, 1, 0, -1, -1, 0, -1,
+  0, 1, 1, 0, -1, 1, 0, 1, -1, 0, -1, -1
+]);
+
+class SimplexNoise {
+  constructor(random) {
+    const p = new Uint8Array(256);
+    for (let i = 0; i < 256; i++) p[i] = i;
+    for (let i = 255; i > 0; i--) {
+      const j = Math.floor(random() * (i + 1));
+      const t = p[i]; p[i] = p[j]; p[j] = t;
+    }
+    this.perm = new Uint8Array(512);
+    this.permMod12 = new Uint8Array(512);
+    for (let i = 0; i < 512; i++) {
+      this.perm[i] = p[i & 255];
+      this.permMod12[i] = this.perm[i] % 12;
+    }
+  }
+
+  noise2D(xin, yin) {
+    const F2 = 0.3660254037844386, G2 = 0.21132486540518713;
+    const perm = this.perm, pm12 = this.permMod12;
+    let n0, n1, n2;
+    const s = (xin + yin) * F2;
+    const i = Math.floor(xin + s), j = Math.floor(yin + s);
+    const t = (i + j) * G2;
+    const x0 = xin - (i - t), y0 = yin - (j - t);
+    let i1, j1;
+    if (x0 > y0) { i1 = 1; j1 = 0; } else { i1 = 0; j1 = 1; }
+    const x1 = x0 - i1 + G2, y1 = y0 - j1 + G2;
+    const x2 = x0 - 1 + 2 * G2, y2 = y0 - 1 + 2 * G2;
+    const ii = i & 255, jj = j & 255;
+    const gi0 = pm12[ii + perm[jj]] * 3;
+    const gi1 = pm12[ii + i1 + perm[jj + j1]] * 3;
+    const gi2 = pm12[ii + 1 + perm[jj + 1]] * 3;
+    let t0 = 0.5 - x0 * x0 - y0 * y0;
+    if (t0 < 0) n0 = 0; else { t0 *= t0; n0 = t0 * t0 * (GRAD3[gi0] * x0 + GRAD3[gi0 + 1] * y0); }
+    let t1 = 0.5 - x1 * x1 - y1 * y1;
+    if (t1 < 0) n1 = 0; else { t1 *= t1; n1 = t1 * t1 * (GRAD3[gi1] * x1 + GRAD3[gi1 + 1] * y1); }
+    let t2 = 0.5 - x2 * x2 - y2 * y2;
+    if (t2 < 0) n2 = 0; else { t2 *= t2; n2 = t2 * t2 * (GRAD3[gi2] * x2 + GRAD3[gi2 + 1] * y2); }
+    return 70 * (n0 + n1 + n2);
+  }
+
+  noise3D(xin, yin, zin) {
+    const F3 = 1 / 3, G3 = 1 / 6;
+    const perm = this.perm, pm12 = this.permMod12;
+    let n0, n1, n2, n3;
+    const s = (xin + yin + zin) * F3;
+    const i = Math.floor(xin + s), j = Math.floor(yin + s), k = Math.floor(zin + s);
+    const t = (i + j + k) * G3;
+    const x0 = xin - (i - t), y0 = yin - (j - t), z0 = zin - (k - t);
+    let i1, j1, k1, i2, j2, k2;
+    if (x0 >= y0) {
+      if (y0 >= z0)      { i1 = 1; j1 = 0; k1 = 0; i2 = 1; j2 = 1; k2 = 0; }
+      else if (x0 >= z0) { i1 = 1; j1 = 0; k1 = 0; i2 = 1; j2 = 0; k2 = 1; }
+      else               { i1 = 0; j1 = 0; k1 = 1; i2 = 1; j2 = 0; k2 = 1; }
+    } else {
+      if (y0 < z0)       { i1 = 0; j1 = 0; k1 = 1; i2 = 0; j2 = 1; k2 = 1; }
+      else if (x0 < z0)  { i1 = 0; j1 = 1; k1 = 0; i2 = 0; j2 = 1; k2 = 1; }
+      else               { i1 = 0; j1 = 1; k1 = 0; i2 = 1; j2 = 1; k2 = 0; }
+    }
+    const x1 = x0 - i1 + G3,     y1 = y0 - j1 + G3,     z1 = z0 - k1 + G3;
+    const x2 = x0 - i2 + 2 * G3, y2 = y0 - j2 + 2 * G3, z2 = z0 - k2 + 2 * G3;
+    const x3 = x0 - 1 + 3 * G3,  y3 = y0 - 1 + 3 * G3,  z3 = z0 - 1 + 3 * G3;
+    const ii = i & 255, jj = j & 255, kk = k & 255;
+    const gi0 = pm12[ii + perm[jj + perm[kk]]] * 3;
+    const gi1 = pm12[ii + i1 + perm[jj + j1 + perm[kk + k1]]] * 3;
+    const gi2 = pm12[ii + i2 + perm[jj + j2 + perm[kk + k2]]] * 3;
+    const gi3 = pm12[ii + 1 + perm[jj + 1 + perm[kk + 1]]] * 3;
+    let t0 = 0.6 - x0 * x0 - y0 * y0 - z0 * z0;
+    if (t0 < 0) n0 = 0; else { t0 *= t0; n0 = t0 * t0 * (GRAD3[gi0] * x0 + GRAD3[gi0 + 1] * y0 + GRAD3[gi0 + 2] * z0); }
+    let t1 = 0.6 - x1 * x1 - y1 * y1 - z1 * z1;
+    if (t1 < 0) n1 = 0; else { t1 *= t1; n1 = t1 * t1 * (GRAD3[gi1] * x1 + GRAD3[gi1 + 1] * y1 + GRAD3[gi1 + 2] * z1); }
+    let t2 = 0.6 - x2 * x2 - y2 * y2 - z2 * z2;
+    if (t2 < 0) n2 = 0; else { t2 *= t2; n2 = t2 * t2 * (GRAD3[gi2] * x2 + GRAD3[gi2 + 1] * y2 + GRAD3[gi2 + 2] * z2); }
+    let t3 = 0.6 - x3 * x3 - y3 * y3 - z3 * z3;
+    if (t3 < 0) n3 = 0; else { t3 *= t3; n3 = t3 * t3 * (GRAD3[gi3] * x3 + GRAD3[gi3 + 1] * y3 + GRAD3[gi3 + 2] * z3); }
+    return 32 * (n0 + n1 + n2 + n3);
+  }
+}
+
+/* The noise fields are rebuilt whenever the world is reseeded ("New World" or
+   restoring a save made with a different seed), so they are not const. */
+let worldSeed = SEED;
+let noiseTerrain, noiseBiome, noiseCave;
+
+function initNoise(seed) {
+  worldSeed = seed >>> 0;
+  noiseTerrain = new SimplexNoise(mulberry32(worldSeed));
+  noiseBiome   = new SimplexNoise(mulberry32(worldSeed * 31 + 7));
+  noiseCave    = new SimplexNoise(mulberry32(worldSeed * 7 + 131));
+}
+initNoise(SEED);
+
+/** Fractional Brownian motion over a simplex field, normalised to about [-1,1]. */
+function fbm2(noise, x, y, octaves) {
+  let amp = 0.5, freq = 1, sum = 0, norm = 0;
+  for (let i = 0; i < octaves; i++) {
+    sum += amp * noise.noise2D(x * freq, y * freq);
+    norm += amp; amp *= 0.5; freq *= 2;
+  }
+  return sum / norm;
+}
+
+/* ============================================================================
+ * 2. PROCEDURAL PIXEL TEXTURES (canvas generated, 16x16 per face)
+ * ========================================================================== */
+const TEX = 16;
+
+function seededRand(seed) {
+  let s = seed >>> 0;
+  return () => { s = (Math.imul(s, 1664525) + 1013904223) >>> 0; return s / 4294967296; };
+}
+const clamp255 = v => v < 0 ? 0 : v > 255 ? 255 : v | 0;
+const rgb = (r, g, b) => `rgb(${clamp255(r)},${clamp255(g)},${clamp255(b)})`;
+
+function faceCanvas(drawFn) {
+  const c = document.createElement('canvas');
+  c.width = c.height = TEX;
+  drawFn(c.getContext('2d'), TEX);
+  return c;
+}
+
+function noiseFill(ctx, S, base, amp, seed) {
+  const R = seededRand(seed);
+  for (let y = 0; y < S; y++) {
+    for (let x = 0; x < S; x++) {
+      const d = (R() - 0.5) * amp;
+      ctx.fillStyle = rgb(base[0] + d, base[1] + d, base[2] + d);
+      ctx.fillRect(x, y, 1, 1);
+    }
+  }
+}
+
+function speckle(ctx, S, color, count, seed, alpha = 1) {
+  const R = seededRand(seed);
+  ctx.globalAlpha = alpha;
+  for (let i = 0; i < count; i++) {
+    ctx.fillStyle = color;
+    ctx.fillRect(Math.floor(R() * S), Math.floor(R() * S), 1, 1);
+  }
+  ctx.globalAlpha = 1;
+}
+
+/* --- individual block face painters --- */
+const drawGrassTop = (ctx, S) => {
+  noiseFill(ctx, S, [104, 168, 62], 36, 11);
+  speckle(ctx, S, 'rgb(126,192,74)', 34, 13);
+  speckle(ctx, S, 'rgb(78,132,46)', 26, 17);
+};
+
+const drawGrassSide = (ctx, S) => {
+  noiseFill(ctx, S, [136, 98, 68], 28, 21);
+  speckle(ctx, S, 'rgb(108,76,52)', 22, 23);
+  const R = seededRand(29);
+  for (let x = 0; x < S; x++) {
+    const h = 3 + (R() < 0.45 ? 1 : 0) + (R() < 0.18 ? 1 : 0);
+    for (let y = 0; y < h; y++) {
+      const d = (R() - 0.5) * 30;
+      ctx.fillStyle = rgb(104 + d, 168 + d, 62 + d);
+      ctx.fillRect(x, y, 1, 1);
+    }
+  }
+};
+
+const drawDirt = (ctx, S) => {
+  noiseFill(ctx, S, [136, 98, 68], 30, 31);
+  speckle(ctx, S, 'rgb(106,74,50)', 30, 37);
+  speckle(ctx, S, 'rgb(158,118,86)', 18, 41);
+};
+
+const drawStone = (ctx, S) => {
+  noiseFill(ctx, S, [128, 128, 130], 26, 43);
+  speckle(ctx, S, 'rgb(102,102,105)', 34, 47);
+  speckle(ctx, S, 'rgb(150,150,153)', 22, 53);
+  /* a couple of short cracks for texture readability */
+  const R = seededRand(59);
+  ctx.fillStyle = 'rgb(96,96,99)';
+  for (let i = 0; i < 3; i++) {
+    let x = Math.floor(R() * S), y = Math.floor(R() * S);
+    for (let s = 0; s < 5; s++) {
+      ctx.fillRect(x % S, y % S, 1, 1);
+      if (R() < 0.5) x++; else y++;
+    }
+  }
+};
+
+const drawSand = (ctx, S) => {
+  noiseFill(ctx, S, [222, 208, 156], 20, 61);
+  speckle(ctx, S, 'rgb(206,190,140)', 26, 67);
+  speckle(ctx, S, 'rgb(238,226,182)', 20, 71);
+};
+
+const drawLogSide = (ctx, S) => {
+  noiseFill(ctx, S, [104, 82, 50], 18, 73);
+  const R = seededRand(79);
+  for (let x = 0; x < S; x++) {
+    if (R() < 0.34) {
+      for (let y = 0; y < S; y++) {
+        const d = (R() - 0.5) * 12 - 16;
+        ctx.fillStyle = rgb(104 + d, 82 + d, 50 + d);
+        ctx.fillRect(x, y, 1, 1);
+      }
+    }
+  }
+  speckle(ctx, S, 'rgb(126,102,66)', 24, 83);
+};
+
+const drawLogTop = (ctx, S) => {
+  const c = (S - 1) / 2;
+  const R = seededRand(89);
+  for (let y = 0; y < S; y++) {
+    for (let x = 0; x < S; x++) {
+      const d = Math.sqrt((x - c) * (x - c) + (y - c) * (y - c));
+      const ring = Math.sin(d * 2.1) * 0.5 + 0.5;
+      const base = 150 - ring * 34 + (R() - 0.5) * 12;
+      ctx.fillStyle = rgb(base, base * 0.78, base * 0.5);
+      ctx.fillRect(x, y, 1, 1);
+    }
+  }
+  /* bark rim */
+  ctx.fillStyle = 'rgb(92,72,44)';
+  ctx.fillRect(0, 0, S, 1); ctx.fillRect(0, S - 1, S, 1);
+  ctx.fillRect(0, 0, 1, S); ctx.fillRect(S - 1, 0, 1, S);
+};
+
+const drawLeaves = (ctx, S) => {
+  ctx.clearRect(0, 0, S, S);
+  const R = seededRand(97);
+  for (let y = 0; y < S; y++) {
+    for (let x = 0; x < S; x++) {
+      if (R() < 0.11) continue;                 // transparent gaps (alphaTest)
+      const d = (R() - 0.5) * 54;
+      ctx.fillStyle = rgb(58 + d, 122 + d, 44 + d);
+      ctx.fillRect(x, y, 1, 1);
+    }
+  }
+};
+
+const drawBrick = (ctx, S) => {
+  const R = seededRand(101);
+  ctx.fillStyle = 'rgb(172,166,158)';           // mortar
+  ctx.fillRect(0, 0, S, S);
+  for (let row = 0; row < 4; row++) {
+    const y = row * 4;
+    const off = (row % 2) * 4;
+    for (let bx = -8; bx < S; bx += 8) {
+      for (let py = 0; py < 3; py++) {
+        for (let pxx = 0; pxx < 7; pxx++) {
+          const gx = bx + off + pxx, gy = y + py;
+          if (gx < 0 || gx >= S) continue;
+          const d = (R() - 0.5) * 26;
+          ctx.fillStyle = rgb(152 + d, 74 + d * 0.6, 60 + d * 0.6);
+          ctx.fillRect(gx, gy, 1, 1);
+        }
+      }
+    }
+  }
+};
+
+/* ============================================================================
+ * 3. BLOCK DEFINITIONS + MATERIALS
+ * ==========================================================================
+ * Each block gets ONE texture: a 16x48 vertical atlas holding
+ *   cell 0 = top face, cell 1 = side faces, cell 2 = bottom face.
+ * Because every block type uses a single material (rather than a 6-material
+ * array) each chunk-mesh costs exactly one draw call per block type.
+ */
+const BLOCK_DEFS = {
+  [GRASS]:  { name: 'Grass Block', top: drawGrassTop, side: drawGrassSide, bottom: drawDirt,    tint: 0.09 },
+  [DIRT]:   { name: 'Dirt',        top: drawDirt,     side: drawDirt,      bottom: drawDirt,    tint: 0.06 },
+  [STONE]:  { name: 'Stone',       top: drawStone,    side: drawStone,     bottom: drawStone,   tint: 0.07 },
+  [WOOD]:   { name: 'Oak Log',     top: drawLogTop,   side: drawLogSide,   bottom: drawLogTop,  tint: 0.04 },
+  [LEAVES]: { name: 'Oak Leaves',  top: drawLeaves,   side: drawLeaves,    bottom: drawLeaves,  tint: 0.14, cutout: true },
+  [SAND]:   { name: 'Sand',        top: drawSand,     side: drawSand,      bottom: drawSand,    tint: 0.05 },
+  [BRICK]:  { name: 'Bricks',      top: drawBrick,    side: drawBrick,     bottom: drawBrick,   tint: 0.03 },
+};
+const HOTBAR = [GRASS, DIRT, STONE, WOOD, LEAVES, SAND, BRICK];
+
+const materials  = {};   // id -> THREE.Material
+const iconURLs   = {};   // id -> data URL used by the hotbar
+const MAP_COLORS = {};   // id -> [r,g,b] averaged from the block's own top texture
+
+function buildMaterials() {
+  for (const idStr of Object.keys(BLOCK_DEFS)) {
+    const id = +idStr;
+    const def = BLOCK_DEFS[id];
+
+    const atlas = document.createElement('canvas');
+    atlas.width = TEX; atlas.height = TEX * 3;
+    const actx = atlas.getContext('2d');
+    actx.imageSmoothingEnabled = false;
+
+    const topC = faceCanvas(def.top);
+    const sideC = faceCanvas(def.side);
+    const botC = faceCanvas(def.bottom);
+    actx.drawImage(topC, 0, 0);
+    actx.drawImage(sideC, 0, TEX);
+    actx.drawImage(botC, 0, TEX * 2);
+
+    const tex = new THREE.CanvasTexture(atlas);
+    tex.magFilter = THREE.NearestFilter;
+    tex.minFilter = THREE.NearestFilter;   // no mipmaps -> no bleeding between atlas cells
+    tex.generateMipmaps = false;
+    tex.colorSpace = THREE.SRGBColorSpace;
+    tex.wrapS = tex.wrapT = THREE.ClampToEdgeWrapping;
+
+    materials[id] = new THREE.MeshLambertMaterial({
+      map: tex,
+      alphaTest: def.cutout ? 0.5 : 0,
+      transparent: false,
+      side: def.cutout ? THREE.DoubleSide : THREE.FrontSide,
+    });
+
+    /* average the top face -> the colour this block shows on the minimap.
+       Uses the very same atlas pixels the world is textured with. */
+    {
+      const px = topC.getContext('2d').getImageData(0, 0, TEX, TEX).data;
+      let r = 0, g = 0, b = 0, n = 0;
+      for (let i = 0; i < px.length; i += 4) {
+        if (px[i + 3] < 128) continue;              // skip leaf cut-outs
+        r += px[i]; g += px[i + 1]; b += px[i + 2]; n++;
+      }
+      MAP_COLORS[id] = n ? [(r / n) | 0, (g / n) | 0, (b / n) | 0] : [140, 140, 140];
+    }
+
+    /* hotbar icon: the side face, upscaled with nearest-neighbour */
+    const icon = document.createElement('canvas');
+    icon.width = icon.height = 64;
+    const ictx = icon.getContext('2d');
+    ictx.imageSmoothingEnabled = false;
+    ictx.drawImage(sideC, 0, 0, TEX, TEX, 0, 0, 64, 64);
+    iconURLs[id] = icon.toDataURL();
+  }
+}
+
+/**
+ * A unit cube whose UVs address the 3-cell vertical atlas.
+ * BoxGeometry vertex order: +X, -X, +Y, -Y, +Z, -Z (4 verts each).
+ */
+function buildBlockGeometry() {
+  const g = new THREE.BoxGeometry(1, 1, 1);
+  const uv = g.attributes.uv;
+  for (let i = 0; i < uv.count; i++) {
+    // 0 = top cell, 1 = side cell, 2 = bottom cell
+    const cell = (i < 8) ? 1 : (i < 12) ? 0 : (i < 16) ? 2 : 1;
+    const v0 = 1 - (cell + 1) / 3;
+    uv.setY(i, v0 + uv.getY(i) / 3);
+  }
+  uv.needsUpdate = true;
+  g.clearGroups();            // single material => single draw call
+  return g;
+}
+
+const isOpaque = t => t !== AIR && t !== LEAVES;   // leaves never occlude neighbours
+const isSolidType = t => t !== AIR;
+
+/* ============================================================================
+ * 4. TERRAIN GENERATION
+ * ========================================================================== */
+function columnInfo(wx, wz) {
+  const e     = fbm2(noiseTerrain, wx * 0.0055, wz * 0.0055, 4);
+  const mRaw  = fbm2(noiseBiome,  wx * 0.0016 + 120.5, wz * 0.0016 - 80.5, 3);
+  const temp  = fbm2(noiseBiome,  wx * 0.0011 - 500.5, wz * 0.0011 + 300.5, 2);
+  const humid = fbm2(noiseBiome,  wx * 0.0040 + 77.5,  wz * 0.0040 - 33.5, 2);
+
+  const mount = Math.max(0, (mRaw - 0.10) / 0.90);       // 0..1 mountain mask
+  let h = 30 + e * 7 + Math.pow(mount, 2.2) * 38;
+  h = Math.max(2, Math.min(WH - 14, Math.round(h)));
+
+  let biome, surface, sub;
+  if (mount > 0.55 || h > 50) {
+    biome = 'Mountains';
+    surface = h > 50 ? STONE : GRASS;
+    sub     = h > 50 ? STONE : DIRT;
+  } else if (temp > 0.28) {
+    biome = 'Desert'; surface = SAND; sub = SAND;
+  } else {
+    biome = humid > 0.05 ? 'Forest' : 'Plains';
+    surface = GRASS; sub = DIRT;
+  }
+  return { h, biome, surface, sub };
+}
+
+/** Two near-zero noise fields intersect to carve worm-like cave tunnels. */
+function caveAt(x, y, z) {
+  const a = noiseCave.noise3D(x * 0.045, y * 0.075, z * 0.045);
+  const b = noiseCave.noise3D(x * 0.045 + 120.7, y * 0.075 + 44.3, z * 0.045 - 96.1);
+  return a * a + b * b < 0.0155;
+}
+
+/** Returns tree data for a column, or null. Cheap hash rejection comes first. */
+function treeAt(wx, wz) {
+  const r = hash2(wx, wz);
+  if (r > 0.035) return null;                       // fast reject 96.5% of columns
+  const col = columnInfo(wx, wz);
+  if (col.surface !== GRASS) return null;
+  const density = col.biome === 'Forest' ? 0.030 : col.biome === 'Plains' ? 0.006 : 0;
+  if (r >= density) return null;
+  const r2 = hash2(wx + 7771, wz - 3313);
+  return { base: col.h, trunk: 4 + Math.floor(r2 * 3), r2 };
+}
+
+const idx3 = (x, y, z) => x + CS * (z + CS * y);
+
+function generateChunkData(cx, cz) {
+  const data = new Uint8Array(CS * CS * WH);
+
+  /* --- terrain column pass --- */
+  for (let lz = 0; lz < CS; lz++) {
+    for (let lx = 0; lx < CS; lx++) {
+      const wx = cx * CS + lx, wz = cz * CS + lz;
+      const col = columnInfo(wx, wz);
+      for (let y = 0; y <= col.h; y++) {
+        let t;
+        if (y === 0) t = STONE;                       // unbreakable-ish floor
+        else if (y === col.h) t = col.surface;
+        else if (y >= col.h - 3) t = col.sub;
+        else t = STONE;
+        if (y > 1 && y < col.h && caveAt(wx, y, wz)) continue;   // carve caves
+        data[idx3(lx, y, lz)] = t;
+      }
+    }
+  }
+
+  /* --- tree pass (padded so trunks in neighbouring chunks spill leaves in) --- */
+  for (let tz = -3; tz < CS + 3; tz++) {
+    for (let tx = -3; tx < CS + 3; tx++) {
+      const wx = cx * CS + tx, wz = cz * CS + tz;
+      const tree = treeAt(wx, wz);
+      if (!tree) continue;
+
+      const topY = tree.base + tree.trunk;
+      if (topY + 2 >= WH) continue;
+
+      const put = (lx, ly, lz, type, onlyAir) => {
+        if (lx < 0 || lx >= CS || lz < 0 || lz >= CS || ly < 0 || ly >= WH) return;
+        const i = idx3(lx, ly, lz);
+        if (onlyAir && data[i] !== AIR) return;
+        data[i] = type;
+      };
+
+      /* trunk */
+      for (let y = tree.base + 1; y <= topY; y++) put(tx, y, tz, WOOD, false);
+
+      /* canopy */
+      const layers = [{ dy: -2, r: 2 }, { dy: -1, r: 2 }, { dy: 0, r: 1 }, { dy: 1, r: 1 }];
+      for (const L of layers) {
+        for (let dz = -L.r; dz <= L.r; dz++) {
+          for (let dx = -L.r; dx <= L.r; dx++) {
+            if (Math.abs(dx) === L.r && Math.abs(dz) === L.r) {
+              if (L.r === 1) continue;                                        // clip 3x3 corners
+              if (hash2(wx + dx * 31, wz + dz * 17) < 0.55) continue;          // ragged 5x5 corners
+            }
+            if (dx === 0 && dz === 0 && L.dy <= 0) continue;                   // trunk occupies centre
+            put(tx + dx, topY + L.dy, tz + dz, LEAVES, true);
+          }
+        }
+      }
+      put(tx, topY + 1, tz, LEAVES, true);
+    }
+  }
+
+  return data;
+}
+
+/* ============================================================================
+ * 5. CHUNK STORAGE + WORLD ACCESS
+ * ========================================================================== */
+const chunks    = new Map();   // "cx,cz" -> chunk
+const overrides = new Map();   // "cx,cz" -> Map(blockIndex -> type)  (player edits)
+
+const key = (cx, cz) => cx + ',' + cz;
+
+function getChunk(cx, cz) { return chunks.get(key(cx, cz)); }
+
+function createChunk(cx, cz) {
+  const k = key(cx, cz);
+  const data = generateChunkData(cx, cz);
+  const ov = overrides.get(k);
+  if (ov) for (const [i, t] of ov) data[i] = t;      // re-apply player edits
+  const chunk = { cx, cz, data, meshes: [], meshed: false };
+  chunks.set(k, chunk);
+  return chunk;
+}
+
+/** World block lookup. Below the world is solid, above it is air. */
+function getBlock(wx, wy, wz) {
+  if (wy < 0) return STONE;
+  if (wy >= WH) return AIR;
+  const cx = Math.floor(wx / CS), cz = Math.floor(wz / CS);
+  const c = chunks.get(key(cx, cz));
+  if (!c) return AIR;
+  return c.data[idx3(wx - cx * CS, wy, wz - cz * CS)];
+}
+
+const isSolid = (wx, wy, wz) => isSolidType(getBlock(wx, wy, wz));
+
+function setBlock(wx, wy, wz, type) {
+  if (wy < 1 || wy >= WH) return false;
+  const cx = Math.floor(wx / CS), cz = Math.floor(wz / CS);
+  const k = key(cx, cz);
+  const c = chunks.get(k);
+  if (!c) return false;
+  const lx = wx - cx * CS, lz = wz - cz * CS;
+  const i = idx3(lx, wy, lz);
+  if (c.data[i] === type) return false;
+  c.data[i] = type;
+
+  let ov = overrides.get(k);
+  if (!ov) { ov = new Map(); overrides.set(k, ov); }
+  ov.set(i, type);
+  requestSave();
+
+  /* rebuild this chunk, plus any neighbour whose border faces changed */
+  rebuild(cx, cz);
+  if (lx === 0)      rebuild(cx - 1, cz);
+  if (lx === CS - 1) rebuild(cx + 1, cz);
+  if (lz === 0)      rebuild(cx, cz - 1);
+  if (lz === CS - 1) rebuild(cx, cz + 1);
+  return true;
+}
+
+function rebuild(cx, cz) {
+  const c = getChunk(cx, cz);
+  if (c && c.meshed) buildChunkMesh(c);
+}
+
+/* ============================================================================
+ * 5b. PERSISTENCE (localStorage)
+ * ==========================================================================
+ * Only player edits are stored — never generated terrain. The world is
+ * reproducible from `seed` alone, so a save is (seed + diff + player state)
+ * and stays small no matter how far the player has explored.
+ *
+ * On disk the diff is one flat object keyed "x,y,z" (world coordinates). In
+ * memory it stays bucketed per chunk so chunk generation only touches the
+ * edits that belong to it, rather than scanning the whole diff each time.
+ */
+let saveDirty = false;
+let lastSaveAt = 0;
+let saveErrorActive = false;   // true while storage is rejecting writes
+
+function requestSave() { saveDirty = true; }
+
+/** in-memory (per-chunk, local index) -> on-disk (flat, world coords) */
+function serializeOverrides() {
+  const out = {};
+  for (const [ck, edits] of overrides) {
+    const comma = ck.indexOf(',');
+    const cx = +ck.slice(0, comma), cz = +ck.slice(comma + 1);
+    for (const [i, type] of edits) {
+      const x = i % CS;
+      const z = ((i / CS) | 0) % CS;
+      const y = (i / (CS * CS)) | 0;
+      out[`${cx * CS + x},${y},${cz * CS + z}`] = type;
+    }
+  }
+  return out;
+}
+
+/** on-disk (flat, world coords) -> in-memory (per-chunk, local index) */
+function deserializeOverrides(obj) {
+  overrides.clear();
+  if (!obj || typeof obj !== 'object') return 0;
+  let n = 0;
+  for (const k of Object.keys(obj)) {
+    const p = k.split(',');
+    if (p.length !== 3) continue;
+    const x = +p[0], y = +p[1], z = +p[2], type = obj[k] | 0;
+    if (!Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(z)) continue;
+    if (y < 0 || y >= WH || type < 0 || type > BRICK) continue;
+    const cx = Math.floor(x / CS), cz = Math.floor(z / CS);
+    const ck = key(cx, cz);
+    let edits = overrides.get(ck);
+    if (!edits) { edits = new Map(); overrides.set(ck, edits); }
+    edits.set(idx3(x - cx * CS, y, z - cz * CS), type);
+    n++;
+  }
+  return n;
+}
+
+function buildSavePayload() {
+  return {
+    version: SAVE_VERSION,
+    seed: worldSeed,
+    overrides: serializeOverrides(),
+    player: {
+      x: player.pos.x, y: player.pos.y, z: player.pos.z,
+      yaw: controls.yaw, pitch: controls.pitch,
+    },
+    hotbarSlot: selected,
+    timeOfDay: dayTime,
+    kidMode: kidMode,
+    speechMuted: speechMuted,
+    objectiveIndex: objIndex,
+    objectiveProgress: objProgress.slice(),
+    objectiveState: objState,
+    homePos: homePos ? { x: homePos.x, y: homePos.y, z: homePos.z } : null,
+    breadcrumbs: crumbs.slice(-CRUMB_MAX).map(c => [
+      +c.x.toFixed(2), +c.y.toFixed(2), +c.z.toFixed(2),
+    ]),
+  };
+}
+
+function discardSave(why) {
+  try { localStorage.removeItem(SAVE_KEY); } catch (err) { /* storage unavailable */ }
+  if (why) console.warn('[VoxelCraft] ' + why);
+}
+
+/**
+ * Writes the save. A storage failure (quota exceeded, private-browsing,
+ * storage disabled) is reported but never throws: the in-memory world is
+ * untouched and play continues.
+ */
+function writeSave() {
+  lastSaveAt = performance.now();
+  let json;
+  try {
+    json = JSON.stringify(buildSavePayload());
+    localStorage.setItem(SAVE_KEY, json);
+  } catch (err) {
+    saveDirty = false;              // don't spin retrying every frame
+    if (!saveErrorActive) {
+      saveErrorActive = true;
+      console.warn('[VoxelCraft] autosave failed (' + (err && err.name || 'error') + '): ' +
+                   (err && err.message || err) + ' — the world is still safe in memory.');
+    }
+    showSaveWarning(err);
+    return false;
+  }
+  saveDirty = false;
+  if (saveErrorActive) {            // recovered
+    saveErrorActive = false;
+    console.info('[VoxelCraft] autosave recovered.');
+  }
+  clearSaveWarning();
+  lastSaveBytes = json.length;
+  return true;
+}
+
+let lastSaveBytes = 0;
+
+/**
+ * Reads and validates a save.
+ * @param expectedSeed if a number is given, a save for any other seed is
+ *        discarded. Left undefined at boot, so the save's own seed is adopted;
+ *        supplied when the seed is pinned via the ?seed= URL parameter.
+ * @returns the validated payload, or null (the caller then starts fresh).
+ */
+function readSave(expectedSeed) {
+  let raw;
+  try {
+    raw = localStorage.getItem(SAVE_KEY);
+  } catch (err) {
+    console.warn('[VoxelCraft] localStorage unavailable (' + (err && err.name) + ') — running without persistence.');
+    return null;
+  }
+  if (!raw) return null;
+
+  let data;
+  try { data = JSON.parse(raw); }
+  catch (err) { discardSave('save data is corrupt — discarding it and starting a fresh world.'); return null; }
+
+  if (!data || typeof data !== 'object') {
+    discardSave('save data is not an object — discarding it.');
+    return null;
+  }
+  if (data.version !== SAVE_VERSION) {
+    discardSave(`save version mismatch (found ${JSON.stringify(data.version)}, expected ${SAVE_VERSION}) — discarding it.`);
+    return null;
+  }
+  if (!Number.isFinite(data.seed)) {
+    discardSave('save has no usable seed — discarding it.');
+    return null;
+  }
+  if (Number.isFinite(expectedSeed) && data.seed !== expectedSeed) {
+    discardSave(`save seed ${data.seed} does not match requested seed ${expectedSeed} — discarding it.`);
+    return null;
+  }
+  return data;
+}
+
+/** Applies a validated payload. Returns the number of restored block edits. */
+function applySave(data) {
+  initNoise(data.seed);
+  const n = deserializeOverrides(data.overrides);
+
+  const p = data.player;
+  if (p && Number.isFinite(p.x) && Number.isFinite(p.y) && Number.isFinite(p.z)) {
+    player.pos.set(p.x, p.y, p.z);
+    player.vel.set(0, 0, 0);
+    if (Number.isFinite(p.yaw)) controls.yaw = p.yaw;
+    if (Number.isFinite(p.pitch)) controls.pitch = p.pitch;
+    restoredSpawn = true;
+  }
+  if (Number.isFinite(data.timeOfDay)) dayTime = ((data.timeOfDay % 1) + 1) % 1;
+  if (Number.isInteger(data.hotbarSlot)) selectSlot(data.hotbarSlot);
+
+  /* --- kid-mode guidance state --- */
+  if (typeof data.speechMuted === 'boolean') speechMuted = data.speechMuted;
+  if (Number.isInteger(data.objectiveIndex)) {
+    objIndex = Math.max(0, Math.min(OBJECTIVES.length - 1, data.objectiveIndex));
+  }
+  if (Array.isArray(data.objectiveProgress)) {
+    objProgress = OBJECTIVES.map((_, i) => {
+      const v = data.objectiveProgress[i];
+      return Number.isFinite(v) ? v : 0;
+    });
+  }
+  objState = data.objectiveState === 'freeplay' ? 'freeplay' : 'active';
+  if (data.homePos && Number.isFinite(data.homePos.x)) {
+    homePos = new THREE.Vector3(data.homePos.x, data.homePos.y, data.homePos.z);
+  }
+  if (Array.isArray(data.breadcrumbs)) {
+    crumbs = data.breadcrumbs
+      .filter(c => Array.isArray(c) && c.length === 3 && c.every(Number.isFinite))
+      .slice(-CRUMB_MAX)
+      .map(c => ({ x: c[0], y: c[1], z: c[2] }));
+    refreshCrumbMesh();
+  }
+  return n;
+}
+
+let restoredSpawn = false;
+
+/* ============================================================================
+ * 6. MESHING — one InstancedMesh per (chunk, block type)
+ * ==========================================================================
+ * Hidden-surface removal: a block is only instanced when at least one of its
+ * six neighbours is non-opaque. Fully buried blocks (the vast majority of the
+ * world) are never sent to the GPU at all.
+ */
+const scratchPos = [];
+
+function buildChunkMesh(chunk) {
+  disposeMeshes(chunk);
+
+  const { cx, cz, data } = chunk;
+  const nNX = getChunk(cx - 1, cz), nPX = getChunk(cx + 1, cz);
+  const nNZ = getChunk(cx, cz - 1), nPZ = getChunk(cx, cz + 1);
+
+  /* local block read with cross-chunk fallback (only axis neighbours needed) */
+  const at = (x, y, z) => {
+    if (y < 0) return STONE;
+    if (y >= WH) return AIR;
+    if (x < 0)  return nNX ? nNX.data[idx3(x + CS, y, z)] : AIR;
+    if (x >= CS) return nPX ? nPX.data[idx3(x - CS, y, z)] : AIR;
+    if (z < 0)  return nNZ ? nNZ.data[idx3(x, y, z + CS)] : AIR;
+    if (z >= CS) return nPZ ? nPZ.data[idx3(x, y, z - CS)] : AIR;
+    return data[idx3(x, y, z)];
+  };
+
+  const buckets = new Map();     // type -> flat [x,y,z, x,y,z, ...]
+  /* Highest non-air block per column, recorded as a side effect of meshing so
+     the minimap never has to scan the world. y ascends, so the last write per
+     column is the top surface. */
+  const heightMap = new Uint8Array(CS * CS);
+  for (let y = 0; y < WH; y++) {
+    for (let z = 0; z < CS; z++) {
+      for (let x = 0; x < CS; x++) {
+        const t = data[idx3(x, y, z)];
+        if (t === AIR) continue;
+        heightMap[x + z * CS] = y;
+        if (isOpaque(at(x + 1, y, z)) && isOpaque(at(x - 1, y, z)) &&
+            isOpaque(at(x, y + 1, z)) && isOpaque(at(x, y - 1, z)) &&
+            isOpaque(at(x, y, z + 1)) && isOpaque(at(x, y, z - 1))) continue;
+        let arr = buckets.get(t);
+        if (!arr) { arr = []; buckets.set(t, arr); }
+        arr.push(x, y, z);
+      }
+    }
+  }
+
+  for (const [type, arr] of buckets) {
+    const count = arr.length / 3;
+    const mesh = new THREE.InstancedMesh(blockGeometry, materials[type], count);
+    mesh.frustumCulled = true;
+
+    const m = new Float32Array(count * 16);
+    const tintAmt = BLOCK_DEFS[type].tint || 0;
+    const colors = tintAmt > 0 ? new Float32Array(count * 3) : null;
+
+    for (let i = 0; i < count; i++) {
+      const o = i * 16;
+      const x = arr[i * 3], y = arr[i * 3 + 1], z = arr[i * 3 + 2];
+      m[o] = 1; m[o + 5] = 1; m[o + 10] = 1; m[o + 15] = 1;
+      m[o + 12] = x + 0.5; m[o + 13] = y + 0.5; m[o + 14] = z + 0.5;
+      if (colors) {
+        const v = 1 - tintAmt * 0.5 + hash2(cx * CS + x, (cz * CS + z) * 31 + y) * tintAmt;
+        colors[i * 3] = v; colors[i * 3 + 1] = v; colors[i * 3 + 2] = v;
+      }
+    }
+    mesh.instanceMatrix = new THREE.InstancedBufferAttribute(m, 16);
+    mesh.instanceMatrix.setUsage(THREE.StaticDrawUsage);
+    if (colors) mesh.instanceColor = new THREE.InstancedBufferAttribute(colors, 3);
+
+    mesh.position.set(cx * CS, 0, cz * CS);
+    mesh.updateMatrixWorld();
+    mesh.computeBoundingSphere();       // enables per-chunk frustum culling
+    scene.add(mesh);
+    chunk.meshes.push(mesh);
+  }
+
+  chunk.heightMap = heightMap;
+  chunk.meshed = true;
+}
+
+function disposeMeshes(chunk) {
+  for (const m of chunk.meshes) { scene.remove(m); m.dispose(); }
+  chunk.meshes.length = 0;
+}
+
+/* ============================================================================
+ * 7. CHUNK STREAMING
+ * ========================================================================== */
+let generatedThisSession = 0;
+
+function updateChunks(budgetMs) {
+  const t0 = performance.now();
+  const pcx = Math.floor(player.pos.x / CS), pcz = Math.floor(player.pos.z / CS);
+
+  /* candidate list, nearest first */
+  const wanted = [];
+  const R = RD + 1;
+  for (let dz = -R; dz <= R; dz++) {
+    for (let dx = -R; dx <= R; dx++) {
+      const d = Math.sqrt(dx * dx + dz * dz);
+      if (d > R + 0.5) continue;
+      wanted.push({ cx: pcx + dx, cz: pcz + dz, d });
+    }
+  }
+  wanted.sort((a, b) => a.d - b.d);
+
+  /* 1) data generation (RD + 1 so meshing always has neighbours) */
+  for (const w of wanted) {
+    if (chunks.has(key(w.cx, w.cz))) continue;
+    createChunk(w.cx, w.cz);
+    generatedThisSession++;
+    if (performance.now() - t0 > budgetMs) return;
+  }
+
+  /* 2) meshing (only within RD, only when all 4 neighbours have data) */
+  for (const w of wanted) {
+    if (w.d > RD + 0.5) continue;
+    const c = chunks.get(key(w.cx, w.cz));
+    if (!c || c.meshed) continue;
+    if (!getChunk(w.cx - 1, w.cz) || !getChunk(w.cx + 1, w.cz) ||
+        !getChunk(w.cx, w.cz - 1) || !getChunk(w.cx, w.cz + 1)) continue;
+    buildChunkMesh(c);
+    if (performance.now() - t0 > budgetMs) return;
+  }
+
+  /* 3) unload distant chunks (edits survive in `overrides`) */
+  for (const [k, c] of chunks) {
+    const dx = c.cx - pcx, dz = c.cz - pcz;
+    if (Math.sqrt(dx * dx + dz * dz) > RD + 3) {
+      disposeMeshes(c);
+      chunks.delete(k);
+    }
+  }
+}
+
+function chunksReady() {
+  const pcx = Math.floor(player.pos.x / CS), pcz = Math.floor(player.pos.z / CS);
+  let need = 0, have = 0;
+  for (let dz = -RD; dz <= RD; dz++) {
+    for (let dx = -RD; dx <= RD; dx++) {
+      if (Math.sqrt(dx * dx + dz * dz) > RD + 0.5) continue;
+      need++;
+      const c = chunks.get(key(pcx + dx, pcz + dz));
+      if (c && c.meshed) have++;
+    }
+  }
+  return { need, have };
+}
+
+/* ============================================================================
+ * 8. RENDERER / SCENE / SKY
+ * ========================================================================== */
+const canvas = document.getElementById('game');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+
+const scene = new THREE.Scene();
+const FOG_FAR = RD * CS - 6;
+scene.fog = new THREE.Fog(0x87ceeb, FOG_FAR * 0.45, FOG_FAR);
+scene.background = new THREE.Color(0x87ceeb);
+
+const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+scene.add(camera);          // so the held-block child renders
+
+const blockGeometry = buildBlockGeometry();
+buildMaterials();
+
+/* ---- lights ---- */
+const sunLight = new THREE.DirectionalLight(0xffffff, 2.6);
+scene.add(sunLight);
+const moonLight = new THREE.DirectionalLight(0x9fb6ff, 0.0);
+scene.add(moonLight);
+const ambient = new THREE.AmbientLight(0xffffff, 0.9);
+scene.add(ambient);
+const hemi = new THREE.HemisphereLight(0xbfd9ff, 0x6b5a44, 0.6);
+scene.add(hemi);
+
+/* ---- sky dome objects (sun, moon, stars) that follow the camera ---- */
+const skyGroup = new THREE.Group();
+scene.add(skyGroup);
+
+const sunDisc = new THREE.Mesh(
+  new THREE.SphereGeometry(20, 16, 12),
+  new THREE.MeshBasicMaterial({ color: 0xfff2c0, fog: false, depthWrite: false })
+);
+skyGroup.add(sunDisc);
+
+const moonDisc = new THREE.Mesh(
+  new THREE.SphereGeometry(13, 16, 12),
+  new THREE.MeshBasicMaterial({ color: 0xe3ecff, fog: false, depthWrite: false })
+);
+skyGroup.add(moonDisc);
+
+const starGeo = new THREE.BufferGeometry();
+{
+  const N = 900, pos = new Float32Array(N * 3);
+  const rnd = mulberry32(4242);
+  for (let i = 0; i < N; i++) {
+    const u = rnd() * 2 - 1, th = rnd() * Math.PI * 2, r = Math.sqrt(1 - u * u);
+    pos[i * 3] = Math.cos(th) * r * 420;
+    pos[i * 3 + 1] = Math.abs(u) * 420;         // upper hemisphere only
+    pos[i * 3 + 2] = Math.sin(th) * r * 420;
+  }
+  starGeo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+}
+const starMat = new THREE.PointsMaterial({
+  color: 0xffffff, size: 2.4, sizeAttenuation: false,
+  transparent: true, opacity: 0, fog: false, depthWrite: false
+});
+const stars = new THREE.Points(starGeo, starMat);
+skyGroup.add(stars);
+
+/* ---- block selection outline ---- */
+const outline = new THREE.LineSegments(
+  new THREE.EdgesGeometry(new THREE.BoxGeometry(1.002, 1.002, 1.002)),
+  new THREE.LineBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.55, fog: false })
+);
+outline.visible = false;
+scene.add(outline);
+
+/* ---- first-person held block ---- */
+const heldBlock = new THREE.Mesh(blockGeometry, materials[GRASS]);
+heldBlock.scale.setScalar(0.30);
+heldBlock.position.set(0.46, -0.38, -0.72);
+heldBlock.rotation.set(0.18, -0.62, 0.10);
+heldBlock.renderOrder = 2;
+camera.add(heldBlock);
+
+/* ============================================================================
+ * 9. PLAYER + PHYSICS
+ * ========================================================================== */
+const player = {
+  pos: new THREE.Vector3(0.5, 64, 0.5),
+  vel: new THREE.Vector3(),
+  width: 0.6,
+  standHeight: 1.8,
+  crouchHeight: 1.5,
+  standEye: 1.62,
+  crouchEye: 1.30,
+  onGround: false,
+  crouching: false,
+  sprinting: false,
+  flying: false,
+};
+let camEyeY = player.pos.y + player.standEye;   // smoothed camera height
+let bobPhase = 0, bobAmount = 0;
+let stepLift = 0;   // kid-mode only: camera lag left to ease off after a step-up
+
+const playerHeight = () => player.crouching ? player.crouchHeight : player.standHeight;
+const playerEye = () => player.crouching ? player.crouchEye : player.standEye;
+
+const keys = Object.create(null);
+
+/** Full-body AABB overlap test at the current position. */
+function collidesNow() {
+  const hw = player.width / 2, h = playerHeight(), p = player.pos;
+  const x0 = Math.floor(p.x - hw), x1 = Math.ceil(p.x + hw) - 1;
+  const y0 = Math.floor(p.y),      y1 = Math.ceil(p.y + h) - 1;
+  const z0 = Math.floor(p.z - hw), z1 = Math.ceil(p.z + hw) - 1;
+  for (let y = y0; y <= y1; y++)
+    for (let z = z0; z <= z1; z++)
+      for (let x = x0; x <= x1; x++)
+        if (isSolid(x, y, z)) return true;
+  return false;
+}
+
+/** Move on a single axis and resolve the first blocking voxel. */
+function moveAxis(axis, amount, wasGrounded) {
+  if (amount === 0) return;
+  const p = player.pos;
+  p[axis] += amount;
+
+  const hw = player.width / 2, h = playerHeight();
+  const x0 = Math.floor(p.x - hw), x1 = Math.ceil(p.x + hw) - 1;
+  const y0 = Math.floor(p.y),      y1 = Math.ceil(p.y + h) - 1;
+  const z0 = Math.floor(p.z - hw), z1 = Math.ceil(p.z + hw) - 1;
+  const EPS = 1e-3;
+
+  for (let y = y0; y <= y1; y++) {
+    for (let z = z0; z <= z1; z++) {
+      for (let x = x0; x <= x1; x++) {
+        if (!isSolid(x, y, z)) continue;
+
+        if (axis === 'y') {
+          if (amount > 0) { p.y = y - h - EPS; }
+          else { p.y = y + 1 + EPS; player.onGround = true; }
+          player.vel.y = 0;
+          return;
+        }
+
+        /* auto step-up: walking into a 1-block ledge lifts the player */
+        if (wasGrounded && !player.flying) {
+          if (kidMode) {
+            /* Stricter than the adult rule: the obstruction must be exactly one
+               block tall with two clear blocks above it, so 2-block walls and
+               cliff faces are never climbable. The body still moves in one
+               physics step (that is how voxel stepping works) but the camera
+               lags behind by `stepLift` and eases up over KID_STEP_SMOOTH. */
+            const rise = (y + 1) - p.y;
+            if (rise > 0 && rise <= 1.0 + EPS &&
+                !isSolid(x, y + 1, z) && !isSolid(x, y + 2, z)) {
+              const savedY = p.y;
+              p.y = y + 1 + EPS;
+              if (!collidesNow()) {
+                stepLift = Math.min(stepLift + rise, 1.25);
+                camEyeY += rise;         // let stepLift own the easing, not the lerp
+                return;
+              }
+              p.y = savedY;
+            }
+          } else {
+            const savedY = p.y;
+            p.y += 1.0 + EPS;
+            if (!collidesNow()) return;    // step succeeded, keep horizontal motion
+            p.y = savedY;
+          }
+        }
+
+        if (axis === 'x') p.x = amount > 0 ? x - hw - EPS : x + 1 + hw + EPS;
+        else              p.z = amount > 0 ? z - hw - EPS : z + 1 + hw + EPS;
+        player.vel[axis] = 0;
+        return;
+      }
+    }
+  }
+}
+
+function stepPhysics(dt) {
+  /* Rescue BEFORE integrating. Everything below y=0 counts as solid, so a
+     player who ends up under the world gets clamped to y≈-9.999 by collision
+     resolution — just above the kid-mode floor — and would otherwise be
+     stranded inside rock instead of being lifted out. */
+  if (player.pos.y < tune().voidFloor) respawn();
+
+  const wasGrounded = player.onGround;
+  player.onGround = false;
+
+  /* desired horizontal direction, from yaw only */
+  let fx = 0, fz = 0;
+  if (keys['KeyW']) fz -= 1;
+  if (keys['KeyS']) fz += 1;
+  if (keys['KeyA']) fx -= 1;
+  if (keys['KeyD']) fx += 1;
+  const len = Math.hypot(fx, fz);
+  if (len > 0) { fx /= len; fz /= len; }
+
+  const yaw = controls.yaw;
+  const sin = Math.sin(yaw), cos = Math.cos(yaw);
+  const wishX = fx * cos - fz * sin;
+  const wishZ = fx * sin + fz * cos;
+
+  /* Shift sprints and C crouches: Ctrl-based bindings would collide with
+     browser shortcuts (Ctrl+W closes the tab) even under pointer lock. */
+  const shift = !!(keys['ShiftLeft'] || keys['ShiftRight']);
+  /* kid mode sprints permanently; SHIFT is still read but changes nothing */
+  player.sprinting = (kidMode || shift) && len > 0 && !player.crouching;
+
+  if (player.flying) {
+    const speed = player.sprinting ? 22 : 11;
+    const damp = Math.min(1, 12 * dt);
+    player.vel.x += (wishX * speed - player.vel.x) * damp;
+    player.vel.z += (wishZ * speed - player.vel.z) * damp;
+    let vy = 0;
+    if (keys['Space']) vy += speed;
+    if (keys['KeyC']) vy -= speed;
+    player.vel.y += (vy - player.vel.y) * damp;
+  } else {
+    const speed = player.crouching ? 2.2 : player.sprinting ? 7.0 : 4.8;
+    const accel = wasGrounded ? 34 : 9;
+    const k = Math.min(1, accel * dt);
+    player.vel.x += (wishX * speed - player.vel.x) * k;
+    player.vel.z += (wishZ * speed - player.vel.z) * k;
+    player.vel.y -= GRAVITY * dt;
+    if (player.vel.y < -55) player.vel.y = -55;
+    if (keys['Space'] && wasGrounded) player.vel.y = JUMP_SPEED;
+  }
+
+  moveAxis('x', player.vel.x * dt, wasGrounded);
+  moveAxis('z', player.vel.z * dt, wasGrounded);
+  moveAxis('y', player.vel.y * dt, wasGrounded);
+
+  /* void safety net */
+  /* there is no fall damage in this game; falling out of the world simply
+     lifts the player back to the surface directly above their x/z (handled at
+     the top of this function, before collision can pin them) */
+
+  /* head bob */
+  const hspeed = Math.hypot(player.vel.x, player.vel.z);
+  const walking = player.onGround && hspeed > 0.6;
+  bobPhase += dt * hspeed * 1.9;
+  bobAmount += ((walking ? Math.min(hspeed / 7, 1) : 0) - bobAmount) * Math.min(1, 8 * dt);
+}
+
+function respawn() {
+  const y = surfaceHeight(Math.floor(player.pos.x), Math.floor(player.pos.z));
+  player.pos.set(Math.floor(player.pos.x) + 0.5, y + 1.2, Math.floor(player.pos.z) + 0.5);
+  player.vel.set(0, 0, 0);
+  camEyeY = player.pos.y + playerEye();
+}
+
+/** Highest solid block top in a column (uses real world data, so caves/trees count). */
+function surfaceHeight(wx, wz) {
+  for (let y = WH - 1; y >= 0; y--) if (isSolid(wx, y, wz)) return y + 1;
+  return 1;
+}
+
+/* ============================================================================
+ * 10. POINTER LOCK CONTROLS (first person)
+ * ========================================================================== */
+class PointerLockLook {
+  constructor(camera, dom) {
+    this.camera = camera;
+    this.dom = dom;
+    this.yaw = 0;
+    this.pitch = 0;
+    this.sensitivity = ADULT.sensitivity;
+    this.pitchLimit  = ADULT.pitchLimit;
+    this.locked = false;
+    camera.rotation.order = 'YXZ';
+
+    this._onMove = (e) => {
+      if (!this.locked) return;
+      const dx = e.movementX || 0, dy = e.movementY || 0;
+      this.yaw -= dx * this.sensitivity;
+      this.pitch -= dy * this.sensitivity;
+      const lim = this.pitchLimit;
+      this.pitch = Math.max(-lim, Math.min(lim, this.pitch));
+    };
+    this._onChange = () => {
+      this.locked = document.pointerLockElement === this.dom;
+      onLockChange(this.locked);
+    };
+    this._onError = () => { this.locked = false; onLockChange(false); };
+
+    document.addEventListener('mousemove', this._onMove);
+    document.addEventListener('pointerlockchange', this._onChange);
+    document.addEventListener('pointerlockerror', this._onError);
+  }
+  lock() { this.dom.requestPointerLock(); }
+  apply() { this.camera.rotation.set(this.pitch, this.yaw, 0); }
+  /** Forward vector, including pitch. */
+  direction(out) {
+    out.set(
+      -Math.sin(this.yaw) * Math.cos(this.pitch),
+      Math.sin(this.pitch),
+      -Math.cos(this.yaw) * Math.cos(this.pitch)
+    );
+    return out;
+  }
+}
+const controls = new PointerLockLook(camera, canvas);
+
+/* ============================================================================
+ * 11. VOXEL RAYCAST (Amanatides & Woo DDA)
+ * ========================================================================== */
+const _rayDir = new THREE.Vector3();
+const _rayOrigin = new THREE.Vector3();
+
+function raycastVoxel(origin, dir, maxDist) {
+  let x = Math.floor(origin.x), y = Math.floor(origin.y), z = Math.floor(origin.z);
+  const stepX = Math.sign(dir.x), stepY = Math.sign(dir.y), stepZ = Math.sign(dir.z);
+
+  const tDelta = (d) => d === 0 ? Infinity : Math.abs(1 / d);
+  const tDeltaX = tDelta(dir.x), tDeltaY = tDelta(dir.y), tDeltaZ = tDelta(dir.z);
+
+  const firstT = (o, i, d) => {
+    if (d === 0) return Infinity;
+    return (d > 0 ? (i + 1 - o) : (o - i)) / Math.abs(d);
+  };
+  let tMaxX = firstT(origin.x, x, dir.x);
+  let tMaxY = firstT(origin.y, y, dir.y);
+  let tMaxZ = firstT(origin.z, z, dir.z);
+
+  let nx = 0, ny = 0, nz = 0, t = 0;
+
+  while (t <= maxDist) {
+    if (y >= 0 && y < WH && isSolidType(getBlock(x, y, z))) {
+      return { x, y, z, nx, ny, nz };
+    }
+    if (tMaxX < tMaxY && tMaxX < tMaxZ) {
+      x += stepX; t = tMaxX; tMaxX += tDeltaX; nx = -stepX; ny = 0; nz = 0;
+    } else if (tMaxY < tMaxZ) {
+      y += stepY; t = tMaxY; tMaxY += tDeltaY; nx = 0; ny = -stepY; nz = 0;
+    } else {
+      z += stepZ; t = tMaxZ; tMaxZ += tDeltaZ; nx = 0; ny = 0; nz = -stepZ;
+    }
+  }
+  return null;
+}
+
+let targetBlock = null;
+
+function updateTarget() {
+  _rayOrigin.copy(camera.position);
+  controls.direction(_rayDir);
+  targetBlock = raycastVoxel(_rayOrigin, _rayDir, tune().reach);
+  if (targetBlock) {
+    outline.visible = true;
+    outline.position.set(targetBlock.x + 0.5, targetBlock.y + 0.5, targetBlock.z + 0.5);
+  } else {
+    outline.visible = false;
+  }
+}
+
+/* Does a candidate block position intersect the player's body? */
+function intersectsPlayer(bx, by, bz) {
+  const hw = player.width / 2, h = playerHeight(), p = player.pos;
+  return (bx + 1 > p.x - hw && bx < p.x + hw) &&
+         (by + 1 > p.y      && by < p.y + h) &&
+         (bz + 1 > p.z - hw && bz < p.z + hw);
+}
+
+/* ============================================================================
+ * 12. INTERACTION
+ * ========================================================================== */
+let selected = 0;
+let swing = 0;
+
+function breakBlock() {
+  if (!targetBlock) return;
+  if (targetBlock.y <= 0) return;                 // keep the world floor intact
+  const was = getBlock(targetBlock.x, targetBlock.y, targetBlock.z);
+  const { x, y, z } = targetBlock;
+  setBlock(x, y, z, AIR);
+  kidBlockEvent('break', x, y, z, was);
+  swing = 1;
+  updateTarget();
+}
+
+function placeBlock() {
+  if (!targetBlock) return;
+  const bx = targetBlock.x + targetBlock.nx;
+  const by = targetBlock.y + targetBlock.ny;
+  const bz = targetBlock.z + targetBlock.nz;
+  if (by < 1 || by >= WH) return;
+  if (getBlock(bx, by, bz) !== AIR) return;
+  if (intersectsPlayer(bx, by, bz)) return;
+  setBlock(bx, by, bz, HOTBAR[selected]);
+  kidBlockEvent('place', bx, by, bz, HOTBAR[selected]);
+  swing = 1;
+  updateTarget();
+}
+
+function pickBlock() {
+  if (!targetBlock) return;
+  const t = getBlock(targetBlock.x, targetBlock.y, targetBlock.z);
+  const i = HOTBAR.indexOf(t);
+  if (i >= 0) selectSlot(i);
+}
+
+/* mouse hold auto-repeat, like the real thing */
+let holdButton = -1, holdTimer = 0;   // repeat rate comes from tune().holdInterval
+
+/* ============================================================================
+ * 13. UI
+ * ========================================================================== */
+const el = {
+  menu: document.getElementById('menu'),
+  loading: document.getElementById('loading'),
+  bar: document.getElementById('barFill'),
+  loadTxt: document.getElementById('loadTxt'),
+  hotbar: document.getElementById('hotbar'),
+  blockName: document.getElementById('blockName'),
+  fps: document.getElementById('hudFps'),
+  pos: document.getElementById('hudPos'),
+  chunk: document.getElementById('hudChunk'),
+  biome: document.getElementById('hudBiome'),
+  time: document.getElementById('hudTime'),
+  save: document.getElementById('hudSave'),
+  playBtn: document.getElementById('playBtn'),
+  newWorldBtn: document.getElementById('newWorldBtn'),
+  kidBtn: document.getElementById('kidBtn'),
+};
+
+function buildHotbar() {
+  el.hotbar.innerHTML = '';
+  HOTBAR.forEach((id, i) => {
+    const d = document.createElement('div');
+    d.className = 'slot' + (i === selected ? ' active' : '');
+    d.dataset.index = i;
+    d.innerHTML = `<div class="ico" style="background-image:url(${iconURLs[id]})"></div>
+                   <div class="num">${i + 1}</div>`;
+    el.hotbar.appendChild(d);
+  });
+}
+
+let nameTimer = 0;
+function selectSlot(i) {
+  selected = ((i % HOTBAR.length) + HOTBAR.length) % HOTBAR.length;
+  [...el.hotbar.children].forEach((c, k) => c.classList.toggle('active', k === selected));
+  heldBlock.material = materials[HOTBAR[selected]];
+  el.blockName.textContent = BLOCK_DEFS[HOTBAR[selected]].name;
+  el.blockName.style.opacity = '1';
+  nameTimer = 1.6;
+  requestSave();
+}
+
+/* ---- save-failure notice (one line, in the HUD) ---- */
+function showSaveWarning(err) {
+  const quota = err && (err.name === 'QuotaExceededError' || err.code === 22);
+  el.save.textContent = quota
+    ? 'SAVE FAILED: STORAGE FULL — WORLD KEPT IN MEMORY'
+    : 'SAVE FAILED: STORAGE UNAVAILABLE — WORLD KEPT IN MEMORY';
+}
+function clearSaveWarning() { if (el.save.textContent) el.save.textContent = ''; }
+
+/* ---- kid mode ---- */
+function writeKidPref() {
+  try { localStorage.setItem(KID_KEY, kidMode ? '1' : '0'); }
+  catch (err) { console.warn('[VoxelCraft] could not persist kid mode: ' + (err && err.name || err)); }
+}
+function readKidPref() {
+  try {
+    const v = localStorage.getItem(KID_KEY);
+    return v === null ? null : v === '1';
+  } catch (err) { return null; }
+}
+
+/** Applies kid mode live. Everything it touches is read per-frame elsewhere,
+ *  so this never needs a reload. */
+function setKidMode(on, persist = true) {
+  kidMode = !!on;
+
+  controls.sensitivity = tune().sensitivity;
+  controls.pitchLimit  = tune().pitchLimit;
+  controls.pitch = Math.max(-controls.pitchLimit, Math.min(controls.pitchLimit, controls.pitch));
+
+  stepLift = 0;
+  document.body.classList.toggle('kid', kidMode);
+
+  if (el.kidBtn) {
+    el.kidBtn.textContent = kidMode ? 'KID MODE: ON' : 'KID MODE: OFF';
+    el.kidBtn.classList.toggle('kidOn', kidMode);
+    el.kidBtn.setAttribute('aria-checked', kidMode ? 'true' : 'false');
+  }
+
+  if (kidMode) {
+    dayTime = KID_NOON;
+    el.blockName.style.opacity = '1';
+  } else {
+    nameTimer = 0;
+    el.blockName.style.opacity = '0';
+  }
+
+  applyKidNavVisibility();
+  if (kidMode) announceObjective();
+
+  if (persist) { writeKidPref(); requestSave(); }
+}
+
+/* speech mute lives next to the kid-mode preference so both survive NEW WORLD */
+const SPEECH_KEY = 'voxelcraft-speech-v1';
+function writeSpeechPref() {
+  try { localStorage.setItem(SPEECH_KEY, speechMuted ? '1' : '0'); }
+  catch (err) { /* storage unavailable */ }
+}
+function readSpeechPref() {
+  try {
+    const v = localStorage.getItem(SPEECH_KEY);
+    return v === null ? null : v === '1';
+  } catch (err) { return null; }
+}
+
+function onLockChange(locked) {
+  el.menu.style.display = locked ? 'none' : 'flex';
+  if (!locked) for (const k in keys) keys[k] = false;
+}
+
+/* ============================================================================
+ * 13b. KID MODE — NAVIGATION & GUIDANCE
+ * ==========================================================================
+ * Minimap, world arrow, breadcrumbs, objectives, speech. Every part of this
+ * section is inert unless kidMode is true; adult play never sees any of it.
+ * ========================================================================== */
+
+/* ---------------------------------------------------------------------------
+ * OBJECTIVES — edit this array to change the whole progression.
+ *   icon      key into KID_ICONS (canvas-drawn below)
+ *   label     1-2 words, spoken aloud and shown on the card
+ *   kind      how progress is measured
+ *   need      units of progress required
+ *   target()  world point to guide toward, or null for "do it anywhere"
+ * ------------------------------------------------------------------------- */
+const OBJECTIVES = [
+  { id: 'gohome',   icon: 'house', label: 'GO HOME',     kind: 'reach', need: 1,  radius: 4,
+    target: () => homePos },
+  { id: 'findtree', icon: 'tree',  label: 'FIND TREE',   kind: 'reach', need: 1,  radius: 4,
+    target: () => findNearest('tree', 100) },
+  { id: 'getwood',  icon: 'log',   label: 'GET WOOD',    kind: 'break', need: 3,  block: WOOD,
+    target: () => findNearest('tree', 100) },
+  { id: 'tower',    icon: 'tower', label: 'BUILD TOWER', kind: 'stack', need: 5,
+    target: () => null },
+  { id: 'findsand', icon: 'sand',  label: 'FIND SAND',   kind: 'biome', need: 1,  biome: 'Desert',
+    target: () => findNearest('desert', 150) },
+  { id: 'makehouse',icon: 'home2', label: 'MAKE HOUSE',  kind: 'place', need: 20,
+    target: () => null },
+];
+
+let objIndex     = 0;
+let objProgress  = OBJECTIVES.map(() => 0);
+let objFired     = OBJECTIVES.map(() => 0);   // completion count; must stay <= 1
+let objState     = 'active';                  // 'active' | 'celebrating' | 'freeplay'
+let objAdvanceAt = 0;
+let homePos      = null;                      // THREE.Vector3, the world spawn
+let guideHome    = false;                     // H override
+let stackRun     = null;                      // {x, y, z} top of the current vertical run
+let speechMuted  = false;
+let minimapOn    = true;
+let crumbsOn     = true;
+
+const activeObjective = () => (objState === 'freeplay' ? null : OBJECTIVES[objIndex] || null);
+
+/* ---------------------------------------------------------------------------
+ * Canvas-drawn icons (same approach as the hotbar block icons)
+ * ------------------------------------------------------------------------- */
+const KID_ICONS = {};
+function paintIcons() {
+  const P = (ctx, x, y, w, h, c) => { ctx.fillStyle = c; ctx.fillRect(x, y, w, h); };
+  const defs = {
+    house: (c) => {                                   // green house
+      for (let i = 0; i < 8; i++) P(c, 8 - i, i, 1 + i * 2, 1, '#2f9e52');
+      P(c, 2, 8, 12, 7, '#3fbf68'); P(c, 6, 10, 4, 5, '#1d6b39');
+    },
+    home2: (c) => {                                   // built house, warmer
+      for (let i = 0; i < 8; i++) P(c, 8 - i, i, 1 + i * 2, 1, '#b4543f');
+      P(c, 2, 8, 12, 7, '#d9c39b'); P(c, 6, 10, 4, 5, '#7a5232');
+      P(c, 3, 9, 2, 2, '#8fd0f0'); P(c, 11, 9, 2, 2, '#8fd0f0');
+    },
+    tree: (c) => {                                    // trunk + canopy
+      P(c, 7, 10, 2, 6, '#6b4a2c');
+      P(c, 4, 2, 8, 3, '#3c8f34'); P(c, 3, 5, 10, 3, '#49a83e'); P(c, 5, 8, 6, 2, '#3c8f34');
+    },
+    log: (c) => {                                     // oak log with rings
+      P(c, 3, 3, 10, 10, '#8a6a3f');
+      P(c, 5, 5, 6, 6, '#a5824f'); P(c, 7, 7, 2, 2, '#6f5330');
+      P(c, 3, 3, 10, 1, '#6f5330'); P(c, 3, 12, 10, 1, '#6f5330');
+    },
+    tower: (c) => {                                   // stacked blocks
+      P(c, 5, 12, 6, 3, '#8d8d92'); P(c, 5, 8, 6, 3, '#a0a0a6');
+      P(c, 5, 4, 6, 3, '#8d8d92'); P(c, 5, 1, 6, 2, '#b6b6bc');
+    },
+    sand: (c) => {                                    // dune
+      P(c, 1, 10, 14, 5, '#e2d09a');
+      P(c, 4, 7, 8, 3, '#efdfae'); P(c, 6, 5, 4, 2, '#f6ebc4');
+    },
+    star: (c) => {                                    // gold star
+      const pts = [[7, 1, 2, 3], [6, 4, 4, 2], [2, 6, 12, 3], [4, 9, 8, 2],
+                   [3, 11, 4, 3], [9, 11, 4, 3], [6, 9, 4, 2]];
+      for (const [x, y, w, h] of pts) P(c, x, y, w, h, '#ffc93c');
+    },
+  };
+  for (const k of Object.keys(defs)) {
+    const src = document.createElement('canvas');
+    src.width = src.height = 16;
+    defs[k](src.getContext('2d'));
+    const big = document.createElement('canvas');
+    big.width = big.height = 64;
+    const bc = big.getContext('2d');
+    bc.imageSmoothingEnabled = false;
+    bc.drawImage(src, 0, 0, 16, 16, 0, 0, 64, 64);
+    KID_ICONS[k] = big.toDataURL();
+  }
+}
+paintIcons();
+
+/* ---------------------------------------------------------------------------
+ * Target search — uses the deterministic world functions, so it can find
+ * things well outside the loaded chunks. Cached; never runs per frame.
+ * ------------------------------------------------------------------------- */
+const _nearCache = new Map();
+function findNearest(what, maxR) {
+  const px = Math.floor(player.pos.x), pz = Math.floor(player.pos.z);
+  const now = performance.now();
+  const c = _nearCache.get(what);
+  if (c && now - c.t < 3000 && Math.abs(c.px - px) < 10 && Math.abs(c.pz - pz) < 10) return c.pos;
+
+  const step = what === 'desert' ? 6 : 3;
+  let best = null, bestD = Infinity;
+  for (let dz = -maxR; dz <= maxR; dz += step) {
+    for (let dx = -maxR; dx <= maxR; dx += step) {
+      const d2 = dx * dx + dz * dz;
+      if (d2 > maxR * maxR || d2 >= bestD) continue;
+      const wx = px + dx, wz = pz + dz;
+      const hit = what === 'tree' ? !!treeAt(wx, wz)
+                : what === 'desert' ? columnInfo(wx, wz).biome === 'Desert'
+                : false;
+      if (hit) { bestD = d2; best = new THREE.Vector3(wx + 0.5, columnInfo(wx, wz).h + 1, wz + 0.5); }
+    }
+  }
+  _nearCache.set(what, { t: now, px, pz, pos: best });
+  return best;
+}
+
+/** Where guidance is currently pointing, or null for "no target". */
+function guidanceTarget() {
+  if (guideHome) return homePos;
+  const o = activeObjective();
+  return o ? o.target() : null;
+}
+
+/* ---------------------------------------------------------------------------
+ * Sound + speech (no libraries; both degrade silently)
+ * ------------------------------------------------------------------------- */
+let audioCtx = null;
+function chime(kind) {
+  try {
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return;
+    if (!audioCtx) audioCtx = new AC();
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    const t0 = audioCtx.currentTime;
+    const notes = kind === 'complete' ? [523.25, 659.25, 783.99] : [659.25, 987.77];
+    notes.forEach((f, i) => {
+      const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+      o.type = 'sine'; o.frequency.value = f;
+      const s = t0 + i * 0.09;
+      g.gain.setValueAtTime(0.0001, s);
+      g.gain.linearRampToValueAtTime(0.16, s + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001, s + 0.4);
+      o.connect(g); g.connect(audioCtx.destination);
+      o.start(s); o.stop(s + 0.42);
+    });
+  } catch (err) { /* audio unavailable: stay silent */ }
+}
+
+let speechVoice = null;
+function pickVoice() {
+  try {
+    const vs = window.speechSynthesis.getVoices() || [];
+    speechVoice = vs.find(v => /^en\b|^en[-_]/i.test(v.lang)) || null;
+  } catch (err) { speechVoice = null; }
+}
+try {
+  if (window.speechSynthesis) {
+    pickVoice();
+    window.speechSynthesis.addEventListener('voiceschanged', pickVoice);
+  }
+} catch (err) { /* no speech support */ }
+
+function speak(text) {
+  if (!kidMode || speechMuted) return;
+  try {
+    const synth = window.speechSynthesis;
+    if (!synth || typeof window.SpeechSynthesisUtterance !== 'function') return;
+    synth.cancel();
+    const u = new window.SpeechSynthesisUtterance(text);
+    u.rate = 0.9;
+    u.pitch = 1.1;
+    if (!speechVoice) pickVoice();
+    if (speechVoice) u.voice = speechVoice;
+    synth.speak(u);
+  } catch (err) { /* degrade silently */ }
+}
+
+/* ---------------------------------------------------------------------------
+ * Objective card
+ * ------------------------------------------------------------------------- */
+const elObjCard  = document.getElementById('objCard');
+const elObjIcon  = document.getElementById('objIcon');
+const elObjLabel = document.getElementById('objLabel');
+const elObjDots  = document.getElementById('objDots');
+
+function renderObjectiveCard() {
+  if (objState === 'freeplay') {
+    elObjIcon.style.backgroundImage = `url(${KID_ICONS.star})`;
+    elObjLabel.textContent = 'FREE PLAY';
+    elObjDots.innerHTML = '';
+    return;
+  }
+  const o = activeObjective();
+  if (!o) return;
+  elObjIcon.style.backgroundImage = `url(${KID_ICONS[o.icon]})`;
+  elObjLabel.textContent = o.label;
+
+  /* dots only — never a number or a percentage */
+  const shown = Math.min(o.need, 10);
+  const filled = Math.round((Math.min(objProgress[objIndex], o.need) / o.need) * shown);
+  let html = '';
+  for (let i = 0; i < shown; i++) html += `<i class="${i < filled ? 'on' : ''}"></i>`;
+  elObjDots.innerHTML = html;
+}
+
+function announceObjective() {
+  renderObjectiveCard();
+  elObjCard.classList.remove('slide');
+  void elObjCard.offsetWidth;          // restart the slide-in
+  elObjCard.classList.add('slide');
+  speak(objState === 'freeplay' ? 'Free play' : (activeObjective() || {}).label || '');
+}
+
+function completeObjective() {
+  objFired[objIndex]++;
+  objState = 'celebrating';
+  objAdvanceAt = performance.now() + 1500;
+  chime('complete');
+  speak('Good job!');
+  elObjCard.classList.add('pop');
+  setTimeout(() => elObjCard.classList.remove('pop'), 420);
+  renderObjectiveCard();
+}
+
+function advanceObjective() {
+  objIndex++;
+  if (objIndex >= OBJECTIVES.length) {
+    objIndex = OBJECTIVES.length - 1;
+    objState = 'freeplay';
+  } else {
+    objState = 'active';
+    stackRun = null;
+  }
+  announceObjective();
+}
+
+/** Block break / place events feed the counter-based objectives. */
+function kidBlockEvent(action, x, y, z, type) {
+  if (!kidMode || objState !== 'active') return;
+  const o = activeObjective();
+  if (!o) return;
+
+  if (action === 'break' && o.kind === 'break' && type === o.block) {
+    objProgress[objIndex]++;
+  } else if (action === 'place') {
+    if (o.kind === 'place') {
+      objProgress[objIndex]++;
+    } else if (o.kind === 'stack') {
+      /* only a block placed directly on top of the previous one continues the
+         run; five scattered blocks never complete this */
+      if (stackRun && x === stackRun.x && z === stackRun.z && y === stackRun.y + 1) {
+        stackRun = { x, y, z };
+        objProgress[objIndex]++;
+      } else {
+        stackRun = { x, y, z };
+        objProgress[objIndex] = 1;
+      }
+    }
+  }
+  renderObjectiveCard();
+}
+
+function updateObjectives(now) {
+  if (objState === 'celebrating') {
+    if (now >= objAdvanceAt) advanceObjective();
+    return;
+  }
+  if (objState === 'freeplay') return;
+
+  const o = activeObjective();
+  if (!o) return;
+
+  /* position-derived objectives are evaluated here rather than on an event */
+  if (o.kind === 'reach') {
+    const t = o.target();
+    if (t) {
+      const d = Math.hypot(player.pos.x - t.x, player.pos.z - t.z);
+      if (d <= o.radius) objProgress[objIndex] = o.need;
+    }
+  } else if (o.kind === 'biome') {
+    if (columnInfo(Math.floor(player.pos.x), Math.floor(player.pos.z)).biome === o.biome) {
+      objProgress[objIndex] = o.need;
+    }
+  }
+
+  if (objProgress[objIndex] >= o.need) completeObjective();
+  else renderObjectiveCard();
+}
+
+/* ---------------------------------------------------------------------------
+ * Minimap — rotating, player-up. Painted into a 1px-per-block offscreen
+ * buffer, then blitted rotated; the per-frame cost is one drawImage.
+ * ------------------------------------------------------------------------- */
+const MAP_SIZE = 180;
+const MAP_R    = 64;                    // blocks sampled in each direction
+const mapCanvas = document.getElementById('minimap');
+const mapCtx    = mapCanvas ? mapCanvas.getContext('2d') : null;
+const mapSrc    = document.createElement('canvas');
+mapSrc.width = mapSrc.height = MAP_R * 2 + 1;
+const mapSrcCtx = mapSrc.getContext('2d');
+const mapImage  = mapSrcCtx.createImageData(mapSrc.width, mapSrc.height);
+const MAP_PPB   = MAP_SIZE / mapSrc.width;   // screen pixels per world block
+let lastMapDraw = 0;
+let mapDrawCount = 0;
+
+function paintMapSource() {
+  const d = mapImage.data;
+  const px = Math.floor(player.pos.x), pz = Math.floor(player.pos.z);
+  let i = 0;
+  for (let dz = -MAP_R; dz <= MAP_R; dz++) {
+    for (let dx = -MAP_R; dx <= MAP_R; dx++, i += 4) {
+      const wx = px + dx, wz = pz + dz;
+      const cx = Math.floor(wx / CS), cz = Math.floor(wz / CS);
+      const ch = chunks.get(key(cx, cz));
+      if (!ch || !ch.heightMap) { d[i + 3] = 0; continue; }
+      const lx = wx - cx * CS, lz = wz - cz * CS;
+      const y = ch.heightMap[lx + lz * CS];
+      const col = MAP_COLORS[ch.data[idx3(lx, y, lz)]];
+      if (!col) { d[i + 3] = 0; continue; }
+      const shade = 0.66 + 0.34 * Math.min(1, Math.max(0, (y - 22) / 34));
+      d[i] = col[0] * shade; d[i + 1] = col[1] * shade; d[i + 2] = col[2] * shade; d[i + 3] = 255;
+    }
+  }
+  mapSrcCtx.putImageData(mapImage, 0, 0);
+}
+
+/** world point -> minimap pixel, with the map rotated so facing is up */
+function mapProject(p) {
+  const dx = p.x - player.pos.x, dz = p.z - player.pos.z;
+  const s = Math.sin(controls.yaw), c = Math.cos(controls.yaw);
+  return { x: (dx * c - dz * s) * MAP_PPB, y: (dx * s + dz * c) * MAP_PPB };
+}
+
+function drawMapMarker(ctx, p, icon) {
+  const R = MAP_SIZE / 2 - 12;
+  let { x, y } = mapProject(p);
+  const dist = Math.hypot(x, y);
+  const off = dist > R;
+  if (off) { x = x / dist * R; y = y / dist * R; }
+
+  ctx.save();
+  ctx.translate(x, y);
+  if (icon === 'home') {
+    ctx.fillStyle = '#4ade80';
+    ctx.beginPath(); ctx.moveTo(0, -7); ctx.lineTo(7, 0); ctx.lineTo(-7, 0); ctx.closePath(); ctx.fill();
+    ctx.fillRect(-5, 0, 10, 7);
+    ctx.strokeStyle = 'rgba(0,0,0,.55)'; ctx.lineWidth = 1.5; ctx.strokeRect(-5, 0, 10, 7);
+  } else {
+    ctx.fillStyle = '#ffc93c';
+    ctx.beginPath();
+    for (let i = 0; i < 10; i++) {
+      const a = -Math.PI / 2 + i * Math.PI / 5;
+      const r = i % 2 ? 3.6 : 8.4;
+      ctx[i ? 'lineTo' : 'moveTo'](Math.cos(a) * r, Math.sin(a) * r);
+    }
+    ctx.closePath(); ctx.fill();
+  }
+  if (off) {                                   // small arrow pointing off-map
+    ctx.rotate(Math.atan2(y, x));
+    ctx.fillStyle = icon === 'home' ? '#4ade80' : '#ffc93c';
+    ctx.beginPath(); ctx.moveTo(11, 0); ctx.lineTo(4, -4.5); ctx.lineTo(4, 4.5); ctx.closePath(); ctx.fill();
+  }
+  ctx.restore();
+}
+
+function drawMinimap() {
+  if (!mapCtx) return;
+  mapDrawCount++;
+  paintMapSource();
+
+  const S = MAP_SIZE, c = S / 2;
+  mapCtx.clearRect(0, 0, S, S);
+  mapCtx.save();
+  mapCtx.beginPath(); mapCtx.arc(c, c, c - 2, 0, Math.PI * 2); mapCtx.clip();
+  mapCtx.fillStyle = 'rgba(10,12,18,0.72)';
+  mapCtx.fillRect(0, 0, S, S);
+
+  mapCtx.translate(c, c);
+  mapCtx.save();
+  mapCtx.rotate(controls.yaw);                 // rotate the MAP, not the marker
+  mapCtx.imageSmoothingEnabled = false;
+  mapCtx.globalAlpha = 0.92;
+  mapCtx.drawImage(mapSrc, -S / 2, -S / 2, S, S);
+  mapCtx.globalAlpha = 1;
+  mapCtx.restore();
+
+  if (homePos) drawMapMarker(mapCtx, homePos, 'home');
+  const t = guidanceTarget();
+  if (t && (!homePos || t !== homePos)) drawMapMarker(mapCtx, t, 'star');
+  mapCtx.restore();
+
+  /* player marker: fixed, centred, always pointing up */
+  mapCtx.save();
+  mapCtx.translate(c, c);
+  mapCtx.fillStyle = '#ffffff';
+  mapCtx.strokeStyle = 'rgba(0,0,0,.6)';
+  mapCtx.lineWidth = 2;
+  mapCtx.beginPath();
+  mapCtx.moveTo(0, -9); mapCtx.lineTo(6.5, 7); mapCtx.lineTo(0, 3.5); mapCtx.lineTo(-6.5, 7);
+  mapCtx.closePath(); mapCtx.fill(); mapCtx.stroke();
+  mapCtx.restore();
+}
+
+/* ---------------------------------------------------------------------------
+ * World arrow — always visible, never occluded
+ * ------------------------------------------------------------------------- */
+const arrowMat = new THREE.MeshBasicMaterial({
+  color: 0xffc93c, depthTest: false, depthWrite: false, transparent: true, opacity: 0.96, fog: false,
+});
+const arrowGroup = new THREE.Group();
+{
+  const head = new THREE.Mesh(new THREE.ConeGeometry(0.62, 1.25, 4), arrowMat);
+  head.rotation.x = Math.PI / 2;               // cone's +Y becomes +Z
+  head.position.z = 0.8;
+  const shaft = new THREE.Mesh(new THREE.BoxGeometry(0.46, 0.46, 1.2), arrowMat);
+  shaft.position.z = -0.3;
+  arrowGroup.add(head, shaft);
+}
+arrowGroup.renderOrder = 999;
+arrowGroup.visible = false;
+arrowGroup.frustumCulled = false;
+scene.add(arrowGroup);
+
+const ARROW_AHEAD = 6, ARROW_HEIGHT = 3, ARROW_ARRIVE = 4;
+let arrivedChimed = false;
+
+function updateArrow(now) {
+  const t = guidanceTarget();
+  if (!t) { arrowGroup.visible = false; arrivedChimed = false; return; }
+
+  const dist = Math.hypot(player.pos.x - t.x, player.pos.z - t.z);
+  if (dist <= ARROW_ARRIVE) {
+    arrowGroup.visible = false;
+    if (!arrivedChimed) { arrivedChimed = true; chime('arrive'); }
+    return;
+  }
+  if (dist > ARROW_ARRIVE + 2) arrivedChimed = false;
+
+  const hx = -Math.sin(controls.yaw), hz = -Math.cos(controls.yaw);
+  const ax = player.pos.x + hx * ARROW_AHEAD;
+  const az = player.pos.z + hz * ARROW_AHEAD;
+  const ground = surfaceHeight(Math.floor(ax), Math.floor(az));
+  const ay = Math.max(ground, player.pos.y) + ARROW_HEIGHT + Math.sin(now * 0.002) * 0.18;
+
+  arrowGroup.position.set(ax, ay, az);
+  arrowGroup.lookAt(t.x, ay, t.z);             // level: only the heading matters
+  arrowMat.color.setHex(guideHome || (activeObjective() || {}).id === 'gohome' ? 0x4ade80 : 0xffc93c);
+  arrowGroup.visible = true;
+}
+
+/* ---------------------------------------------------------------------------
+ * Breadcrumbs — one InstancedMesh, oldest fades first
+ * ------------------------------------------------------------------------- */
+const CRUMB_MAX = 150, CRUMB_SPACING = 4;
+const crumbMesh = new THREE.InstancedMesh(
+  new THREE.SphereGeometry(0.17, 6, 5),
+  new THREE.MeshBasicMaterial({
+    color: 0xffffff, transparent: true, opacity: 0.9, depthWrite: false,
+    blending: THREE.AdditiveBlending, fog: false,
+  }),
+  CRUMB_MAX
+);
+crumbMesh.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(CRUMB_MAX * 3), 3);
+crumbMesh.count = 0;
+crumbMesh.frustumCulled = false;
+crumbMesh.visible = false;
+scene.add(crumbMesh);
+
+let crumbs = [];                               // oldest first
+let lastCrumb = null;
+const _crumbMat = new THREE.Matrix4();
+const _crumbCol = new THREE.Color();
+
+function refreshCrumbMesh() {
+  const n = Math.min(crumbs.length, CRUMB_MAX);
+  for (let i = 0; i < n; i++) {
+    const c = crumbs[i];
+    _crumbMat.makeTranslation(c.x, c.y, c.z);
+    crumbMesh.setMatrixAt(i, _crumbMat);
+    const age = (i + 1) / n;                   // index 0 is oldest -> dimmest
+    const f = 0.12 + 0.88 * age;
+    _crumbCol.setRGB(f * 0.55, f * 0.9, f);
+    crumbMesh.setColorAt(i, _crumbCol);
+  }
+  crumbMesh.count = n;
+  crumbMesh.instanceMatrix.needsUpdate = true;
+  if (crumbMesh.instanceColor) crumbMesh.instanceColor.needsUpdate = true;
+}
+
+function updateCrumbs() {
+  if (!lastCrumb) { lastCrumb = { x: player.pos.x, z: player.pos.z }; return; }
+  const d = Math.hypot(player.pos.x - lastCrumb.x, player.pos.z - lastCrumb.z);
+  if (d < CRUMB_SPACING) return;
+  lastCrumb = { x: player.pos.x, z: player.pos.z };
+  crumbs.push({ x: player.pos.x, y: player.pos.y + 0.55, z: player.pos.z });
+  while (crumbs.length > CRUMB_MAX) crumbs.shift();   // oldest out first
+  refreshCrumbMesh();
+}
+
+/* ---------------------------------------------------------------------------
+ * Per-frame driver
+ * ------------------------------------------------------------------------- */
+function updateKidGuidance(now) {
+  if (!kidMode) return;
+  updateObjectives(now);
+  updateArrow(now);
+  if (crumbsOn) updateCrumbs();
+  if (minimapOn && now - lastMapDraw >= 100) {   // 10fps ceiling
+    lastMapDraw = now;
+    drawMinimap();
+  }
+}
+
+/** Show/hide everything this section owns. Called by setKidMode. */
+function applyKidNavVisibility() {
+  const on = kidMode;
+  document.body.classList.toggle('mapOn', on && minimapOn);
+  document.body.classList.toggle('crumbsOn', on && crumbsOn);
+  if (!on) {
+    arrowGroup.visible = false;
+    crumbMesh.visible = false;
+  } else {
+    crumbMesh.visible = crumbsOn;
+    renderObjectiveCard();
+  }
+}
+
+/** Fresh guidance state for a brand-new world. */
+function resetKidGuidance() {
+  objIndex = 0;
+  objProgress = OBJECTIVES.map(() => 0);
+  objFired = OBJECTIVES.map(() => 0);
+  objState = 'active';
+  stackRun = null;
+  guideHome = false;
+  crumbs = [];
+  lastCrumb = null;
+  arrivedChimed = false;
+  _nearCache.clear();
+  refreshCrumbMesh();
+}
+
+/* ============================================================================
+ * 14. INPUT
+ * ========================================================================== */
+window.addEventListener('keydown', (e) => {
+  if (e.code === 'Tab') e.preventDefault();
+  keys[e.code] = true;
+
+  if (!controls.locked) return;
+  if (e.code === 'Space') e.preventDefault();
+
+  if (e.code.startsWith('Digit')) {
+    const n = +e.code.slice(5);
+    if (n >= 1 && n <= HOTBAR.length) selectSlot(n - 1);
+  }
+  if (kidMode && e.code === 'KeyM') {
+    minimapOn = !minimapOn;
+    applyKidNavVisibility();
+  }
+  if (kidMode && e.code === 'KeyB') {
+    crumbsOn = !crumbsOn;
+    applyKidNavVisibility();
+  }
+  if (kidMode && e.code === 'KeyH') {
+    guideHome = !guideHome;
+    arrivedChimed = false;
+    speak(guideHome ? 'Going home' : (activeObjective() || {}).label || 'Free play');
+  }
+  if (kidMode && e.code === 'KeyN') {
+    speechMuted = !speechMuted;
+    writeSpeechPref();
+    requestSave();
+    if (!speechMuted) speak('Sound on');
+  }
+  if (e.code === 'KeyF') {
+    player.flying = !player.flying;
+    player.vel.set(0, 0, 0);
+    el.blockName.textContent = player.flying ? 'FLIGHT ON' : 'FLIGHT OFF';
+    el.blockName.style.opacity = '1';
+    nameTimer = 1.4;
+  }
+});
+window.addEventListener('keyup', (e) => { keys[e.code] = false; });
+window.addEventListener('blur', () => { for (const k in keys) keys[k] = false; });
+
+canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+
+canvas.addEventListener('mousedown', (e) => {
+  if (!controls.locked) return;
+  e.preventDefault();
+  holdButton = e.button;
+  holdTimer = tune().holdInterval;
+  if (e.button === 0) breakBlock();
+  else if (e.button === 2) placeBlock();
+  else if (e.button === 1) pickBlock();
+});
+window.addEventListener('mouseup', () => { holdButton = -1; });
+
+window.addEventListener('wheel', (e) => {
+  if (!controls.locked) return;
+  selectSlot(selected + (e.deltaY > 0 ? 1 : -1));
+}, { passive: true });
+
+el.playBtn.addEventListener('click', () => controls.lock());
+el.menu.addEventListener('click', (e) => { if (e.target === el.menu) controls.lock(); });
+
+el.newWorldBtn.addEventListener('click', (e) => { e.stopPropagation(); newWorld(); });
+el.kidBtn.addEventListener('click', (e) => { e.stopPropagation(); setKidMode(!kidMode); });
+
+/* Final flush — the 10s autosave gate is bypassed here on purpose. */
+window.addEventListener('beforeunload', () => { if (started) writeSave(); });
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden' && started) writeSave();
+});
+
+el.hotbar.addEventListener('click', (e) => {
+  const slot = e.target.closest('.slot');
+  if (slot) selectSlot(+slot.dataset.index);
+});
+
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+/* ============================================================================
+ * 15. DAY / NIGHT CYCLE
+ * ========================================================================== */
+let dayTime = 0.10;                       // 0 = sunrise, 0.25 = noon, 0.5 = sunset
+
+const C_DAY     = new THREE.Color(0x88ccf5);
+const C_NIGHT   = new THREE.Color(0x050813);
+const C_DUSK    = new THREE.Color(0xf07a3c);
+const C_SUN_LOW = new THREE.Color(0xffb066);
+const C_SUN_HI  = new THREE.Color(0xfff6e0);
+const C_MOON_SKY = new THREE.Color(0x3d4f86);
+
+const _skyColor = new THREE.Color();
+const _sunColor = new THREE.Color();
+const _sunDir = new THREE.Vector3();
+
+const clamp01 = v => v < 0 ? 0 : v > 1 ? 1 : v;
+
+function updateSky(dt) {
+  /* kid mode pins the sun overhead: permanent midday, no stars, no darkness */
+  if (kidMode) dayTime = KID_NOON;
+  else dayTime = (dayTime + dt / DAY_LENGTH) % 1;
+
+  const a = dayTime * Math.PI * 2;
+  _sunDir.set(Math.cos(a) * 0.92, Math.sin(a), 0.34).normalize();
+  const elev = _sunDir.y;
+
+  const day = clamp01((elev + 0.10) / 0.32);          // 0 night .. 1 full day
+  const twilight = Math.max(0, 1 - Math.abs(elev) / 0.26);
+
+  _skyColor.copy(C_NIGHT).lerp(C_DAY, day);
+  _skyColor.lerp(C_DUSK, twilight * 0.62);
+  scene.background.copy(_skyColor);
+  scene.fog.color.copy(_skyColor);
+
+  _sunColor.copy(C_SUN_LOW).lerp(C_SUN_HI, clamp01(elev / 0.4));
+
+  sunLight.color.copy(_sunColor);
+  sunLight.intensity = 2.9 * day;
+  sunLight.position.copy(_sunDir).multiplyScalar(120);
+
+  const night = 1 - day;
+  moonLight.intensity = 0.80 * night;
+  moonLight.position.copy(_sunDir).multiplyScalar(-120);
+
+  /* the night floor is deliberately generous — moonlit, not unplayable */
+  ambient.intensity = 0.42 + 0.68 * day;
+  hemi.intensity = 0.30 + 0.50 * day;
+  /* the sky itself is nearly black at night, so blend the sky-fill toward a
+     moonlit blue rather than letting the hemisphere light vanish */
+  hemi.color.copy(_skyColor).lerp(C_MOON_SKY, night * 0.85);
+
+  /* sky dome bodies */
+  skyGroup.position.copy(camera.position);
+  sunDisc.position.copy(_sunDir).multiplyScalar(400);
+  sunDisc.material.color.copy(_sunColor);
+  moonDisc.position.copy(_sunDir).multiplyScalar(-400);
+  starMat.opacity = night * night * 0.95;
+  sunDisc.visible = elev > -0.25;
+  moonDisc.visible = elev < 0.25;
+}
+
+function clockString() {
+  const mins = Math.floor(((dayTime + 0.25) % 1) * 24 * 60);
+  const hh = String(Math.floor(mins / 60)).padStart(2, '0');
+  const mm = String(mins % 60).padStart(2, '0');
+  return `${hh}:${mm}`;
+}
+
+/* ============================================================================
+ * 16. MAIN LOOP
+ * ========================================================================== */
+let last = performance.now();
+let fpsAcc = 0, fpsFrames = 0, fps = 0, hudTimer = 0;
+let started = false;
+
+function frame(now) {
+  requestAnimationFrame(frame);
+  let dt = (now - last) / 1000;
+  last = now;
+  if (dt > 0.1) dt = 0.1;               // avoid tunnelling after a stall
+
+  if (!started) return;
+
+  /* fixed-ish substeps keep collisions stable at low frame rates */
+  if (controls.locked) {
+    player.crouching = !!keys['KeyC'] && !player.flying;
+    let remaining = dt;
+    while (remaining > 0) {
+      const step = Math.min(remaining, 1 / 60);
+      stepPhysics(step);
+      remaining -= step;
+    }
+
+    /* hold-to-repeat break / place */
+    if (holdButton >= 0) {
+      holdTimer -= dt;
+      if (holdTimer <= 0) {
+        holdTimer = tune().holdInterval;
+        if (holdButton === 0) breakBlock();
+        else if (holdButton === 2) placeBlock();
+      }
+    }
+  }
+
+  /* --- camera: smooth eye height + bob + sprint FOV --- */
+  const targetEye = player.pos.y + playerEye();
+  if (Math.abs(targetEye - camEyeY) > 1.6) camEyeY = targetEye;   // snap on big jumps
+  camEyeY += (targetEye - camEyeY) * Math.min(1, 14 * dt);
+
+  /* kid-mode step-up easing; stays 0 (and so a no-op) for adults */
+  if (stepLift > 0) stepLift = Math.max(0, stepLift - dt / KID_STEP_SMOOTH);
+
+  const bobY = Math.sin(bobPhase * 2) * 0.045 * bobAmount;
+  const bobX = Math.cos(bobPhase) * 0.035 * bobAmount;
+  camera.position.set(player.pos.x + bobX, camEyeY + bobY - stepLift, player.pos.z);
+  controls.apply();
+
+  const wantFov = player.sprinting ? 82 : 75;
+  if (Math.abs(camera.fov - wantFov) > 0.05) {
+    camera.fov += (wantFov - camera.fov) * Math.min(1, 8 * dt);
+    camera.updateProjectionMatrix();
+  }
+
+  /* held block swing */
+  swing = Math.max(0, swing - dt * 4.2);
+  const s = Math.sin(swing * Math.PI);
+  heldBlock.position.set(0.46 - s * 0.10, -0.38 - s * 0.16 + bobY * 1.2, -0.72 + s * 0.10);
+  heldBlock.rotation.set(0.18 + s * 0.7, -0.62, 0.10);
+
+  updateSky(dt);
+  updateChunks(6);
+  if (controls.locked) updateTarget();
+
+  renderer.render(scene, camera);
+
+  /* --- HUD --- */
+  fpsAcc += dt; fpsFrames++;
+  if (fpsAcc >= 0.5) { fps = Math.round(fpsFrames / fpsAcc); fpsAcc = 0; fpsFrames = 0; }
+  hudTimer -= dt;
+  if (hudTimer <= 0) {
+    hudTimer = 0.25;
+    el.fps.textContent = `FPS ${fps}`;
+    el.pos.textContent = `XYZ ${player.pos.x.toFixed(1)} ${player.pos.y.toFixed(1)} ${player.pos.z.toFixed(1)}`;
+    el.chunk.textContent = `CHUNKS ${chunks.size}`;
+    el.biome.textContent = `BIOME ${columnInfo(Math.floor(player.pos.x), Math.floor(player.pos.z)).biome.toUpperCase()}`;
+    el.time.textContent = `TIME ${clockString()}${player.flying ? '  [FLY]' : ''}`;
+  }
+  if (kidMode) {
+    /* the block label never fades in kid mode */
+    if (el.blockName.style.opacity !== '1') el.blockName.style.opacity = '1';
+  } else if (nameTimer > 0) {
+    nameTimer -= dt;
+    if (nameTimer <= 0) el.blockName.style.opacity = '0';
+  }
+
+  /* --- autosave ---
+     Position and time drift every frame, so the world is effectively always
+     dirty; the SAVE_INTERVAL gate is what debounces it. A burst of block edits
+     therefore costs one write, not one per edit. */
+  updateKidGuidance(now);
+
+  if (controls.locked) requestSave();
+  autosaveTick(now);
+}
+
+/** Rate-limited autosave: at most one write per SAVE_INTERVAL, and only if
+ *  something actually changed since the last one. */
+function autosaveTick(now) {
+  if (saveDirty && now - lastSaveAt >= SAVE_INTERVAL) writeSave();
+}
+
+/* ============================================================================
+ * 17. BOOT
+ * ========================================================================== */
+let preloading = false;
+
+/* Stream the spawn area in before handing control to the player. */
+function preload() {
+  updateChunks(26);
+  const { need, have } = chunksReady();
+  el.bar.style.width = Math.round((have / need) * 100) + '%';
+  el.loadTxt.textContent = `Building chunks… ${have}/${need}`;
+
+  if (have < need) { requestAnimationFrame(preload); return; }
+
+  if (restoredSpawn) {
+    /* A restored position could sit inside a block the player mined out from
+       under themselves; lift them clear rather than spawning them in stone. */
+    let guard = 0;
+    while (collidesNow() && player.pos.y < WH && guard++ < WH) player.pos.y += 1;
+  } else {
+    const gx = 0, gz = 0;
+    player.pos.set(gx + 0.5, surfaceHeight(gx, gz) + 0.2, gz + 0.5);
+    player.vel.set(0, 0, 0);
+  }
+  camEyeY = player.pos.y + playerEye();
+  stepLift = 0;
+  camera.position.set(player.pos.x, camEyeY, player.pos.z);
+
+  /* the spawn point is HOME for the rest of this world's life */
+  if (!homePos) homePos = new THREE.Vector3(player.pos.x, player.pos.y, player.pos.z);
+  if (!lastCrumb) lastCrumb = { x: player.pos.x, z: player.pos.z };
+  applyKidNavVisibility();
+
+  /* kid mode starts every world in flight; F still toggles it off */
+  if (kidMode) player.flying = true;
+
+  el.loading.style.display = 'none';
+  preloading = false;
+  started = true;
+  last = performance.now();
+  lastSaveAt = performance.now();
+}
+
+function startPreload() {
+  if (preloading) return;
+  preloading = true;
+  started = false;
+  el.bar.style.width = '0%';
+  el.loadTxt.textContent = 'Seeding terrain…';
+  el.loading.style.display = 'flex';
+  requestAnimationFrame(preload);
+}
+
+/** Discards the save, picks a fresh seed, and rebuilds the world from scratch. */
+function newWorld() {
+  discardSave();
+  clearSaveWarning();
+  saveErrorActive = false;
+
+  initNoise((Math.random() * 0x100000000) >>> 0);
+  for (const c of chunks.values()) disposeMeshes(c);
+  chunks.clear();
+  overrides.clear();
+
+  dayTime = 0.10;
+  restoredSpawn = false;
+  homePos = null;
+  resetKidGuidance();
+  player.pos.set(0.5, 64, 0.5);
+  player.vel.set(0, 0, 0);
+  player.flying = false;
+  controls.yaw = 0; controls.pitch = 0;
+  selectSlot(0);
+  el.blockName.style.opacity = '0';
+
+  console.info('[VoxelCraft] new world, seed ' + worldSeed);
+  startPreload();
+}
+
+function boot() {
+  buildHotbar();
+
+  /* A seed pinned via ?seed=N takes precedence; a save for a different seed is
+     then discarded. With no pin, the save's own seed is adopted. */
+  let pinned;
+  try {
+    const q = new URLSearchParams(location.search).get('seed');
+    if (q !== null && Number.isFinite(+q)) pinned = +q >>> 0;
+  } catch (err) { /* no location in non-browser hosts */ }
+
+  const data = readSave(pinned);
+  if (data) {
+    const n = applySave(data);
+    console.info(`[VoxelCraft] save restored: seed ${worldSeed}, ${n} block edit(s).`);
+  } else {
+    initNoise(Number.isFinite(pinned) ? pinned : SEED);
+  }
+
+  selectSlot(selected);          // idempotent: applies whatever the save chose, else 0
+  el.blockName.style.opacity = '0';
+
+  /* The standalone key is authoritative so the preference survives NEW WORLD;
+     the save's kidMode field is the fallback (and the upgrade path for saves
+     written before kid mode existed). */
+  const mutePref = readSpeechPref();
+  if (mutePref !== null) speechMuted = mutePref;
+
+  const pref = readKidPref();
+  const fromSave = data && typeof data.kidMode === 'boolean' ? data.kidMode : false;
+  setKidMode(pref !== null ? pref : fromSave);
+
+  requestAnimationFrame(frame);
+  startPreload();
+}
+
+boot();
+
+/* ---------------------------------------------------------------------------
+ * Automation hook. Only created when the page is opened with ?debug=1, so a
+ * normal load exposes nothing on window.
+ * ------------------------------------------------------------------------- */
+try {
+  if (/(?:^|[?&])debug=1(?:&|$)/.test(location.search)) {
+    window.VX = {
+      THREE, scene, camera, player, controls,
+      get kidMode() { return kidMode; },
+      setKidMode,
+      get objectiveIndex() { return objIndex; },
+      get objectiveProgress() { return objProgress.slice(); },
+      get objectiveFired() { return objFired.slice(); },
+      get objectiveState() { return objState; },
+      objectives: OBJECTIVES,
+      guidanceTarget, activeObjective,
+      get homePos() { return homePos; },
+      set homePos(v) { homePos = v; },
+      get guideHome() { return guideHome; },
+      set guideHome(v) { guideHome = v; },
+      arrow: arrowGroup,
+      crumbMesh,
+      get crumbs() { return crumbs.slice(); },
+      CRUMB_MAX, CRUMB_SPACING,
+      minimap: mapCanvas,
+      get mapDrawCount() { return mapDrawCount; },
+      drawMinimap, mapProject,
+      updateKidGuidance, resetKidGuidance, kidBlockEvent, refreshCrumbMesh,
+      setPos(x, y, z) { player.pos.set(x, y, z); },
+      setYaw(v) { controls.yaw = v; },
+      addCrumbsRaw(n) {
+        for (let i = 0; i < n; i++) crumbs.push({ x: i * 4, y: 40, z: 0 });
+        while (crumbs.length > CRUMB_MAX) crumbs.shift();
+        refreshCrumbMesh();
+      },
+      surfaceHeight, columnInfo, setBlock, getBlock, writeSave, readSave,
+      SAVE_KEY, SAVE_VERSION,
+      get speechMuted() { return speechMuted; },
+    };
+  }
+} catch (err) { /* no location: not a browser */ }
+</script>
+</body>
+</html>

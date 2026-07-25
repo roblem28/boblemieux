@@ -160,6 +160,23 @@ sections:
         styles:
           self:
             textAlign: left
+      - type: FeaturedItem
+        title: VoxelCraft
+        subtitle: Three.js · WebGL · JavaScript
+        text: |-
+          Browser-based procedural voxel world, single-file Three.js, with a kid
+          mode for young players.
+
+          _Requires a desktop browser with keyboard and mouse._
+        actions:
+          - type: Link
+            label: Play VoxelCraft
+            url: /games/voxelcraft/index.html
+            target: _blank
+            rel: noopener noreferrer
+        styles:
+          self:
+            textAlign: left
     actions:
       - type: Link
         label: View all Tech Projects
