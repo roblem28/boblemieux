@@ -1,0 +1,3 @@
+# VoxelCraft is vendored verbatim from a standalone single-file build.
+# Disable all line-ending normalization so the deployed bytes match the source exactly.
+public/games/voxelcraft/index.html -text

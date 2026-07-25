@@ -365,6 +365,8 @@ export type Link = BaseContentObject & {
     label?: string;
     altText?: string;
     url: string;
+    target?: '_self' | '_blank';
+    rel?: string;
     showIcon?: boolean;
     icon?:
         | 'apple'
