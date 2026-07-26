@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
 <title>VoxelCraft — Three.js Minecraft Clone</title>
 
 <!-- ==========================================================================
@@ -36,9 +36,9 @@
   button { font: inherit; color: inherit; background: none; border: 0; }
 
   html, body { margin:0; padding:0; width:100%; height:100%; overflow:hidden; background:#0b1020; }
-  body { font-family: var(--ui); -webkit-user-select:none; user-select:none; }
+  body { font-family: var(--ui); -webkit-user-select:none; user-select:none; overscroll-behavior:none; }
 
-  #game { position:fixed; inset:0; display:block; }
+  #game { position:fixed; inset:0; display:block; touch-action:none; }
 
   /* ---------- Crosshair ---------- */
   #crosshair { position:fixed; left:50%; top:50%; width:22px; height:22px; margin:-11px 0 0 -11px; pointer-events:none; opacity:.85; }
@@ -83,6 +83,10 @@
   #hotbar {
     display:flex; gap:6px; padding:6px;
     background:rgba(0,0,0,.35); border:3px solid #2b2f3a;
+    /* The wrapper stays pointer-events:none so it never swallows clicks meant
+       for the canvas; the bar itself must take them, or the slot click handler
+       can never fire. */
+    pointer-events:auto;
   }
   #blockName {
     margin-bottom:12px; font-size:10px; color:#fff;
@@ -180,6 +184,91 @@
   /* Damage / vignette flash */
   #vignette { position:fixed; inset:0; pointer-events:none;
     background: radial-gradient(ellipse at center, rgba(0,0,0,0) 55%, rgba(0,0,0,.45) 100%); }
+
+  /* ==========================================================================
+     TOUCH CONTROLS
+     Every rule here is scoped to body.touch, which is only ever set when the
+     device reports touch capability. Desktop never matches, so the desktop
+     layout is byte-for-byte the same as before.
+     ========================================================================== */
+  #touchUI { position:fixed; inset:0; display:none; pointer-events:none; z-index:5; }
+  body.touch #touchUI { display:block; }
+  /* keep the overlays above the touch layer */
+  #menu, #loading { z-index:20; }
+
+  /* ---------- Left thumbstick ---------- */
+  #stickBase {
+    position:absolute;
+    left:   calc(24px + env(safe-area-inset-left, 0px));
+    bottom: calc(24px + env(safe-area-inset-bottom, 0px));
+    width:120px; height:120px; border-radius:50%;
+    background:rgba(12,12,16,.38);
+    border:3px solid rgba(255,255,255,.30);
+    box-shadow: inset 0 0 0 2px rgba(0,0,0,.45);
+    opacity:0; transition:opacity .18s ease-out;
+    pointer-events:none;
+  }
+  #stickBase.on { opacity:1; }
+  #stickKnob {
+    position:absolute; left:50%; top:50%;
+    width:52px; height:52px; margin:-26px 0 0 -26px; border-radius:50%;
+    background:rgba(255,255,255,.55);
+    border:3px solid rgba(0,0,0,.45);
+    will-change:transform;
+  }
+
+  /* ---------- Right-hand button stack ---------- */
+  #touchBtns {
+    position:absolute;
+    right:  calc(20px + env(safe-area-inset-right, 0px));
+    bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+    display:flex; flex-direction:column; gap:8px;
+    pointer-events:none;
+  }
+  .tBtn {
+    position:relative; width:64px; height:64px; padding:0;
+    background:rgba(12,12,16,.55);
+    border:3px solid #3a3a44;
+    box-shadow: inset 0 0 0 2px rgba(0,0,0,.55);
+    pointer-events:auto; cursor:pointer;
+    touch-action:none; -webkit-tap-highlight-color:transparent;
+    transition: transform .09s ease-out, border-color .09s ease-out;
+  }
+  .tBtn .tico {
+    position:absolute; inset:9px; background-size:100% 100%; image-rendering:pixelated;
+    filter: drop-shadow(0 2px 0 rgba(0,0,0,.45));
+  }
+  .tBtn.down { transform:scale(.92); border-color:#f2f2f2; }
+  .tBtn.tOn  { border-color:#34d07f; }
+
+  /* ---------- Pause (touch only: desktop pauses with ESC) ---------- */
+  #btnPause {
+    position:absolute;
+    left: calc(12px + env(safe-area-inset-left, 0px));
+    top:  calc(12px + env(safe-area-inset-top, 0px));
+    width:48px; height:48px;
+  }
+  /* the HUD lives in the same corner, so step it below the button */
+  body.touch #hud {
+    top:  calc(12px + env(safe-area-inset-top, 0px) + 58px);
+    left: calc(12px + env(safe-area-inset-left, 0px));
+  }
+
+  /* ---------- Hotbar: finger-sized and clear of the controls ---------- */
+  body.touch .slot { width:56px; height:56px; }          /* >= 56px hit target */
+  body.touch #hotbar {
+    flex-wrap:wrap; justify-content:center; max-width:calc(100vw - 24px);
+  }
+  body.touch #hotbarWrap { padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px)); }
+  /* portrait cannot fit the bar between the stick and the buttons: lift it */
+  @media (orientation: portrait) {
+    body.touch #hotbarWrap { padding-bottom: calc(156px + env(safe-area-inset-bottom, 0px)); }
+  }
+
+  /* ---------- Menu: swap the key list for touch instructions ---------- */
+  .touchOnly { display:none; }
+  body.touch .touchOnly { display:grid; }
+  body.touch .deskOnly  { display:none; }
 </style>
 </head>
 
@@ -216,6 +305,18 @@
   <div id="hotbar"></div>
 </div>
 
+<!-- ===================== Touch controls (mobile only) ===================== -->
+<div id="touchUI" aria-hidden="true">
+  <button id="btnPause" class="tBtn" aria-label="Pause"><span class="tico"></span></button>
+  <div id="stickBase"><div id="stickKnob"></div></div>
+  <div id="touchBtns">
+    <button id="btnJump"  class="tBtn" aria-label="Jump"><span class="tico"></span></button>
+    <button id="btnBreak" class="tBtn" aria-label="Break block"><span class="tico"></span></button>
+    <button id="btnPlace" class="tBtn" aria-label="Place block"><span class="tico"></span></button>
+    <button id="btnFly"   class="tBtn" aria-label="Toggle flight"><span class="tico"></span></button>
+  </div>
+</div>
+
 <!-- ===================== Pause / Start menu ===================== -->
 <div id="menu">
   <div class="panel">
@@ -228,7 +329,18 @@
       <button id="kidBtn" class="btn kidBtn" role="switch" aria-checked="false">KID MODE: OFF</button>
     </div>
 
-    <div class="keys">
+    <div class="keys touchOnly">
+      <div><span class="kbd">STICK</span>Move</div>
+      <div><span class="kbd">DRAG</span>Look (right side)</div>
+      <div><span class="kbd">JUMP</span>Jump / Fly up</div>
+      <div><span class="kbd">FLY</span>Toggle flight</div>
+      <div><span class="kbd">BREAK</span>Break (hold repeats)</div>
+      <div><span class="kbd">PLACE</span>Place (hold repeats)</div>
+      <div><span class="kbd">HOTBAR</span>Tap to select block</div>
+      <div><span class="kbd">TAP</span>Start playing</div>
+    </div>
+
+    <div class="keys deskOnly">
       <div><span class="kbd">W A S D</span>Move</div>
       <div><span class="kbd">MOUSE</span>Look</div>
       <div><span class="kbd">SPACE</span>Jump / Fly up</div>
@@ -263,9 +375,58 @@ import * as THREE from 'three';
 /* ============================================================================
  * 0. CONFIGURATION
  * ========================================================================== */
+/* ---------------------------------------------------------------------------
+ * TOUCH MODE — capability detection, never user-agent sniffing.
+ *
+ * Touch capability alone is too broad: a touchscreen laptop reports
+ * maxTouchPoints > 0 while still being a mouse-and-keyboard machine. The
+ * boot-time default therefore also requires a coarse pointer, which is true of
+ * phones and tablets and false of laptops with a trackpad.
+ *
+ * Detection is a *default*, not a mode. Touch and desktop input are never
+ * exclusive: on a machine with both, the keyboard and pointer-lock mouse look
+ * stay live, and the on-screen pad reveals itself the first time the canvas is
+ * touched, then hides again after TOUCH_IDLE_MS of touch silence. The pad is
+ * built once and toggled, never torn down and rebuilt.
+ * ------------------------------------------------------------------------- */
+const TOUCH_CAPABLE = (navigator.maxTouchPoints > 0) || ('ontouchstart' in window);
+const COARSE_POINTER = (() => {
+  try { return window.matchMedia('(pointer: coarse)').matches; }
+  catch (err) { return false; }               // no matchMedia: assume fine
+})();
+/* ?touch=1 forces the pad on, ?touch=0 forces it off, for testing either path
+   on any device. null means "decide from capability". */
+const TOUCH_OVERRIDE = (() => {
+  try {
+    const m = /(?:^|[?&])touch=([01])(?:&|$)/.exec(location.search);
+    return m ? m[1] === '1' : null;
+  } catch (err) { return null; }              // no location: not a browser
+})();
+
+/* Whether the touch listeners get installed at all. */
+const TOUCH_ENABLED    = TOUCH_OVERRIDE !== null ? TOUCH_OVERRIDE : TOUCH_CAPABLE;
+/* Whether the pad is visible from the first frame. */
+const TOUCH_DEFAULT_ON = TOUCH_OVERRIDE !== null ? TOUCH_OVERRIDE : (TOUCH_CAPABLE && COARSE_POINTER);
+/* Only a device that did NOT default on auto-reveals and auto-hides: a phone
+   must never have its controls time out from under it. */
+const TOUCH_AUTO_REVEAL = TOUCH_ENABLED && !TOUCH_DEFAULT_ON;
+const TOUCH_IDLE_MS     = 5000;
+
+/* Live state: is the on-screen pad showing right now? Drives body.touch, the
+   pointer-lock bypass and the pause button. */
+let touchActive = TOUCH_DEFAULT_ON;
+
+/* Mobile GPUs are far weaker than desktop, so pull the view in. (There is
+   deliberately no pixel-ratio constant here: the renderer already caps at 2 on
+   every platform, so a touch-specific cap of 2 would change nothing.) */
+const TOUCH_RENDER_DISTANCE_REDUCTION = 2;   // chunks removed from the radius
+
 const CS            = 16;    // chunk width/depth in blocks
 const WH            = 72;    // world height in blocks
-const RD            = 5;     // render distance, in chunks (radius)
+const BASE_RD       = 5;     // render distance, in chunks (radius)
+/* Fixed at boot: RD is baked into fog and the chunk ring. A laptop that is
+   touched later keeps the desktop distance, which is what its GPU wants. */
+const RD            = TOUCH_DEFAULT_ON ? BASE_RD - TOUCH_RENDER_DISTANCE_REDUCTION : BASE_RD;
 const DAY_LENGTH    = 240;   // seconds for a full day/night cycle
 const REACH         = 6;     // block interaction distance
 const GRAVITY       = 30;
@@ -290,6 +451,7 @@ let kidMode = false;
 
 const ADULT = {
   sensitivity:  0.0022,
+  touchLook:    0.0016,                     // drag-to-look, deliberately below mouse
   pitchLimit:   Math.PI / 2 - 0.001,        // +/- 90 degrees
   reach:        REACH,                      // 6
   holdInterval: 0.22,                       // seconds between repeats
@@ -297,12 +459,19 @@ const ADULT = {
 };
 const KID = {
   sensitivity:  0.0011,                     // half
+  touchLook:    0.0008,                     // half, same rule as the mouse column
   pitchLimit:   75 * Math.PI / 180,         // +/- 75 degrees
   reach:        7,
   holdInterval: 0.25,
   voidFloor:    -10,
 };
 const tune = () => kidMode ? KID : ADULT;
+
+/* Thumbstick geometry / feel. Radius is the knob's travel limit in CSS px:
+   #stickBase is 120px across, so 46px keeps the knob inside the ring. */
+const TOUCH_STICK_RADIUS    = 46;
+const TOUCH_STICK_DEADZONE  = 0.12;   // fraction of radius ignored at rest
+const TOUCH_SPRINT_AT       = 0.85;   // stick magnitude that starts a sprint
 
 /* Block IDs */
 const AIR = 0, GRASS = 1, DIRT = 2, STONE = 3, WOOD = 4, LEAVES = 5, SAND = 6, BRICK = 7;
@@ -1314,6 +1483,17 @@ const playerEye = () => player.crouching ? player.crouchEye : player.standEye;
 
 const keys = Object.create(null);
 
+/* Analog thumbstick state, in stick-radius units (-1..1 per axis, screen
+   oriented: +x right, +y down/backwards). Read by stepPhysics, written by the
+   touch handlers in section 14b. Stays neutral unless a finger is down. */
+const touchStick = { active: false, x: 0, y: 0 };
+
+/* When the last touch was handled. A tap emits a synthetic mousedown ~300ms
+   later; suppressing mouse input for a moment afterwards keeps a tap from also
+   breaking a block, without disabling the mouse on a touchscreen laptop. */
+let lastTouchAt = -Infinity;
+const TOUCH_MOUSE_SUPPRESS_MS = 700;
+
 /** Full-body AABB overlap test at the current position. */
 function collidesNow() {
   const hw = player.width / 2, h = playerHeight(), p = player.pos;
@@ -1404,8 +1584,25 @@ function stepPhysics(dt) {
   if (keys['KeyS']) fz += 1;
   if (keys['KeyA']) fx -= 1;
   if (keys['KeyD']) fx += 1;
-  const len = Math.hypot(fx, fz);
+  let len = Math.hypot(fx, fz);
   if (len > 0) { fx /= len; fz /= len; }
+
+  /* Touch: the thumbstick supplies an analog vector. Direction is normalised
+     exactly like the keyboard case; magnitude becomes `moveScale`, which
+     multiplies the target speed so a light push walks and a full push runs.
+     moveScale stays exactly 1 on desktop, so the keyboard path is unchanged. */
+  let moveScale = 1;
+  if (touchStick.active) {
+    const raw = Math.hypot(touchStick.x, touchStick.y);
+    if (raw > TOUCH_STICK_DEADZONE) {
+      fx = touchStick.x / raw;
+      fz = touchStick.y / raw;
+      len = 1;
+      moveScale = Math.min(1, raw);
+    } else {
+      fx = 0; fz = 0; len = 0; moveScale = 0;
+    }
+  }
 
   const yaw = controls.yaw;
   const sin = Math.sin(yaw), cos = Math.cos(yaw);
@@ -1415,14 +1612,16 @@ function stepPhysics(dt) {
   /* Shift sprints and C crouches: Ctrl-based bindings would collide with
      browser shortcuts (Ctrl+W closes the tab) even under pointer lock. */
   const shift = !!(keys['ShiftLeft'] || keys['ShiftRight']);
-  /* kid mode sprints permanently; SHIFT is still read but changes nothing */
-  player.sprinting = (kidMode || shift) && len > 0 && !player.crouching;
+  /* kid mode sprints permanently; SHIFT is still read but changes nothing.
+     On touch there is no SHIFT, so a near-full stick push is the sprint. */
+  const touchSprint = touchStick.active && moveScale >= TOUCH_SPRINT_AT;
+  player.sprinting = (kidMode || shift || touchSprint) && len > 0 && !player.crouching;
 
   if (player.flying) {
     const speed = player.sprinting ? 22 : 11;
     const damp = Math.min(1, 12 * dt);
-    player.vel.x += (wishX * speed - player.vel.x) * damp;
-    player.vel.z += (wishZ * speed - player.vel.z) * damp;
+    player.vel.x += (wishX * speed * moveScale - player.vel.x) * damp;
+    player.vel.z += (wishZ * speed * moveScale - player.vel.z) * damp;
     let vy = 0;
     if (keys['Space']) vy += speed;
     if (keys['KeyC']) vy -= speed;
@@ -1431,8 +1630,8 @@ function stepPhysics(dt) {
     const speed = player.crouching ? 2.2 : player.sprinting ? 7.0 : 4.8;
     const accel = wasGrounded ? 34 : 9;
     const k = Math.min(1, accel * dt);
-    player.vel.x += (wishX * speed - player.vel.x) * k;
-    player.vel.z += (wishZ * speed - player.vel.z) * k;
+    player.vel.x += (wishX * speed * moveScale - player.vel.x) * k;
+    player.vel.z += (wishZ * speed * moveScale - player.vel.z) * k;
     player.vel.y -= GRAVITY * dt;
     if (player.vel.y < -55) player.vel.y = -55;
     if (keys['Space'] && wasGrounded) player.vel.y = JUMP_SPEED;
@@ -1479,10 +1678,15 @@ class PointerLockLook {
     this.sensitivity = ADULT.sensitivity;
     this.pitchLimit  = ADULT.pitchLimit;
     this.locked = false;
+    this.synthetic = false;      // true while play is driven without pointer lock
     camera.rotation.order = 'YXZ';
 
     this._onMove = (e) => {
       if (!this.locked) return;
+      /* Under a synthetic lock there is no real pointer capture, so movementX/Y
+         would swing the camera on any stray mouse move. Mouse look applies
+         only when the pointer is genuinely locked. */
+      if (this.synthetic) return;
       const dx = e.movementX || 0, dy = e.movementY || 0;
       this.yaw -= dx * this.sensitivity;
       this.pitch -= dy * this.sensitivity;
@@ -1499,7 +1703,33 @@ class PointerLockLook {
     document.addEventListener('pointerlockchange', this._onChange);
     document.addEventListener('pointerlockerror', this._onError);
   }
-  lock() { this.dom.requestPointerLock(); }
+  /** Enter play. iOS Safari does not implement Pointer Lock at all: calling
+   *  requestPointerLock there fails silently, onLockChange never fires and the
+   *  menu stays up forever. So whenever the on-screen pad is showing we never
+   *  request it and drive the same `locked` flag ourselves; every downstream
+   *  consumer (physics, targeting, hold-repeat) behaves exactly as on desktop.
+   *  With the pad hidden this is the untouched desktop path. */
+  lock() {
+    if (touchActive) {
+      if (this.locked) return;
+      this.synthetic = true;
+      this.locked = true;
+      onLockChange(true);
+      return;
+    }
+    this.synthetic = false;
+    this.dom.requestPointerLock();
+  }
+  /** Leave play. Mirrors lock(): releases whichever kind of lock is held. */
+  unlock() {
+    if (this.synthetic) {
+      this.synthetic = false;
+      this.locked = false;
+      onLockChange(false);
+      return;
+    }
+    if (document.pointerLockElement === this.dom) document.exitPointerLock();
+  }
   apply() { this.camera.rotation.set(this.pitch, this.yaw, 0); }
   /** Forward vector, including pitch. */
   direction(out) {
@@ -2287,6 +2517,11 @@ window.addEventListener('keydown', (e) => {
   if (e.code === 'Tab') e.preventDefault();
   keys[e.code] = true;
 
+  /* ESC pauses on any machine with a keyboard. Under a real pointer lock the
+     browser also exits on ESC and pointerlockchange does this anyway; under a
+     synthetic lock nothing else would, so the menu could never be reopened. */
+  if (e.code === 'Escape' && controls.locked) { controls.unlock(); return; }
+
   if (!controls.locked) return;
   if (e.code === 'Space') e.preventDefault();
 
@@ -2327,6 +2562,10 @@ window.addEventListener('blur', () => { for (const k in keys) keys[k] = false; }
 canvas.addEventListener('contextmenu', (e) => e.preventDefault());
 
 canvas.addEventListener('mousedown', (e) => {
+  /* Ignore the synthetic mousedown that follows a tap, so a look-drag or a
+     stick press never also breaks a block. A real mouse on a touchscreen
+     laptop is unaffected once the finger has been off the glass briefly. */
+  if (performance.now() - lastTouchAt < TOUCH_MOUSE_SUPPRESS_MS) return;
   if (!controls.locked) return;
   e.preventDefault();
   holdButton = e.button;
@@ -2359,12 +2598,298 @@ el.hotbar.addEventListener('click', (e) => {
   if (slot) selectSlot(+slot.dataset.index);
 });
 
-window.addEventListener('resize', () => {
+/* ============================================================================
+ * 14b. TOUCH INPUT  (iOS / Android)
+ * ==========================================================================
+ * Installed whenever the device could ever be touched, but the pad only shows
+ * when touchActive is true, so a mouse-and-keyboard machine is untouched until
+ * a finger actually lands. Touches are tracked by identifier, never as "the"
+ * active touch, so moving, looking and pressing a button all work at once.
+ * ========================================================================== */
+if (TOUCH_ENABLED) {
+  document.body.classList.toggle('touch', touchActive);
+  if (el.playBtn && TOUCH_DEFAULT_ON) el.playBtn.textContent = 'TAP TO PLAY';
+
+  /* ---- canvas-drawn button icons (same 16px -> 64px path as the hotbar) ---- */
+  const paintTouchIcons = () => {
+    const P = (c, x, y, w, h, col) => { c.fillStyle = col; c.fillRect(x, y, w, h); };
+    const UI = '#e9edf6';
+    const defs = {
+      jump: (c) => {                                  // up chevron
+        for (let i = 0; i < 6; i++) {
+          P(c, 7 - i, 5 + i, 2, 2, UI);
+          P(c, 7 + i, 5 + i, 2, 2, UI);
+        }
+      },
+      pick: (c) => {                                  // pickaxe
+        for (let i = 0; i < 8; i++) P(c, 4 + i, 12 - i, 2, 2, '#8a6a3f');
+        P(c, 2, 4, 4, 2, '#c9ced8'); P(c, 6, 2, 4, 2, '#dfe4ee');
+        P(c, 10, 4, 4, 2, '#c9ced8');
+        P(c, 1, 6, 2, 2, '#aab0bd'); P(c, 13, 6, 2, 2, '#aab0bd');
+      },
+      cube: (c) => {                                  // isometric block
+        P(c, 4, 3, 8, 3, '#9bd05a');
+        P(c, 3, 6, 5, 7, '#6f9c36');
+        P(c, 8, 6, 5, 7, '#557f26');
+        P(c, 3, 3, 1, 3, '#3f6a1c'); P(c, 12, 3, 1, 3, '#3f6a1c');
+      },
+      fly: (c) => {                                   // up arrow over a bar
+        for (let i = 0; i < 5; i++) {
+          P(c, 7 - i, 2 + i, 2, 2, UI);
+          P(c, 7 + i, 2 + i, 2, 2, UI);
+        }
+        P(c, 6, 6, 4, 5, UI);
+        P(c, 3, 12, 10, 2, '#8fd0f0');
+      },
+      pause: (c) => {                                 // two bars
+        P(c, 4, 3, 3, 10, UI);
+        P(c, 9, 3, 3, 10, UI);
+      },
+    };
+    const out = {};
+    for (const k of Object.keys(defs)) {
+      const src = document.createElement('canvas');
+      src.width = src.height = 16;
+      defs[k](src.getContext('2d'));
+      const big = document.createElement('canvas');
+      big.width = big.height = 64;
+      const bc = big.getContext('2d');
+      bc.imageSmoothingEnabled = false;
+      bc.drawImage(src, 0, 0, 16, 16, 0, 0, 64, 64);
+      out[k] = big.toDataURL();
+    }
+    return out;
+  };
+  const TOUCH_ICONS = paintTouchIcons();
+
+  const tEl = {
+    ui:    document.getElementById('touchUI'),
+    base:  document.getElementById('stickBase'),
+    knob:  document.getElementById('stickKnob'),
+    jump:  document.getElementById('btnJump'),
+    brk:   document.getElementById('btnBreak'),
+    place: document.getElementById('btnPlace'),
+    fly:   document.getElementById('btnFly'),
+    pause: document.getElementById('btnPause'),
+  };
+  const setIcon = (btn, url) => {
+    const ico = btn.querySelector('.tico');
+    if (ico) ico.style.backgroundImage = `url(${url})`;
+  };
+  setIcon(tEl.jump,  TOUCH_ICONS.jump);
+  setIcon(tEl.brk,   TOUCH_ICONS.pick);
+  setIcon(tEl.place, TOUCH_ICONS.cube);
+  setIcon(tEl.fly,   TOUCH_ICONS.fly);
+  setIcon(tEl.pause, TOUCH_ICONS.pause);
+
+  /* ---------------------------------------------------------------------
+   * Thumbstick + look drag. Each is bound to one touch identifier, so a
+   * second finger elsewhere can never steal or cancel the first.
+   * ------------------------------------------------------------------- */
+  let stickId = null, stickOx = 0, stickOy = 0;
+  let lookId  = null, lookLx = 0, lookLy = 0;
+
+  const isUiTarget = (t) =>
+    !!(t && t.closest && t.closest('#touchBtns, #hotbarWrap, #menu, #loading'));
+
+  const setKnob = (nx, ny) => {
+    tEl.knob.style.transform = `translate(${nx * TOUCH_STICK_RADIUS}px, ${ny * TOUCH_STICK_RADIUS}px)`;
+  };
+  const releaseStick = () => {
+    stickId = null;
+    touchStick.active = false;
+    touchStick.x = touchStick.y = 0;
+    tEl.base.classList.remove('on');
+    setKnob(0, 0);
+  };
+
+  /** Drop every finger-held input: stick to neutral, repeats cancelled, jump
+   *  released, buttons unlit. Used when pausing and when the pad hides. */
+  const releaseAllTouchState = () => {
+    releaseStick();
+    lookId = null;
+    holdButton = -1;
+    keys['Space'] = false;
+    for (const b of [tEl.jump, tEl.brk, tEl.place, tEl.fly, tEl.pause]) {
+      if (b) b.classList.remove('down');
+    }
+  };
+
+  /* ---- reveal / hide -------------------------------------------------- */
+  let idleTimer = 0;
+  const setTouchActive = (on) => {
+    if (touchActive === on) return;
+    touchActive = on;
+    document.body.classList.toggle('touch', on);
+    if (!on) releaseAllTouchState();
+  };
+  /** Any handled touch keeps the pad alive; the first one reveals it. */
+  const noteTouch = () => {
+    lastTouchAt = performance.now();
+    if (!TOUCH_AUTO_REVEAL) return;            // phones: always on, never time out
+    setTouchActive(true);
+    clearTimeout(idleTimer);
+    idleTimer = setTimeout(() => setTouchActive(false), TOUCH_IDLE_MS);
+  };
+
+  window.addEventListener('touchstart', (e) => {
+    let claimed = false;
+    for (let i = 0; i < e.changedTouches.length; i++) {
+      const t = e.changedTouches[i];
+      if (isUiTarget(t.target)) continue;              // the UI handles its own
+      const leftHalf = t.clientX < window.innerWidth / 2;
+
+      if (leftHalf && stickId === null) {
+        stickId = t.identifier;
+        stickOx = t.clientX; stickOy = t.clientY;
+        touchStick.active = true;
+        touchStick.x = touchStick.y = 0;
+        tEl.base.classList.add('on');
+        setKnob(0, 0);
+        claimed = true;
+      } else if (!leftHalf && lookId === null) {
+        lookId = t.identifier;
+        lookLx = t.clientX; lookLy = t.clientY;
+        claimed = true;
+      }
+    }
+    /* Suppressing the default only for touches we took keeps click alive for
+       the hotbar and the menu buttons. */
+    if (claimed) { noteTouch(); e.preventDefault(); }
+  }, { passive: false });
+
+  window.addEventListener('touchmove', (e) => {
+    let claimed = false;
+    for (let i = 0; i < e.changedTouches.length; i++) {
+      const t = e.changedTouches[i];
+      if (t.identifier === stickId) {
+        const dx = (t.clientX - stickOx) / TOUCH_STICK_RADIUS;
+        const dy = (t.clientY - stickOy) / TOUCH_STICK_RADIUS;
+        const m = Math.hypot(dx, dy);
+        const nx = m > 1 ? dx / m : dx;
+        const ny = m > 1 ? dy / m : dy;
+        touchStick.x = nx; touchStick.y = ny;
+        setKnob(nx, ny);
+        claimed = true;
+      } else if (t.identifier === lookId) {
+        /* same pitch clamp as the mouse, at the touch sensitivity */
+        const s = tune().touchLook;
+        controls.yaw   -= (t.clientX - lookLx) * s;
+        controls.pitch -= (t.clientY - lookLy) * s;
+        const lim = controls.pitchLimit;
+        controls.pitch = Math.max(-lim, Math.min(lim, controls.pitch));
+        lookLx = t.clientX; lookLy = t.clientY;
+        claimed = true;
+      }
+    }
+    if (claimed) e.preventDefault();
+  }, { passive: false });
+
+  const endTouches = (e) => {
+    for (let i = 0; i < e.changedTouches.length; i++) {
+      const t = e.changedTouches[i];
+      if (t.identifier === stickId) releaseStick();
+      else if (t.identifier === lookId) lookId = null;
+    }
+  };
+  window.addEventListener('touchend', endTouches);
+  window.addEventListener('touchcancel', endTouches);
+
+  /* ---------------------------------------------------------------------
+   * Buttons. Break and place drive the existing holdButton/holdTimer pair,
+   * so hold-to-repeat runs at tune().holdInterval exactly like the mouse.
+   * ------------------------------------------------------------------- */
+  const bindHold = (btn, onDown, onUp) => {
+    const down = (e) => {
+      e.preventDefault();          // no synthetic click, no text selection
+      e.stopPropagation();         // the window handler must not see this touch
+      noteTouch();                 // pressing a button keeps the pad alive
+      btn.classList.add('down');
+      onDown();
+    };
+    const up = (e) => {
+      e.stopPropagation();
+      lastTouchAt = performance.now();
+      btn.classList.remove('down');
+      if (onUp) onUp();
+    };
+    btn.addEventListener('touchstart', down, { passive: false });
+    btn.addEventListener('touchend', up);
+    btn.addEventListener('touchcancel', up);
+  };
+
+  bindHold(tEl.jump,
+    () => { keys['Space'] = true; },        // jump on ground, rise when flying
+    () => { keys['Space'] = false; });
+
+  bindHold(tEl.brk, () => {
+    if (!controls.locked) return;
+    holdButton = 0;
+    holdTimer = tune().holdInterval;
+    breakBlock();
+  }, () => { if (holdButton === 0) holdButton = -1; });
+
+  bindHold(tEl.place, () => {
+    if (!controls.locked) return;
+    holdButton = 2;
+    holdTimer = tune().holdInterval;
+    placeBlock();
+  }, () => { if (holdButton === 2) holdButton = -1; });
+
+  bindHold(tEl.fly, () => {
+    if (!controls.locked) return;
+    player.flying = !player.flying;         // replaces the F key
+    player.vel.set(0, 0, 0);
+    tEl.fly.classList.toggle('tOn', player.flying);
+    el.blockName.textContent = player.flying ? 'FLIGHT ON' : 'FLIGHT OFF';
+    el.blockName.style.opacity = '1';
+    nameTimer = 1.4;
+  });
+
+  /* PAUSE — the only way back to the menu without Pointer Lock, and therefore
+     the only route to KID MODE and NEW WORLD on a phone. Releases everything
+     held first, so nothing is still "pressed" when play resumes. */
+  bindHold(tEl.pause, () => {
+    releaseAllTouchState();
+    controls.unlock();             // synthetic or real, whichever is held
+  });
+
+  /* Hotbar slots are already click-driven; touchend -> click works, but an
+     explicit touch binding avoids the 300ms tap delay on older WebViews. */
+  el.hotbar.addEventListener('touchstart', (e) => {
+    const slot = e.target.closest && e.target.closest('.slot');
+    if (!slot) return;
+    e.preventDefault();
+    e.stopPropagation();
+    noteTouch();
+    selectSlot(+slot.dataset.index);
+  }, { passive: false });
+
+  /* Losing the page mid-press must not leave a key or a repeat stuck on. */
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState !== 'hidden') return;
+    releaseAllTouchState();
+  });
+}
+
+function resizeView() {
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   renderer.setSize(window.innerWidth, window.innerHeight);
-});
+}
+window.addEventListener('resize', resizeView);
+
+/* Rotating a phone fires resize on some browsers and orientationchange on
+   others, and iOS reports stale innerWidth/innerHeight during the rotation, so
+   re-measure on the next frame as well. */
+if (TOUCH_ENABLED) {
+  window.addEventListener('orientationchange', () => {
+    resizeView();
+    requestAnimationFrame(resizeView);
+    setTimeout(resizeView, 250);
+  });
+}
 
 /* ============================================================================
  * 15. DAY / NIGHT CYCLE
@@ -2693,6 +3218,27 @@ try {
       surfaceHeight, columnInfo, setBlock, getBlock, writeSave, readSave,
       SAVE_KEY, SAVE_VERSION,
       get speechMuted() { return speechMuted; },
+
+      /* --- touch --- */
+      TOUCH_CAPABLE, COARSE_POINTER, TOUCH_OVERRIDE,
+      TOUCH_ENABLED, TOUCH_DEFAULT_ON, TOUCH_AUTO_REVEAL, TOUCH_IDLE_MS,
+      BASE_RD, RD, TOUCH_RENDER_DISTANCE_REDUCTION,
+      TOUCH_STICK_RADIUS, TOUCH_STICK_DEADZONE, TOUCH_SPRINT_AT,
+      get touchActive() { return touchActive; },
+      get synthetic() { return controls.synthetic; },
+      renderer,
+      get pixelRatio() { return renderer.getPixelRatio(); },
+      get touchStick() { return { active: touchStick.active, x: touchStick.x, y: touchStick.y }; },
+      get locked() { return controls.locked; },
+      get holdButton() { return holdButton; },
+      get holdTimer() { return holdTimer; },
+      get targetBlock() { return targetBlock ? { ...targetBlock } : null; },
+      get flying() { return player.flying; },
+      get sprinting() { return player.sprinting; },
+      get selected() { return selected; },
+      get touchLook() { return tune().touchLook; },
+      get holdInterval() { return tune().holdInterval; },
+      breakBlock, placeBlock, updateTarget,
     };
   }
 } catch (err) { /* no location: not a browser */ }
