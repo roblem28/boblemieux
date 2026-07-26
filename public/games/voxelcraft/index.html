@@ -470,8 +470,8 @@ const tune = () => kidMode ? KID : ADULT;
 /* Thumbstick geometry / feel. Radius is the knob's travel limit in CSS px:
    #stickBase is 120px across, so 46px keeps the knob inside the ring. */
 const TOUCH_STICK_RADIUS    = 46;
-const TOUCH_STICK_DEADZONE  = 0.12;   // fraction of radius ignored at rest
-const TOUCH_SPRINT_AT       = 0.85;   // stick magnitude that starts a sprint
+const STICK_DEADZONE        = 0.15;   // fraction of radius ignored at rest
+const TOUCH_SPRINT_AT       = 0.85;   // deflection that triggers the sprint FOV
 
 /* Block IDs */
 const AIR = 0, GRASS = 1, DIRT = 2, STONE = 3, WOOD = 4, LEAVES = 5, SAND = 6, BRICK = 7;
@@ -1578,47 +1578,74 @@ function stepPhysics(dt) {
   const wasGrounded = player.onGround;
   player.onGround = false;
 
-  /* desired horizontal direction, from yaw only */
-  let fx = 0, fz = 0;
-  if (keys['KeyW']) fz -= 1;
-  if (keys['KeyS']) fz += 1;
-  if (keys['KeyA']) fx -= 1;
-  if (keys['KeyD']) fx += 1;
-  let len = Math.hypot(fx, fz);
-  if (len > 0) { fx /= len; fz /= len; }
+  /* ---- desired horizontal movement -------------------------------------
+     The keyboard contributes a 4-way boolean vector and the thumbstick a
+     360-degree analog one, but both reduce to the same two camera-relative
+     inputs plus a throttle:
+       fwdInput    +1 toward where the camera is looking
+       rightInput  +1 to the camera's right
+       moveScale   0..1 speed multiplier (always exactly 1 for the keyboard)
+     ---------------------------------------------------------------------- */
+  let fwdInput = 0, rightInput = 0, moveScale = 1;
 
-  /* Touch: the thumbstick supplies an analog vector. Direction is normalised
-     exactly like the keyboard case; magnitude becomes `moveScale`, which
-     multiplies the target speed so a light push walks and a full push runs.
-     moveScale stays exactly 1 on desktop, so the keyboard path is unchanged. */
-  let moveScale = 1;
-  if (touchStick.active) {
-    const raw = Math.hypot(touchStick.x, touchStick.y);
-    if (raw > TOUCH_STICK_DEADZONE) {
-      fx = touchStick.x / raw;
-      fz = touchStick.y / raw;
-      len = 1;
-      moveScale = Math.min(1, raw);
+  if (keys['KeyW']) fwdInput   += 1;
+  if (keys['KeyS']) fwdInput   -= 1;
+  if (keys['KeyD']) rightInput += 1;
+  if (keys['KeyA']) rightInput -= 1;
+
+  const analogMove = touchStick.active;
+  if (analogMove) {
+    /* touchStick is already clamped to a unit disc by the move handler.
+       Screen Y grows downward, so pushing the stick UP is a negative dy and
+       has to read as forward: that is the sign flip on sy. */
+    const sx = touchStick.x, sy = touchStick.y;
+    const mag = Math.min(1, Math.hypot(sx, sy));
+    if (mag < STICK_DEADZONE) {
+      fwdInput = 0; rightInput = 0; moveScale = 0;
     } else {
-      fx = 0; fz = 0; len = 0; moveScale = 0;
+      fwdInput   = -sy;
+      rightInput =  sx;
+      /* Rescale so the dead-zone edge maps to 0 and the rim to 1. Without
+         this the speed steps from nothing to STICK_DEADZONE * max the moment
+         the thumb clears the dead zone. */
+      moveScale = Math.min(1, (mag - STICK_DEADZONE) / (1 - STICK_DEADZONE));
     }
   }
 
+  /* Direction and magnitude are decoupled: the direction is normalised so a
+     diagonal is no faster than a cardinal, and moveScale carries the speed. */
+  const inLen = Math.hypot(rightInput, fwdInput);
+  if (inLen > 0) { rightInput /= inLen; fwdInput /= inLen; }
+  const len = inLen > 0 ? 1 : 0;
+
+  /* Camera basis on the XZ plane, rebuilt every frame from the current yaw,
+     which is what makes "up on the stick" follow the camera as it turns.
+     Forward is the same vector controls.direction() raycasts along, so
+     movement and the crosshair can never disagree; right is that turned 90
+     degrees. (This previously rotated the input by +yaw instead of building
+     the basis, which mirrored movement about X: W ran backwards at yaw
+     +/-90 degrees and sideways at 45.) */
   const yaw = controls.yaw;
   const sin = Math.sin(yaw), cos = Math.cos(yaw);
-  const wishX = fx * cos - fz * sin;
-  const wishZ = fx * sin + fz * cos;
+  const fwdX = -sin, fwdZ = -cos;
+  const rgtX =  cos, rgtZ = -sin;
+  const wishX = rgtX * rightInput + fwdX * fwdInput;
+  const wishZ = rgtZ * rightInput + fwdZ * fwdInput;
 
   /* Shift sprints and C crouches: Ctrl-based bindings would collide with
      browser shortcuts (Ctrl+W closes the tab) even under pointer lock. */
   const shift = !!(keys['ShiftLeft'] || keys['ShiftRight']);
   /* kid mode sprints permanently; SHIFT is still read but changes nothing.
      On touch there is no SHIFT, so a near-full stick push is the sprint. */
-  const touchSprint = touchStick.active && moveScale >= TOUCH_SPRINT_AT;
+  const touchSprint = analogMove && moveScale >= TOUCH_SPRINT_AT;
   player.sprinting = (kidMode || shift || touchSprint) && len > 0 && !player.crouching;
 
   if (player.flying) {
-    const speed = player.sprinting ? 22 : 11;
+    /* On touch the stick IS the throttle: it scales continuously to the sprint
+       speed, so half deflection is half speed and nothing steps as the sprint
+       threshold goes by (that flag now only drives the FOV kick). The keyboard
+       keeps its discrete walk/sprint pair with moveScale pinned at 1. */
+    const speed = analogMove ? 22 : (player.sprinting ? 22 : 11);
     const damp = Math.min(1, 12 * dt);
     player.vel.x += (wishX * speed * moveScale - player.vel.x) * damp;
     player.vel.z += (wishZ * speed * moveScale - player.vel.z) * damp;
@@ -1627,7 +1654,7 @@ function stepPhysics(dt) {
     if (keys['KeyC']) vy -= speed;
     player.vel.y += (vy - player.vel.y) * damp;
   } else {
-    const speed = player.crouching ? 2.2 : player.sprinting ? 7.0 : 4.8;
+    const speed = player.crouching ? 2.2 : analogMove ? 7.0 : player.sprinting ? 7.0 : 4.8;
     const accel = wasGrounded ? 34 : 9;
     const k = Math.min(1, accel * dt);
     player.vel.x += (wishX * speed * moveScale - player.vel.x) * k;
@@ -3223,12 +3250,15 @@ try {
       TOUCH_CAPABLE, COARSE_POINTER, TOUCH_OVERRIDE,
       TOUCH_ENABLED, TOUCH_DEFAULT_ON, TOUCH_AUTO_REVEAL, TOUCH_IDLE_MS,
       BASE_RD, RD, TOUCH_RENDER_DISTANCE_REDUCTION,
-      TOUCH_STICK_RADIUS, TOUCH_STICK_DEADZONE, TOUCH_SPRINT_AT,
+      TOUCH_STICK_RADIUS, STICK_DEADZONE, TOUCH_SPRINT_AT,
       get touchActive() { return touchActive; },
       get synthetic() { return controls.synthetic; },
       renderer,
       get pixelRatio() { return renderer.getPixelRatio(); },
       get touchStick() { return { active: touchStick.active, x: touchStick.x, y: touchStick.y }; },
+      get moveKeys() {
+        return { W: !!keys['KeyW'], A: !!keys['KeyA'], S: !!keys['KeyS'], D: !!keys['KeyD'] };
+      },
       get locked() { return controls.locked; },
       get holdButton() { return holdButton; },
       get holdTimer() { return holdTimer; },
