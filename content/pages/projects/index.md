@@ -177,6 +177,20 @@ sections:
         styles:
           self:
             textAlign: left
+      - type: FeaturedItem
+        title: Flash Frenzy
+        text: >-
+          Interactive flash card game — quiz, flip, and 60-second speed modes
+          with a streak-powered BLITZ multiplier.
+        actions:
+          - type: Link
+            label: Play Flash Frenzy
+            url: https://flash-frenzy.netlify.app
+            target: _blank
+            rel: noopener noreferrer
+        styles:
+          self:
+            textAlign: left
     actions:
       - type: Link
         label: View all Tech Projects
