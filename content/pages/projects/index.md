@@ -191,6 +191,22 @@ sections:
         styles:
           self:
             textAlign: left
+      - type: FeaturedItem
+        title: The Cheeseburgler
+        subtitle: HTML5 Canvas · JavaScript · Kids Game
+        text: >-
+          Browser arcade game for kids — sneak around the diner, steal
+          cheeseburgers, dodge Chef Pickles. Pure HTML5 canvas, no dependencies.
+          Keyboard + touch controls.
+        actions:
+          - type: Link
+            label: Play The Cheeseburgler
+            url: /games/cheeseburgler.html
+            target: _blank
+            rel: noopener noreferrer
+        styles:
+          self:
+            textAlign: left
     actions:
       - type: Link
         label: View all Tech Projects
