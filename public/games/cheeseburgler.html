@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>The Cheeseburgler</title>
+<link href="https://fonts.googleapis.com/css2?family=Titan+One&family=Nunito:wght@600;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ketchup:#C8321E;
+    --mustard:#F2B01E;
+    --cheese:#FFCB47;
+    --bun:#E8A85C;
+    --lettuce:#6DBF4B;
+    --night:#22162B;
+    --tile:#F6EFE3;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+  html,body{height:100%}
+  body{
+    background:var(--night);
+    font-family:'Nunito',sans-serif;
+    color:var(--tile);
+    display:flex;flex-direction:column;align-items:center;
+    min-height:100vh;overflow:hidden;
+    touch-action:none;
+  }
+  header{
+    width:100%;max-width:560px;
+    display:flex;justify-content:space-between;align-items:center;
+    padding:10px 14px 6px;
+  }
+  h1{
+    font-family:'Titan One',cursive;
+    font-size:clamp(20px,5.5vw,30px);
+    color:var(--cheese);
+    text-shadow:2px 2px 0 var(--ketchup), 4px 4px 0 rgba(0,0,0,.35);
+    letter-spacing:.5px;
+  }
+  .hud{display:flex;gap:14px;font-weight:800;font-size:clamp(13px,3.8vw,17px)}
+  .hud span b{color:var(--cheese)}
+  #wrap{position:relative;width:min(96vw,560px)}
+  canvas{
+    display:block;width:100%;
+    border:5px solid var(--ketchup);
+    border-radius:14px;
+    background:var(--tile);
+    box-shadow:0 8px 0 rgba(0,0,0,.4);
+  }
+  #overlay{
+    position:absolute;inset:5px;border-radius:10px;
+    background:rgba(34,22,43,.88);
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    text-align:center;gap:14px;padding:20px;
+  }
+  #overlay.hidden{display:none}
+  #overlay h2{
+    font-family:'Titan One',cursive;
+    font-size:clamp(26px,7vw,42px);
+    color:var(--cheese);
+    text-shadow:3px 3px 0 var(--ketchup);
+  }
+  #overlay p{font-weight:600;font-size:clamp(14px,4vw,17px);max-width:34ch;line-height:1.45}
+  #overlay button{
+    font-family:'Titan One',cursive;
+    font-size:clamp(18px,5vw,24px);
+    color:var(--night);
+    background:var(--cheese);
+    border:0;border-radius:12px;
+    padding:12px 30px;cursor:pointer;
+    box-shadow:0 5px 0 var(--ketchup);
+    transition:transform .08s;
+  }
+  #overlay button:active{transform:translateY(4px);box-shadow:0 1px 0 var(--ketchup)}
+  #overlay button:focus-visible{outline:3px solid #fff;outline-offset:3px}
+  #pad{
+    display:grid;
+    grid-template-columns:repeat(3,64px);
+    grid-template-rows:repeat(2,64px);
+    gap:8px;margin:12px 0 16px;
+  }
+  #pad button{
+    border:0;border-radius:14px;
+    background:#3A2A47;color:var(--cheese);
+    font-size:26px;font-weight:800;
+    box-shadow:0 4px 0 rgba(0,0,0,.5);
+    cursor:pointer;user-select:none;
+  }
+  #pad button:active{transform:translateY(3px);box-shadow:0 1px 0 rgba(0,0,0,.5)}
+  #pad .up{grid-column:2;grid-row:1}
+  #pad .left{grid-column:1;grid-row:2}
+  #pad .down{grid-column:2;grid-row:2}
+  #pad .right{grid-column:3;grid-row:2}
+  @media (min-width:800px) and (pointer:fine){ #pad{display:none} }
+  @media (prefers-reduced-motion:reduce){ *{transition:none !important} }
+</style>
+</head>
+<body>
+<header>
+  <h1>The Cheeseburgler</h1>
+  <div class="hud">
+    <span>Burgers <b id="score">0</b></span>
+    <span>Lives <b id="lives">3</b></span>
+  </div>
+</header>
+
+<div id="wrap">
+  <canvas id="game" width="560" height="560" aria-label="Cheeseburgler game area"></canvas>
+  <div id="overlay">
+    <h2 id="ovTitle">The Cheeseburgler</h2>
+    <p id="ovText">Sneak around the diner and swipe every cheeseburger you can — but watch out for Chef Pickles! Arrow keys or the buttons below.</p>
+    <button id="startBtn">Start Sneaking</button>
+  </div>
+</div>
+
+<div id="pad" aria-label="Touch controls">
+  <button class="up" data-d="up" aria-label="Move up">&#9650;</button>
+  <button class="left" data-d="left" aria-label="Move left">&#9664;</button>
+  <button class="down" data-d="down" aria-label="Move down">&#9660;</button>
+  <button class="right" data-d="right" aria-label="Move right">&#9654;</button>
+</div>
+
+<script>
+(() => {
+  const cv = document.getElementById('game');
+  const cx = cv.getContext('2d');
+  const W = cv.width, H = cv.height;
+  const scoreEl = document.getElementById('score');
+  const livesEl = document.getElementById('lives');
+  const overlay = document.getElementById('overlay');
+  const ovTitle = document.getElementById('ovTitle');
+  const ovText  = document.getElementById('ovText');
+  const startBtn = document.getElementById('startBtn');
+
+  const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  // ---------- state ----------
+  let player, chef, burgers, particles, score, lives, running, invuln, chefSpeed, lastT;
+
+  function reset(full=true){
+    player = {x:W/2, y:H-70, r:20, dir:{x:0,y:0}, face:1, step:0};
+    chef   = {x:70, y:70, r:24, wanderT:0, wx:0, wy:0};
+    burgers = [];
+    particles = [];
+    if(full){ score=0; lives=3; chefSpeed=1.35; }
+    invuln = 2;
+    spawnBurgers(4);
+    updateHud();
+  }
+
+  function spawnBurgers(n){
+    for(let i=0;i<n;i++){
+      let x,y,tries=0;
+      do{
+        x = 40 + Math.random()*(W-80);
+        y = 40 + Math.random()*(H-80);
+        tries++;
+      }while(tries<30 && (dist(x,y,player.x,player.y)<120 || dist(x,y,chef.x,chef.y)<120));
+      burgers.push({x,y,bob:Math.random()*Math.PI*2});
+    }
+  }
+
+  function updateHud(){ scoreEl.textContent = score; livesEl.textContent = lives; }
+  const dist = (a,b,c,d)=>Math.hypot(a-c,b-d);
+
+  // ---------- input ----------
+  const keys = {};
+  addEventListener('keydown', e=>{
+    if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' '].includes(e.key)) e.preventDefault();
+    keys[e.key]=true;
+  });
+  addEventListener('keyup', e=>keys[e.key]=false);
+
+  const padState = {up:0,down:0,left:0,right:0};
+  document.querySelectorAll('#pad button').forEach(b=>{
+    const d = b.dataset.d;
+    const on = e=>{e.preventDefault(); padState[d]=1;};
+    const off= e=>{e.preventDefault(); padState[d]=0;};
+    b.addEventListener('pointerdown',on);
+    b.addEventListener('pointerup',off);
+    b.addEventListener('pointerleave',off);
+    b.addEventListener('pointercancel',off);
+  });
+
+  // ---------- drawing ----------
+  function drawFloor(){
+    const t=40;
+    for(let y=0;y<H;y+=t){
+      for(let x=0;x<W;x+=t){
+        cx.fillStyle = ((x/t + y/t) % 2 === 0) ? '#F6EFE3' : '#E9DCC8';
+        cx.fillRect(x,y,t,t);
+      }
+    }
+  }
+
+  function drawBurger(x,y,scale=1,bob=0){
+    const s=scale, dy = reducedMotion?0:Math.sin(bob)*3;
+    cx.save(); cx.translate(x, y+dy);
+    // shadow
+    cx.fillStyle='rgba(0,0,0,.15)';
+    cx.beginPath(); cx.ellipse(0,14*s,16*s,5*s,0,0,7); cx.fill();
+    // bottom bun
+    cx.fillStyle='#E8A85C';
+    cx.beginPath(); cx.roundRect(-15*s,4*s,30*s,9*s,4*s); cx.fill();
+    // patty
+    cx.fillStyle='#6B3E1E';
+    cx.beginPath(); cx.roundRect(-16*s,-2*s,32*s,7*s,3*s); cx.fill();
+    // cheese
+    cx.fillStyle='#FFCB47';
+    cx.beginPath();
+    cx.moveTo(-16*s,-2*s); cx.lineTo(16*s,-2*s);
+    cx.lineTo(12*s,3*s); cx.lineTo(4*s,-1*s); cx.lineTo(-4*s,4*s); cx.lineTo(-12*s,-1*s);
+    cx.closePath(); cx.fill();
+    // lettuce
+    cx.fillStyle='#6DBF4B';
+    cx.beginPath(); cx.roundRect(-15*s,-6*s,30*s,5*s,2*s); cx.fill();
+    // top bun
+    cx.fillStyle='#F0B168';
+    cx.beginPath(); cx.arc(0,-6*s,15*s,Math.PI,0); cx.fill();
+    // sesame
+    cx.fillStyle='#FFF3D6';
+    [[-7,-12],[0,-15],[7,-11]].forEach(([sx,sy])=>{
+      cx.beginPath(); cx.ellipse(sx*s,sy*s,2*s,1.3*s,0,0,7); cx.fill();
+    });
+    cx.restore();
+  }
+
+  function drawBurgler(p){
+    cx.save(); cx.translate(p.x,p.y);
+    const wob = reducedMotion?0:Math.sin(p.step)*2;
+    if(invuln>0 && Math.floor(invuln*10)%2===0) cx.globalAlpha=.4;
+    // shadow
+    cx.fillStyle='rgba(0,0,0,.18)';
+    cx.beginPath(); cx.ellipse(0,24,16,5,0,0,7); cx.fill();
+    // body — striped shirt
+    cx.fillStyle='#2E2E38';
+    cx.beginPath(); cx.roundRect(-14,-4+wob,28,26,10); cx.fill();
+    cx.fillStyle='#F6EFE3';
+    cx.fillRect(-14,2+wob,28,4); cx.fillRect(-14,10+wob,28,4);
+    // head
+    cx.fillStyle='#F3C89A';
+    cx.beginPath(); cx.arc(0,-14+wob,13,0,7); cx.fill();
+    // mask
+    cx.fillStyle='#2E2E38';
+    cx.fillRect(-13,-19+wob,26,8);
+    cx.fillStyle='#fff';
+    cx.beginPath(); cx.arc(-5*p.face,-15+wob,2.6,0,7); cx.arc(5*p.face,-15+wob,2.6,0,7); cx.fill();
+    // beanie
+    cx.fillStyle='#C8321E';
+    cx.beginPath(); cx.arc(0,-22+wob,12,Math.PI,0); cx.fill();
+    cx.fillStyle='#F2B01E';
+    cx.fillRect(-12,-24+wob,24,4);
+    cx.restore();
+    cx.globalAlpha=1;
+  }
+
+  function drawChef(c){
+    cx.save(); cx.translate(c.x,c.y);
+    const wob = reducedMotion?0:Math.sin(performance.now()/120)*2;
+    // shadow
+    cx.fillStyle='rgba(0,0,0,.18)';
+    cx.beginPath(); cx.ellipse(0,28,18,6,0,0,7); cx.fill();
+    // body — apron
+    cx.fillStyle='#fff';
+    cx.beginPath(); cx.roundRect(-16,-2+wob,32,30,10); cx.fill();
+    cx.fillStyle='#C8321E';
+    cx.fillRect(-16,8+wob,32,5);
+    // head
+    cx.fillStyle='#F3C89A';
+    cx.beginPath(); cx.arc(0,-14+wob,14,0,7); cx.fill();
+    // angry brows
+    cx.strokeStyle='#5A3A1E'; cx.lineWidth=2.5;
+    cx.beginPath(); cx.moveTo(-9,-19+wob); cx.lineTo(-3,-16+wob);
+    cx.moveTo(9,-19+wob); cx.lineTo(3,-16+wob); cx.stroke();
+    cx.fillStyle='#3A2A1E';
+    cx.beginPath(); cx.arc(-5,-13+wob,2.4,0,7); cx.arc(5,-13+wob,2.4,0,7); cx.fill();
+    // mustache
+    cx.fillStyle='#5A3A1E';
+    cx.beginPath(); cx.ellipse(-4,-7+wob,5,2.6,-.3,0,7); cx.ellipse(4,-7+wob,5,2.6,.3,0,7); cx.fill();
+    // chef hat
+    cx.fillStyle='#fff';
+    cx.beginPath(); cx.roundRect(-11,-34+wob,22,10,3); cx.fill();
+    cx.beginPath();
+    cx.arc(-7,-34+wob,7,0,7); cx.arc(0,-37+wob,8,0,7); cx.arc(7,-34+wob,7,0,7);
+    cx.fill();
+    // spatula
+    cx.strokeStyle='#8A8A96'; cx.lineWidth=4;
+    cx.beginPath(); cx.moveTo(16,4+wob); cx.lineTo(26,-8+wob); cx.stroke();
+    cx.fillStyle='#8A8A96';
+    cx.beginPath(); cx.roundRect(22,-18+wob,10,12,2); cx.fill();
+    cx.restore();
+  }
+
+  function addPop(x,y,color){
+    if(reducedMotion) return;
+    for(let i=0;i<10;i++){
+      particles.push({x,y,vx:(Math.random()-.5)*160,vy:(Math.random()-.7)*160,life:.6,color});
+    }
+  }
+
+  // ---------- game loop ----------
+  function step(t){
+    if(!running) return;
+    const dt = Math.min((t-lastT)/1000, .05); lastT = t;
+
+    // player input
+    let dx = (keys['ArrowRight']||padState.right?1:0) - (keys['ArrowLeft']||padState.left?1:0);
+    let dy = (keys['ArrowDown']||padState.down?1:0) - (keys['ArrowUp']||padState.up?1:0);
+    if(dx||dy){
+      const m = Math.hypot(dx,dy);
+      const sp = 190;
+      player.x += dx/m*sp*dt;
+      player.y += dy/m*sp*dt;
+      player.step += dt*14;
+      if(dx) player.face = dx>0?1:-1;
+    }
+    player.x = Math.max(22, Math.min(W-22, player.x));
+    player.y = Math.max(28, Math.min(H-26, player.y));
+
+    // chef AI: chase with a little wander
+    chef.wanderT -= dt;
+    if(chef.wanderT<=0){
+      chef.wanderT = .8 + Math.random();
+      chef.wx = (Math.random()-.5)*60;
+      chef.wy = (Math.random()-.5)*60;
+    }
+    const tx = player.x + chef.wx, ty = player.y + chef.wy;
+    const cd = dist(chef.x,chef.y,tx,ty) || 1;
+    const cs = chefSpeed*60;
+    chef.x += (tx-chef.x)/cd*cs*dt;
+    chef.y += (ty-chef.y)/cd*cs*dt;
+    chef.x = Math.max(26, Math.min(W-26, chef.x));
+    chef.y = Math.max(34, Math.min(H-30, chef.y));
+
+    if(invuln>0) invuln -= dt;
+
+    // burger pickup
+    for(let i=burgers.length-1;i>=0;i--){
+      const b=burgers[i];
+      b.bob += dt*4;
+      if(dist(player.x,player.y,b.x,b.y) < 30){
+        burgers.splice(i,1);
+        score++;
+        chefSpeed += .07;
+        addPop(b.x,b.y,'#FFCB47');
+        updateHud();
+        if(burgers.length===0) spawnBurgers(4 + Math.min(3, Math.floor(score/8)));
+      }
+    }
+
+    // chef catch
+    if(invuln<=0 && dist(player.x,player.y,chef.x,chef.y) < 34){
+      lives--;
+      updateHud();
+      addPop(player.x,player.y,'#C8321E');
+      if(lives<=0){ gameOver(); return; }
+      invuln = 2;
+      // knock chef back to corner
+      chef.x = 70; chef.y = 70;
+    }
+
+    // particles
+    for(let i=particles.length-1;i>=0;i--){
+      const p=particles[i];
+      p.life-=dt; p.x+=p.vx*dt; p.y+=p.vy*dt; p.vy+=300*dt;
+      if(p.life<=0) particles.splice(i,1);
+    }
+
+    // draw
+    drawFloor();
+    burgers.forEach(b=>drawBurger(b.x,b.y,1,b.bob));
+    drawChef(chef);
+    drawBurgler(player);
+    particles.forEach(p=>{
+      cx.globalAlpha = Math.max(p.life/.6,0);
+      cx.fillStyle=p.color;
+      cx.fillRect(p.x-3,p.y-3,6,6);
+      cx.globalAlpha=1;
+    });
+
+    requestAnimationFrame(step);
+  }
+
+  function start(){
+    reset(true);
+    overlay.classList.add('hidden');
+    running = true;
+    lastT = performance.now();
+    requestAnimationFrame(step);
+  }
+
+  function gameOver(){
+    running = false;
+    ovTitle.textContent = 'Busted!';
+    ovText.textContent = `Chef Pickles caught you with ${score} cheeseburger${score===1?'':'s'}. Think you can sneak more next time?`;
+    startBtn.textContent = 'Sneak Again';
+    overlay.classList.remove('hidden');
+    startBtn.focus();
+  }
+
+  startBtn.addEventListener('click', start);
+
+  // idle preview behind overlay
+  reset(true);
+  drawFloor();
+  burgers.forEach(b=>drawBurger(b.x,b.y,1,b.bob));
+  drawChef(chef);
+  drawBurgler(player);
+})();
+</script>
+</body>
+</html>
