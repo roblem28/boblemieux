@@ -12,8 +12,9 @@ import { allContent } from '@/utils/content';
 // scrollbar instead of two.
 const EMBED_SRC = '/projects/nyt/embed';
 
-// Used until the first measurement lands, and kept as the floor afterwards so a
-// failed measurement can never collapse the frame to nothing.
+// Used before the first measurement lands and if the frame ever becomes
+// unreadable. Not applied as a floor to real measurements — a filtered result
+// set is legitimately shorter than this.
 const FALLBACK_HEIGHT = 900;
 
 export default function NytPage(props: any) {
@@ -22,9 +23,16 @@ export default function NytPage(props: any) {
 
     const measure = useCallback(() => {
         const doc = frameRef.current?.contentDocument;
-        if (!doc?.documentElement) return;
-        const next = Math.max(doc.documentElement.scrollHeight, doc.body?.scrollHeight ?? 0);
-        if (next > 0) setHeight(Math.max(next, FALLBACK_HEIGHT));
+        const body = doc?.body;
+        if (!body) return;
+        // Measure the body, never documentElement: <html> stretches to fill the
+        // iframe, so once we grow the frame its scrollHeight reports the frame
+        // height back to us. That ratchets — the frame could grow but never
+        // shrink again when a filter narrows the results.
+        const style = doc!.defaultView?.getComputedStyle(body);
+        const margins = style ? parseFloat(style.marginTop) + parseFloat(style.marginBottom) : 0;
+        const next = Math.ceil(body.getBoundingClientRect().height + (Number.isFinite(margins) ? margins : 0));
+        if (next > 0) setHeight(next);
     }, []);
 
     useEffect(() => {
@@ -39,12 +47,13 @@ export default function NytPage(props: any) {
             // height rather than breaking the page.
             try {
                 const doc = frame.contentDocument;
-                if (!doc?.documentElement) return;
+                if (!doc?.body) return;
                 measure();
                 observer?.disconnect();
+                // Observe the body only. documentElement tracks the frame we
+                // are sizing, so watching it would feed our own resizes back in.
                 observer = new ResizeObserver(measure);
-                observer.observe(doc.documentElement);
-                if (doc.body) observer.observe(doc.body);
+                observer.observe(doc.body);
             } catch {
                 setHeight(FALLBACK_HEIGHT);
             }
