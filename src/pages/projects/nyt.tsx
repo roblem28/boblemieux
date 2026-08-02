@@ -39,36 +39,32 @@ export default function NytPage(props: any) {
         const frame = frameRef.current;
         if (!frame) return;
 
-        let observer: ResizeObserver | undefined;
-
-        const attach = () => {
+        // Polled rather than observed. A ResizeObserver has to watch a node in
+        // the iframe's document, and whether it delivers those notifications to
+        // an observer belonging to this document is not dependable — one
+        // constructed in either document was verified silent against the deploy
+        // preview, including the initial callback observe() is meant to fire.
+        // Reading a cached layout box every 250ms is cheap and predictable.
+        const tick = () => {
             // Same-origin via the proxy, but if the redirect is ever removed
             // this throws a cross-origin SecurityError — fall back to the fixed
             // height rather than breaking the page.
             try {
-                const doc = frame.contentDocument;
-                if (!doc?.body) return;
                 measure();
-                observer?.disconnect();
-                // Observe the body only. documentElement tracks the frame we
-                // are sizing, so watching it would feed our own resizes back in.
-                observer = new ResizeObserver(measure);
-                observer.observe(doc.body);
             } catch {
                 setHeight(FALLBACK_HEIGHT);
             }
         };
 
-        frame.addEventListener('load', attach);
-        // The frame may already be loaded when this effect runs (bfcache, fast
-        // cache hit), in which case the load event never fires again.
-        if (frame.contentDocument?.readyState === 'complete') attach();
+        tick();
+        frame.addEventListener('load', tick);
+        window.addEventListener('resize', tick);
+        const timer = window.setInterval(tick, 250);
 
-        window.addEventListener('resize', measure);
         return () => {
-            frame.removeEventListener('load', attach);
-            window.removeEventListener('resize', measure);
-            observer?.disconnect();
+            frame.removeEventListener('load', tick);
+            window.removeEventListener('resize', tick);
+            window.clearInterval(timer);
         };
     }, [measure]);
 
