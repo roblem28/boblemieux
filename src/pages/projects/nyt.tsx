@@ -1,73 +1,22 @@
 import Head from 'next/head';
-import { useCallback, useEffect, useRef, useState } from 'react';
 
 import BaseLayout from '@/components/layouts/BaseLayout';
 import { allContent } from '@/utils/content';
 
 // NYT Daily Digest lives in a separate repo (roblem28/nyt-digest) that builds a
 // single self-contained index.html with Python and deploys to its own Netlify
-// project. netlify.toml proxies that project to /projects/nyt/embed, which puts
-// it on this origin — so unlike a cross-origin embed we can read the iframe's
-// document height directly and grow the frame to fit, leaving the page with one
-// scrollbar instead of two.
+// project. netlify.toml proxies that project to /projects/nyt/embed so it is
+// served from this origin, matching how the FEC and spending dashboards embed
+// their own static apps.
+//
+// The frame is a fixed height and the digest scrolls inside it. Growing the
+// frame to fit instead was tried and rejected: the digest renders every article
+// it has indexed, so fitting all 167 produced a 32,861px frame and a ~33,000px
+// page, pushing the site footer far out of reach. Measuring the content to
+// drive that height was also unreliable — see the PR discussion.
 const EMBED_SRC = '/projects/nyt/embed';
 
-// Used before the first measurement lands and if the frame ever becomes
-// unreadable. Not applied as a floor to real measurements — a filtered result
-// set is legitimately shorter than this.
-const FALLBACK_HEIGHT = 900;
-
 export default function NytPage(props: any) {
-    const frameRef = useRef<HTMLIFrameElement | null>(null);
-    const [height, setHeight] = useState<number>(FALLBACK_HEIGHT);
-
-    const measure = useCallback(() => {
-        const doc = frameRef.current?.contentDocument;
-        const body = doc?.body;
-        if (!body) return;
-        // Measure the body, never documentElement: <html> stretches to fill the
-        // iframe, so once we grow the frame its scrollHeight reports the frame
-        // height back to us. That ratchets — the frame could grow but never
-        // shrink again when a filter narrows the results.
-        const style = doc!.defaultView?.getComputedStyle(body);
-        const margins = style ? parseFloat(style.marginTop) + parseFloat(style.marginBottom) : 0;
-        const next = Math.ceil(body.getBoundingClientRect().height + (Number.isFinite(margins) ? margins : 0));
-        if (next > 0) setHeight(next);
-    }, []);
-
-    useEffect(() => {
-        const frame = frameRef.current;
-        if (!frame) return;
-
-        // Polled rather than observed. A ResizeObserver has to watch a node in
-        // the iframe's document, and whether it delivers those notifications to
-        // an observer belonging to this document is not dependable — one
-        // constructed in either document was verified silent against the deploy
-        // preview, including the initial callback observe() is meant to fire.
-        // Reading a cached layout box every 250ms is cheap and predictable.
-        const tick = () => {
-            // Same-origin via the proxy, but if the redirect is ever removed
-            // this throws a cross-origin SecurityError — fall back to the fixed
-            // height rather than breaking the page.
-            try {
-                measure();
-            } catch {
-                setHeight(FALLBACK_HEIGHT);
-            }
-        };
-
-        tick();
-        frame.addEventListener('load', tick);
-        window.addEventListener('resize', tick);
-        const timer = window.setInterval(tick, 250);
-
-        return () => {
-            frame.removeEventListener('load', tick);
-            window.removeEventListener('resize', tick);
-            window.clearInterval(timer);
-        };
-    }, [measure]);
-
     return (
         <>
             <Head>
@@ -79,16 +28,14 @@ export default function NytPage(props: any) {
                 <meta name="viewport" content="width=device-width, initial-scale=1" />
             </Head>
             <BaseLayout {...props}>
-                {/* Matches the dashboard's own --bg-body so there is no seam or
-                    white flash before the iframe paints. */}
+                {/* Pinned to the digest's own --bg-body so the frame edge does
+                    not show a seam or flash white before it paints. */}
                 <div style={{ backgroundColor: '#0b0f19' }}>
                     <iframe
-                        ref={frameRef}
                         src={EMBED_SRC}
                         title="NYT Daily Digest — Article Index"
                         className="block w-full border-0"
-                        style={{ height: `${height}px`, colorScheme: 'dark' }}
-                        scrolling="no"
+                        style={{ height: '88vh', minHeight: '600px', colorScheme: 'dark' }}
                     />
                 </div>
             </BaseLayout>
