@@ -207,6 +207,20 @@ sections:
         styles:
           self:
             textAlign: left
+      - type: FeaturedItem
+        title: NYT Daily Digest
+        subtitle: Python · SQLite FTS5 · Netlify
+        text: >-
+          An auto-updating index of New York Times articles with full-text
+          search, section filters, and keyword tagging — rebuilt from live RSS
+          feeds on every deploy.
+        actions:
+          - type: Link
+            label: Learn more
+            url: /projects/nyt
+        styles:
+          self:
+            textAlign: left
     actions:
       - type: Link
         label: View all Tech Projects

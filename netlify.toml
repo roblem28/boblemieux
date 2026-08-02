@@ -2,5 +2,24 @@
   publish = ".next"
   command = "npm run build"
 
+# NYT Daily Digest is built by a separate Python repo (roblem28/nyt-digest) and
+# deployed to its own Netlify project. Proxying it under /projects/nyt/embed
+# puts it on this origin, so /projects/nyt can measure the iframe directly
+# instead of negotiating height over postMessage.
+#
+# The embed path is deliberately distinct from /projects/nyt itself: a rule on
+# /projects/nyt/* risks shadowing the Next.js page that renders the chrome.
+[[redirects]]
+  from = "/projects/nyt/embed"
+  to = "https://nyt-digest.netlify.app/index.html"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/projects/nyt/embed/*"
+  to = "https://nyt-digest.netlify.app/:splat"
+  status = 200
+  force = true
+
 [[plugins]]
   package = "@netlify/plugin-nextjs"
