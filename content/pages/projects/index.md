@@ -221,6 +221,21 @@ sections:
         styles:
           self:
             textAlign: left
+      - type: FeaturedItem
+        title: EMBERWATCH
+        subtitle: MapLibre · NASA FIRMS · Netlify Functions
+        text: >-
+          Live wildfire map — satellite hotspots, incidents, and evacuation
+          alerts with a real-time SITREP assistant
+        actions:
+          - type: Link
+            label: Launch EMBERWATCH
+            url: https://emberwatch-bob.netlify.app
+            target: _blank
+            rel: noopener noreferrer
+        styles:
+          self:
+            textAlign: left
     actions:
       - type: Link
         label: View all Tech Projects
