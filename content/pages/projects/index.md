@@ -208,6 +208,22 @@ sections:
           self:
             textAlign: left
       - type: FeaturedItem
+        title: "Bob & Kenny in: GAS STATION GUMMIES!"
+        subtitle: Interactive Comic · SVG · JavaScript
+        text: >-
+          Silver Age Marvel style interactive comic book (Issue #1). Join Bob &
+          Kenny on a 3 AM gas station trip featuring branching paths, WebAudio SFX,
+          and halftone art.
+        actions:
+          - type: Link
+            label: Read Comic
+            url: /comics/gas-station-gummies.html
+            target: _blank
+            rel: noopener noreferrer
+        styles:
+          self:
+            textAlign: left
+      - type: FeaturedItem
         title: NYT Daily Digest
         subtitle: Python · SQLite FTS5 · Netlify
         text: >-
