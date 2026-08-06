@@ -16,11 +16,30 @@ import {
 } from '@/types';
 import { deepMapObject } from './data-utils';
 
+const dataByModelCache = new WeakMap<ContentObject[], Record<string, ContentObject[]>>();
+
+function getDataByModelName(allData: ContentObject[]): Record<string, ContentObject[]> {
+    let dataByModelName = dataByModelCache.get(allData);
+    if (!dataByModelName) {
+        dataByModelName = allData.reduce((acc, obj) => {
+            const modelName = obj.__metadata?.modelName;
+            if (modelName) {
+                acc[modelName] = acc[modelName] || [];
+                acc[modelName].push(obj);
+            }
+            return acc;
+        }, {});
+        dataByModelCache.set(allData, dataByModelName);
+    }
+    return dataByModelName;
+}
+
 export function resolveStaticProps(urlPath: string, allData: ContentObject[]): PageComponentProps {
+    const dataByModel = getDataByModelName(allData);
     const originalPage = allData.find((obj) => obj.__metadata.urlPath === urlPath);
     const globalProps: GlobalProps = {
-        site: allData.find((obj) => obj.__metadata.modelName === ConfigModel.name) as Config,
-        theme: allData.find((obj) => obj.__metadata.modelName === ThemeStyleModel.name) as ThemeStyle
+        site: dataByModel[ConfigModel.name]?.[0] as Config,
+        theme: dataByModel[ThemeStyleModel.name]?.[0] as ThemeStyle
     };
 
     function enrichContent(value: any) {
@@ -88,16 +107,28 @@ const PropsResolvers: Partial<Record<ContentObjectType, ResolverFunction>> = {
     }
 };
 
-function getAllPostsSorted(objects: ContentObject[]) {
-    const all = objects.filter((object) => object.__metadata?.modelName === 'PostLayout') as PostLayout[];
-    const sorted = all.sort((postA, postB) => new Date(postB.date).getTime() - new Date(postA.date).getTime());
-    return sorted;
+const sortedPostsCache = new WeakMap<ContentObject[], PostLayout[]>();
+function getAllPostsSorted(allData: ContentObject[]) {
+    let sortedPosts = sortedPostsCache.get(allData);
+    if (!sortedPosts) {
+        const dataByModel = getDataByModelName(allData);
+        const allPosts = (dataByModel['PostLayout'] || []) as PostLayout[];
+        sortedPosts = allPosts.sort((postA, postB) => new Date(postB.date).getTime() - new Date(postA.date).getTime());
+        sortedPostsCache.set(allData, sortedPosts);
+    }
+    return sortedPosts;
 }
 
-function getAllProjectsSorted(objects: ContentObject[]) {
-    const all = objects.filter((object) => object.__metadata?.modelName === 'ProjectLayout') as ProjectLayout[];
-    const sorted = all.sort(
-        (projectA, projectB) => new Date(projectB.date).getTime() - new Date(projectA.date).getTime()
-    );
-    return sorted;
+const sortedProjectsCache = new WeakMap<ContentObject[], ProjectLayout[]>();
+function getAllProjectsSorted(allData: ContentObject[]) {
+    let sortedProjects = sortedProjectsCache.get(allData);
+    if (!sortedProjects) {
+        const dataByModel = getDataByModelName(allData);
+        const allProjects = (dataByModel['ProjectLayout'] || []) as ProjectLayout[];
+        sortedProjects = allProjects.sort(
+            (projectA, projectB) => new Date(projectB.date).getTime() - new Date(projectA.date).getTime()
+        );
+        sortedProjectsCache.set(allData, sortedProjects);
+    }
+    return sortedProjects;
 }
