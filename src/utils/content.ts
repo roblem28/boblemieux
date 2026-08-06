@@ -5,6 +5,7 @@ import frontmatter from 'front-matter';
 import { allModels } from '.stackbit/models';
 import * as types from '@/types';
 import { isDev } from './common';
+import { cache } from './cache';
 import { PAGE_MODEL_NAMES, PageModelType } from '@/types/generated';
 
 const contentBaseDir = 'content';
@@ -103,6 +104,11 @@ function contentUrl(obj: types.ContentObject) {
 }
 
 export function allContent(): types.ContentObject[] {
+    const cachedContent = cache.get('content');
+    if (cachedContent) {
+        return cachedContent;
+    }
+
     let objects = contentFilesInPath(contentBaseDir).map((file) => readContent(file));
 
     allPages(objects).forEach((obj) => {
@@ -115,6 +121,7 @@ export function allContent(): types.ContentObject[] {
     objects = objects.map((e) => deepClone(e));
     objects.forEach((e) => annotateContentObject(e));
 
+    cache.set('content', objects);
     return objects;
 }
 
