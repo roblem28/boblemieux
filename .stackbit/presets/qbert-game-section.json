@@ -1,0 +1,19 @@
+{
+    "model": "QbertGameSection",
+    "presets": [
+        {
+            "label": "Default game section",
+            "thumbnail": "images/text-transparent-center.png",
+            "data": {
+                "colors": "colors-f",
+                "styles": {
+                    "self": {
+                        "height": "auto",
+                        "width": "narrow",
+                        "padding": ["pt-12", "pb-12", "pl-4", "pr-4"]
+                    }
+                }
+            }
+        }
+    ]
+}
