@@ -179,6 +179,35 @@ sections:
           - pr-4
         borderWidth: 1
         borderStyle: solid
+  - type: TextSection
+    title: Active Work — 3D Map
+    colors: colors-f
+    variant: variant-a
+    text: >-
+      <iframe src="/widgets/mindmap-3d.html"
+      style="width:100%;height:70vh;border:0;border-radius:8px;background:#0a0e14"
+      loading="lazy" title="Box of Rox 3D mind map"></iframe>
+    styles:
+      self:
+        height: auto
+        width: wide
+        padding:
+          - pt-16
+          - pb-16
+          - pl-4
+          - pr-4
+        textAlign: left
+  - type: DividerSection
+    styles:
+      self:
+        width: wide
+        padding:
+          - pt-8
+          - pb-8
+          - pl-4
+          - pr-4
+        borderWidth: 1
+        borderStyle: solid
   - type: FeaturedItemsSection
     title: Work Projects
     colors: colors-f
