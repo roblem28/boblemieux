@@ -3,256 +3,177 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>Box of Rox — 3D Mind Map</title>
+<title>Bob's Molecule — Living Graph</title>
 <style>
   * { margin:0; padding:0; box-sizing:border-box; }
   html,body { width:100%; height:100%; overflow:hidden; background:#0a0e14; touch-action:none; }
   #c { display:block; width:100%; height:100%; }
-  #hud {
-    position:fixed; top:0; left:0; right:0; padding:12px 16px;
-    display:flex; justify-content:space-between; align-items:flex-start;
-    pointer-events:none; font-family:'Segoe UI',system-ui,sans-serif;
-  }
+  #hud { position:fixed; top:0; left:0; right:0; padding:12px 16px; display:flex;
+         justify-content:space-between; align-items:flex-start; pointer-events:none;
+         font-family:'Segoe UI',system-ui,sans-serif; }
   #title { color:#e8eaf0; }
   #title h1 { font-size:15px; font-weight:600; letter-spacing:.12em; text-transform:uppercase; }
   #title p { font-size:11px; color:#7a8299; margin-top:2px; }
-  #legend {
-    display:flex; flex-direction:column; gap:4px; align-items:flex-end;
-    font-size:10px; color:#aab2c5; max-width:46%;
-  }
+  #legend { display:flex; flex-direction:column; gap:3px; align-items:flex-end;
+            font-size:10px; color:#aab2c5; max-width:46%; }
   .lg { display:flex; align-items:center; gap:6px; }
   .dot { width:8px; height:8px; border-radius:50%; flex:0 0 8px; }
-  #help {
-    position:fixed; bottom:10px; left:0; right:0; text-align:center;
-    font-family:'Segoe UI',system-ui,sans-serif; font-size:11px; color:#5c6478;
-    pointer-events:none;
-  }
+  #stamp { position:fixed; bottom:8px; right:12px; font-family:'Segoe UI',system-ui,sans-serif;
+           font-size:10px; color:#3d4457; pointer-events:none; }
 </style>
 </head>
 <body>
 <canvas id="c"></canvas>
 <div id="hud">
-  <div id="title"><h1>Box of Rox</h1><p>drag rotate · pinch/scroll zoom · tap node to focus branch</p></div>
+  <div id="title"><h1>Bob's Molecule</h1><p>drag rotate · pinch/scroll zoom · tap node to focus · faint arcs = cross-domain bonds</p></div>
   <div id="legend"></div>
 </div>
-<div id="help"></div>
+<div id="stamp">generated 2026-08-08 00:07 UTC</div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
-// ---------- DATA ----------
-const DATA = {
-  name:"BOX OF ROX", children:[
-    { name:"Marley1 Edge Mesh", color:0x4fc3f7, children:[
-      { name:"Fat Man (Jetson)", children:[{name:"llama.cpp CUDA"},{name:"Qwen 3B / 7B"},{name:"OpenClaw :18789"}]},
-      { name:"Little Boy (Pi5)", children:[{name:"Meaning Layer node"},{name:"Translate app :8090"}]},
-      { name:"PiDog (Pi4)", children:[{name:"walk_and_see.py"},{name:"Net lockout fix ⚠"}]},
-      { name:"Meaning Layer MTP", children:[{name:"Ed25519 trust"},{name:"3-sig relay wedge →"}]},
-      { name:"abbrev.py", children:[{name:"Patent filed"},{name:"205 vs 1261 tok"}]},
-      { name:"Marley Drive v0.3", children:[{name:"Deferred"}]}
-    ]},
-    { name:"Web & Games", color:0x81c784, children:[
-      { name:"boblemieux.ai", children:[{name:"VoxelCraft"},{name:"Cheeseburgler"},{name:"Flash Frenzy"},{name:"Space Explorer"},{name:"CLAUDE.md fix ⚠"}]},
-      { name:"Critter Count"},
-      { name:"Tiny Traveler"},
-      { name:"Cribbage"},
-      { name:"FEC Explorer", children:[{name:"Gov-data gateway →"}]},
-      { name:"Vault Raider", children:[{name:"Pivoted @ M5"},{name:"Hudson feel-gate"}]}
-    ]},
-    { name:"Construction Automation", color:0xffb74d, children:[
-      { name:"DC-EVM Tracker", children:[{name:"50,895 budget hrs"},{name:"Unit rates →"},{name:"HVAC disc# fix ⚠"}]},
-      { name:"P6 Parser (XER/XML)"},
-      { name:"Reforecast Curve"},
-      { name:"Power BI Fixes"},
-      { name:"Bilingual Safety"}
-    ]},
-    { name:"AI Ops & Pipelines", color:0xba68c8, children:[
-      { name:"Ops Harness", children:[{name:"METHOD-universal"},{name:"\"harness on\""}]},
-      { name:"NYT Digest", children:[{name:"6AM task"},{name:"API key env ⚠"}]},
-      { name:"Antigravity onboard"},
-      { name:"Cowork VM blocker ⚠"}
-    ]},
-    { name:"VR w/ Kenny", color:0xe57373, children:[
-      { name:"H2 ObstacleBoy", children:[{name:"Unity 6.3 scaffold"},{name:"Scenes-as-data"},{name:"Quest 2/3"}]}
-    ]},
-    { name:"Creative", color:0xfff176, children:[
-      { name:"FireWater Casino"},
-      { name:"Twisted Pines"},
-      { name:"Comedy Country Songs"}
-    ]},
-    { name:"Infra & Security", color:0x4db6ac, children:[
-      { name:"Hardening done"},
-      { name:"Bitwarden"},
-      { name:"Cred rotation ✓"},
-      { name:"Tailscale cleanup →"}
-    ]}
-  ]
-};
+const DATA = {"name": "BOB'S MOLECULE", "children": [{"name": "Construction", "color": 5227511, "children": [{"name": "Construction LLM", "sz": 1.35, "_id": "construction-llm", "children": []}, {"name": "Construction Automation", "sz": 1.29, "_id": "construction-automation", "children": [{"name": "DC-EVM Tracker", "sz": 1.29, "_id": "dc-evm-tracker"}, {"name": "P6 Parser", "sz": 1.2, "_id": "p6-parser"}, {"name": "Reforecast Curve", "sz": 1.15, "_id": "reforecast-curve"}, {"name": "Power BI Fixes", "sz": 1.15, "_id": "power-bi-fixes"}, {"name": "Bilingual Safety", "sz": 1.15, "_id": "bilingual-safety"}]}, {"name": "SafetyBob 2.0", "sz": 1.2, "_id": "safetybob-2-0", "children": []}, {"name": "Mechanical Completion", "sz": 1.2, "_id": "mechanical-completion", "children": []}, {"name": "Commissioning", "sz": 1.2, "_id": "commissioning", "children": []}, {"name": "OptiStack Commissioning", "sz": 1.2, "_id": "optistack-commissioning", "children": [{"name": "OptiStack Energization Sequence", "sz": 1.15, "_id": "optistack-energization-sequence"}]}, {"name": "Turnover Hierarchy Builder", "sz": 1.15, "_id": "turnover-hierarchy-builder", "children": []}, {"name": "RVP/RAD Rack Mapping", "sz": 1.07, "_id": "rvp-rad-rack-mapping", "children": []}, {"name": "Spec Extractor", "sz": 0.97, "_id": "spec-extractor", "children": []}, {"name": "Delivery Tracker", "sz": 0.97, "_id": "delivery-tracker", "children": []}, {"name": "Daily Report Normalization", "sz": 0.97, "_id": "daily-report-normalization", "children": []}, {"name": "Excel Macros", "sz": 0.97, "_id": "excel-macros", "children": []}, {"name": "Cost & Earned Value", "sz": 0.97, "_id": "cost-earned-value", "children": []}, {"name": "Quality Manual Generator", "sz": 0.97, "_id": "quality-manual-generator", "children": []}, {"name": "Construction Data Normalization", "sz": 0.97, "_id": "construction-data-normalization", "children": []}]}, {"name": "Research", "color": 8505220, "children": [{"name": "MTP Protocol", "sz": 1.4, "_id": "mtp-protocol", "children": [{"name": "Ed25519 Trust", "sz": 1.07, "_id": "ed25519-trust"}, {"name": "3-Sig Relay Wedge >", "sz": 1.07, "_id": "3-sig-relay-wedge"}]}, {"name": "Research & IP", "sz": 1.25, "_id": "research-ip", "children": [{"name": "Proof of Input", "sz": 1.25, "_id": "proof-of-input"}, {"name": "Patents", "sz": 1.15, "_id": "patents"}, {"name": "Conference Papers", "sz": 1.2, "_id": "conference-papers"}, {"name": "MOELER", "sz": 1.15, "_id": "moeler"}]}, {"name": "205 vs 1261 Tok", "sz": 1.07, "_id": "205-vs-1261-tok", "children": []}, {"name": "MTP Internet-Draft", "sz": 1.07, "_id": "mtp-internet-draft", "children": []}, {"name": "abbrev.py Provisional Patent", "sz": 1.07, "_id": "abbrev-py-provisional-patent", "children": []}, {"name": "Latent Compression ?", "sz": 0.97, "_id": "latent-compression", "children": []}, {"name": "AFCEA Cyber Edge Essay", "sz": 0.97, "_id": "afcea-cyber-edge-essay", "children": []}, {"name": "Marley1 Manifesto", "sz": 0.97, "_id": "marley1-manifesto", "children": []}, {"name": "AFACDA Trademark", "sz": 0.97, "_id": "afacda-trademark", "children": []}, {"name": "Patent Tracker", "sz": 0.97, "_id": "patent-tracker", "children": []}]}, {"name": "Hardware", "color": 16758605, "children": [{"name": "Raspberry Pi 5", "sz": 1.15, "_id": "raspberry-pi-5", "children": []}, {"name": "Raspberry Pi 4", "sz": 1.07, "_id": "raspberry-pi-4", "children": []}, {"name": "Jetson Orin Nano", "sz": 1.07, "_id": "jetson-orin-nano", "children": []}, {"name": "DGX Spark", "sz": 0.97, "_id": "dgx-spark", "children": []}, {"name": "Grace Blackwell", "sz": 0.97, "_id": "grace-blackwell", "children": []}, {"name": "Custom PCB", "sz": 0.97, "_id": "custom-pcb", "children": []}, {"name": "Portable Pi Computer", "sz": 0.97, "_id": "portable-pi-computer", "children": []}]}, {"name": "Robotics", "color": 12216520, "children": [{"name": "PiDog", "sz": 1.42, "_id": "pidog", "children": [{"name": "Vision", "sz": 1.15, "_id": "vision"}, {"name": "Navigation", "sz": 1.07, "_id": "navigation"}, {"name": "Voice", "sz": 1.15, "_id": "voice"}]}, {"name": "Quadruped Robot", "sz": 1.25, "_id": "quadruped-robot", "children": [{"name": "Autonomous Teams", "sz": 1.07, "_id": "autonomous-teams"}]}, {"name": "Robot Vision", "sz": 1.15, "_id": "robot-vision", "children": []}, {"name": "AI Robotic Arm", "sz": 1.07, "_id": "ai-robotic-arm", "children": []}, {"name": "LX-16A Servos", "sz": 1.07, "_id": "lx-16a-servos", "children": []}, {"name": "Robot Navigation", "sz": 0.97, "_id": "robot-navigation", "children": []}]}, {"name": "AI Ops", "color": 15037299, "children": [{"name": "abbrev.py", "sz": 1.4, "_id": "abbrev-py", "children": []}, {"name": "AI Ops", "sz": 1.4, "_id": "ai-ops", "children": [{"name": "Ops Harness", "sz": 1.2, "_id": "ops-harness"}, {"name": "NYT Digest", "sz": 1.2, "_id": "nyt-digest"}, {"name": "Antigravity", "sz": 1.15, "_id": "antigravity"}, {"name": "Cowork VM", "sz": 1.07, "_id": "cowork-vm"}, {"name": "RAG / Vector DB", "sz": 1.07, "_id": "rag-vector-db"}, {"name": "Agent Swarms", "sz": 1.07, "_id": "agent-swarms"}, {"name": "Bob's Molecule", "sz": 1.35, "_id": "bob-s-molecule"}]}, {"name": "Infra & Security", "sz": 1.25, "_id": "infra-security", "children": [{"name": "Cred Rotation Done", "sz": 1.07, "_id": "cred-rotation-done"}, {"name": "Hardening Done", "sz": 1.07, "_id": "hardening-done"}]}, {"name": "Smart Browser", "sz": 0.97, "_id": "smart-browser", "children": []}, {"name": "Universal App Memory", "sz": 0.97, "_id": "universal-app-memory", "children": []}, {"name": "Weather Forecasting PoC", "sz": 0.97, "_id": "weather-forecasting-poc", "children": []}]}, {"name": "Creative", "color": 16773494, "children": [{"name": "Creative", "sz": 1.4, "_id": "creative", "children": [{"name": "FireWater Casino", "sz": 1.07, "_id": "firewater-casino"}, {"name": "Twisted Pines", "sz": 1.07, "_id": "twisted-pines"}, {"name": "Comedy Country Songs", "sz": 1.15, "_id": "comedy-country-songs"}, {"name": "Elizabeth Wick", "sz": 1.07, "_id": "elizabeth-wick"}, {"name": "Born Lightwalker", "sz": 1.07, "_id": "born-lightwalker"}, {"name": "Locker Room Lives", "sz": 1.07, "_id": "locker-room-lives"}, {"name": "Night in Portland", "sz": 1.15, "_id": "night-in-portland"}, {"name": "Animation", "sz": 1.07, "_id": "animation"}, {"name": "Unity Games", "sz": 1.07, "_id": "unity-games"}]}, {"name": "Legend of Snifflebutt", "sz": 0.97, "_id": "legend-of-snifflebutt", "children": []}, {"name": "VORTEX", "sz": 0.97, "_id": "vortex", "children": []}, {"name": "Minesweeper 3D", "sz": 0.97, "_id": "minesweeper-3d", "children": []}, {"name": "Adobe Animate Pipeline", "sz": 0.97, "_id": "adobe-animate-pipeline", "children": []}, {"name": "Blender Character Animation", "sz": 0.97, "_id": "blender-character-animation", "children": []}]}, {"name": "Future Systems", "color": 5093036, "children": [{"name": "Future Systems", "sz": 1.35, "_id": "future-systems", "children": [{"name": "Planetary Mesh", "sz": 1.15, "_id": "planetary-mesh"}, {"name": "Global Education", "sz": 1.07, "_id": "global-education"}, {"name": "Mutual Aid", "sz": 1.07, "_id": "mutual-aid"}, {"name": "Universal Participation", "sz": 1.07, "_id": "universal-participation"}, {"name": "Distributed AI", "sz": 1.07, "_id": "distributed-ai"}, {"name": "Personal Knowledge Graph", "sz": 1.15, "_id": "personal-knowledge-graph"}]}, {"name": "Emergency Mesh", "sz": 1.2, "_id": "emergency-mesh", "children": []}, {"name": "Cognitive Mesh ?", "sz": 1.2, "_id": "cognitive-mesh", "children": [{"name": "Federated Personal Models", "sz": 1.07, "_id": "federated-personal-models"}]}, {"name": "Federated Learning Mesh", "sz": 0.97, "_id": "federated-learning-mesh", "children": []}, {"name": "Single-button Satellite Beacon", "sz": 0.97, "_id": "single-button-satellite-beacon", "children": []}, {"name": "Universal Local AI", "sz": 0.97, "_id": "universal-local-ai", "children": []}]}, {"name": "Security", "color": 6600182, "children": [{"name": "Tailscale", "sz": 1.15, "_id": "tailscale", "children": []}, {"name": "Bitwarden", "sz": 1.07, "_id": "bitwarden", "children": []}, {"name": "Envelope Decay / Audit", "sz": 1.07, "_id": "envelope-decay-audit", "children": []}, {"name": "Per-atom Key Rotation", "sz": 1.07, "_id": "per-atom-key-rotation", "children": []}, {"name": "Operation Space Ghost", "sz": 0.97, "_id": "operation-space-ghost", "children": []}, {"name": "MAC Hash+Salt Capture", "sz": 0.97, "_id": "mac-hash-salt-capture", "children": []}]}, {"name": "Software", "color": 16027569, "children": [{"name": "AI Video Agent", "sz": 0.97, "_id": "ai-video-agent", "children": []}, {"name": "Grocery Trip Optimizer", "sz": 0.97, "_id": "grocery-trip-optimizer", "children": []}, {"name": "Heating Oil Price Tracker", "sz": 0.97, "_id": "heating-oil-price-tracker", "children": []}, {"name": "Congressional Flight Tracker", "sz": 0.97, "_id": "congressional-flight-tracker", "children": []}]}, {"name": "Finance", "color": 10868391, "children": [{"name": "Crypto Participation Economy", "sz": 1.07, "_id": "crypto-participation-economy", "children": []}, {"name": "Crypto-backed Card", "sz": 0.97, "_id": "crypto-backed-card", "children": []}, {"name": "AI-managed Investment Pool", "sz": 0.97, "_id": "ai-managed-investment-pool", "children": []}, {"name": "Credit Card Travel Strategy", "sz": 0.97, "_id": "credit-card-travel-strategy", "children": []}]}, {"name": "Education", "color": 16764032, "children": [{"name": "Marley Education", "sz": 1.07, "_id": "marley-education", "children": []}, {"name": "Participation Agency", "sz": 1.07, "_id": "participation-agency", "children": []}, {"name": "Global Kids Computing", "sz": 0.97, "_id": "global-kids-computing", "children": []}, {"name": "Open Source / Open World", "sz": 0.97, "_id": "open-source-open-world", "children": []}]}, {"name": "Comms", "color": 9489145, "children": [{"name": "Comms", "sz": 1.35, "_id": "comms", "children": [{"name": "LoRa", "sz": 1.15, "_id": "lora"}, {"name": "Meshtastic", "sz": 1.15, "_id": "meshtastic"}, {"name": "Reticulum", "sz": 1.07, "_id": "reticulum"}, {"name": "RTL-SDR", "sz": 1.07, "_id": "rtl-sdr"}, {"name": "Satellite", "sz": 1.07, "_id": "satellite"}, {"name": "Public Signal Fusion", "sz": 1.15, "_id": "public-signal-fusion"}]}, {"name": "Site-Risk Intelligence", "sz": 1.07, "_id": "site-risk-intelligence", "children": []}, {"name": "Ham/APRS/Winlink/JS8Call", "sz": 0.97, "_id": "ham-aprs-winlink-js8call", "children": []}]}, {"name": "Business", "color": 13538264, "children": [{"name": "Business", "sz": 1.25, "_id": "business", "children": [{"name": "Box of Rox LLC", "sz": 1.15, "_id": "box-of-rox-llc"}, {"name": "Box of Rox AI", "sz": 1.2, "_id": "box-of-rox-ai"}, {"name": "Consulting", "sz": 1.2, "_id": "consulting"}, {"name": "SaaS", "sz": 1.15, "_id": "saas"}]}, {"name": "Lejerker", "sz": 0.97, "_id": "lejerker", "children": []}, {"name": "Enterprise AI Training", "sz": 0.97, "_id": "enterprise-ai-training", "children": []}]}, {"name": "Marley1", "color": 8440772, "children": [{"name": "walk_and_see.py", "sz": 1.07, "_id": "walk-and-see-py", "children": []}, {"name": "Net Lockout Fix !", "sz": 1.07, "_id": "net-lockout-fix", "children": []}, {"name": "Hudson Node", "sz": 1.07, "_id": "hudson-node", "children": [{"name": "Marley1", "sz": 1.59, "_id": "marley1"}]}]}, {"name": "Web & Games", "color": 5227511, "children": [{"name": "Web & Games", "sz": 1.32, "_id": "web-games", "children": [{"name": "boblemieux.ai", "sz": 1.38, "_id": "boblemieux-ai"}, {"name": "Critter Count", "sz": 1.07, "_id": "critter-count"}, {"name": "Tiny Traveler", "sz": 1.07, "_id": "tiny-traveler"}, {"name": "Cribbage", "sz": 1.07, "_id": "cribbage"}, {"name": "FEC Explorer", "sz": 1.2, "_id": "fec-explorer"}, {"name": "Vault Raider", "sz": 1.2, "_id": "vault-raider"}]}]}, {"name": "VR", "color": 8505220, "children": [{"name": "VR", "sz": 1.15, "_id": "vr", "children": [{"name": "H2 ObstacleBoy", "sz": 1.32, "_id": "h2-obstacleboy"}, {"name": "RealmForge", "sz": 1.15, "_id": "realmforge"}]}]}, {"name": "Health", "color": 16758605, "children": [{"name": "Heartbeat Anomaly Identifier", "sz": 0.97, "_id": "heartbeat-anomaly-identifier", "children": []}]}]};
+const CROSS = [{"a": "abbrev-py", "b": "patents", "rel": "feeds", "w": 2.0}, {"a": "abbrev-py", "b": "marley-drive", "rel": "enables", "w": 1.0}, {"a": "meaning-layer", "b": "mtp-protocol", "rel": "uses", "w": 1.5}, {"a": "mtp-protocol", "b": "future-systems", "rel": "inspired", "w": 1.0}, {"a": "marley1", "b": "planetary-mesh", "rel": "inspired", "w": 1.5}, {"a": "marley1", "b": "emergency-mesh", "rel": "enables", "w": 1.0}, {"a": "tailscale", "b": "marley1", "rel": "enables", "w": 2.0}, {"a": "realmforge", "b": "fat-man", "rel": "uses", "w": 1.5}, {"a": "construction-llm", "b": "abbrev-py", "rel": "uses", "w": 1.5}, {"a": "bob-s-molecule", "b": "personal-knowledge-graph", "rel": "related", "w": 2.0}, {"a": "bob-s-molecule", "b": "boblemieux-ai", "rel": "feeds", "w": 1.5}, {"a": "vault-raider", "b": "h2-obstacleboy", "rel": "related", "w": 0.5}, {"a": "fec-explorer", "b": "saas", "rel": "inspired", "w": 0.5}, {"a": "consulting", "b": "dc-evm-tracker", "rel": "uses", "w": 1.0}, {"a": "moeler", "b": "abbrev-py", "rel": "related", "w": 1.0}, {"a": "3d-molecule-widget", "b": "bob-s-molecule", "rel": "uses", "w": 1.5}, {"a": "hudson-feel-gate", "b": "h2-obstacleboy", "rel": "related", "w": 0.5}, {"a": "voice", "b": "marley-drive", "rel": "related", "w": 0.5}, {"a": "marley1", "b": "bob-s-molecule", "rel": "related", "w": 1.88}, {"a": "marley1", "b": "cognitive-mesh", "rel": "inspired", "w": 1.84}, {"a": "marley1", "b": "pidog", "rel": "integrates", "w": 1.58}, {"a": "marley1", "b": "mtp-protocol", "rel": "uses", "w": 1.86}, {"a": "marley1", "b": "proof-of-input", "rel": "enables", "w": 1.62}, {"a": "bob-s-molecule", "b": "cognitive-mesh", "rel": "evolves_toward", "w": 1.86}, {"a": "bob-s-molecule", "b": "meaning-layer", "rel": "related", "w": 1.76}, {"a": "abbrev-py", "b": "meaning-layer", "rel": "enables", "w": 1.54}, {"a": "abbrev-py", "b": "construction-llm", "rel": "specialized_for", "w": 1.78}, {"a": "abbrev-py", "b": "abbrev-py-provisional-patent", "rel": "protected_by", "w": 1.92}, {"a": "raspberry-pi-5", "b": "marley1", "rel": "hardware_for", "w": 1.92}, {"a": "jetson-orin-nano", "b": "fat-man", "rel": "hardware_for", "w": 1.94}, {"a": "raspberry-pi-5", "b": "little-boy", "rel": "hardware_for", "w": 1.82}, {"a": "raspberry-pi-4", "b": "pidog", "rel": "hardware_for", "w": 1.86}, {"a": "per-atom-key-rotation", "b": "mtp-protocol", "rel": "security_rule_for", "w": 1.84}, {"a": "envelope-decay-audit", "b": "mtp-protocol", "rel": "security_rule_for", "w": 1.82}, {"a": "marley-education", "b": "marley1", "rel": "application_of", "w": 1.9}, {"a": "crypto-participation-economy", "b": "proof-of-input", "rel": "economic_expression_of", "w": 1.84}, {"a": "participation-agency", "b": "proof-of-input", "rel": "aligned_with", "w": 1.72}];
 
-// ---------- SCENE ----------
 const canvas = document.getElementById('c');
-const renderer = new THREE.WebGLRenderer({canvas, antialias:true, alpha:false});
+const renderer = new THREE.WebGLRenderer({canvas, antialias:true});
 renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x0a0e14);
-scene.fog = new THREE.FogExp2(0x0a0e14, 0.010);
+scene.fog = new THREE.FogExp2(0x0a0e14, 0.009);
 const camera = new THREE.PerspectiveCamera(55, 1, 0.1, 2000);
-let camDist = 78;
-camera.position.set(0,0,camDist);
+let camDist = 85;
 
 const root3d = new THREE.Group();
 scene.add(root3d);
 
-// subtle starfield
-(function(){
+(function(){ // starfield
   const g = new THREE.BufferGeometry();
   const n = 500, pos = new Float32Array(n*3);
-  for(let i=0;i<n*3;i++) pos[i] = (Math.random()-0.5)*600;
+  for(let i=0;i<n*3;i++) pos[i] = (Math.random()-0.5)*650;
   g.setAttribute('position', new THREE.BufferAttribute(pos,3));
-  const m = new THREE.PointsMaterial({color:0x2a3550, size:1.2, sizeAttenuation:true});
-  scene.add(new THREE.Points(g,m));
+  scene.add(new THREE.Points(g, new THREE.PointsMaterial({color:0x2a3550, size:1.2})));
 })();
 
-// ---------- LABEL SPRITES ----------
 function makeLabel(text, opts){
-  const {fontSize=34, color='#e8eaf0', bg=null, bold=false, pad=18} = opts||{};
-  const dpr = 2;
-  const cv = document.createElement('canvas');
-  const ctx = cv.getContext('2d');
+  const {fontSize=34, color='#e8eaf0', bg=null, bold=false, pad=18, worldH=3} = opts||{};
+  const dpr = 2, cv = document.createElement('canvas'), ctx = cv.getContext('2d');
   const font = `${bold?'600':'400'} ${fontSize}px 'Segoe UI', system-ui, sans-serif`;
   ctx.font = font;
-  const w = Math.ceil(ctx.measureText(text).width) + pad*2;
-  const h = fontSize + pad*2;
-  cv.width = w*dpr; cv.height = h*dpr;
-  ctx.scale(dpr,dpr);
-  if(bg){
-    ctx.fillStyle = bg;
-    const r = h/2;
-    ctx.beginPath();
+  const w = Math.ceil(ctx.measureText(text).width)+pad*2, h = fontSize+pad*2;
+  cv.width = w*dpr; cv.height = h*dpr; ctx.scale(dpr,dpr);
+  if(bg){ ctx.fillStyle=bg; const r=h/2; ctx.beginPath();
     ctx.moveTo(r,0); ctx.lineTo(w-r,0); ctx.arc(w-r,r,r,-Math.PI/2,Math.PI/2);
-    ctx.lineTo(r,h); ctx.arc(r,r,r,Math.PI/2,-Math.PI/2); ctx.fill();
-  }
-  ctx.font = font;
-  ctx.fillStyle = color;
-  ctx.textBaseline = 'middle';
+    ctx.lineTo(r,h); ctx.arc(r,r,r,Math.PI/2,-Math.PI/2); ctx.fill(); }
+  ctx.font=font; ctx.fillStyle=color; ctx.textBaseline='middle';
   ctx.fillText(text, pad, h/2);
-  const tex = new THREE.CanvasTexture(cv);
-  tex.minFilter = THREE.LinearFilter;
-  const mat = new THREE.SpriteMaterial({map:tex, transparent:true, depthWrite:false});
-  const sp = new THREE.Sprite(mat);
-  const scale = (opts&&opts.worldH) || 3;
-  sp.scale.set(scale * w/h, scale, 1);
+  const tex = new THREE.CanvasTexture(cv); tex.minFilter = THREE.LinearFilter;
+  const sp = new THREE.Sprite(new THREE.SpriteMaterial({map:tex, transparent:true, depthWrite:false}));
+  sp.scale.set(worldH*w/h, worldH, 1);
   return sp;
 }
 
-// ---------- LAYOUT ----------
-const R1 = 26, R2 = 15, R3 = 9;
-const nodes = [], branchGroups = [];
-const raycastTargets = [];
+const R1 = 28, R2 = 16, R3 = 9;
+const branchGroups = [], raycastTargets = [], posById = {};
 
 function branchDirs(n){
-  // spread level-1 branches on a sphere (fibonacci)
-  const dirs = [];
-  const off = 2/n, inc = Math.PI*(3-Math.sqrt(5));
+  const dirs = [], off = 2/n, inc = Math.PI*(3-Math.sqrt(5));
   for(let i=0;i<n;i++){
-    const y = i*off - 1 + off/2;
-    const r = Math.sqrt(1-y*y);
-    const phi = i*inc;
+    const y = i*off-1+off/2, r = Math.sqrt(1-y*y), phi = i*inc;
     dirs.push(new THREE.Vector3(Math.cos(phi)*r, y*0.75, Math.sin(phi)*r).normalize());
   }
   return dirs;
 }
-
-function addSphere(pos, radius, color, emissiveScale){
-  const geo = new THREE.SphereGeometry(radius, 20, 16);
-  const mat = new THREE.MeshBasicMaterial({color});
-  const m = new THREE.Mesh(geo, mat);
-  m.position.copy(pos);
-  return m;
+function addSphere(pos, radius, color){
+  const m = new THREE.Mesh(new THREE.SphereGeometry(radius,20,16),
+                           new THREE.MeshBasicMaterial({color}));
+  m.position.copy(pos); return m;
 }
-
 function addLine(a, b, color, opacity){
-  const geo = new THREE.BufferGeometry().setFromPoints([a,b]);
-  const mat = new THREE.LineBasicMaterial({color, transparent:true, opacity});
-  return new THREE.Line(geo, mat);
+  const l = new THREE.Line(new THREE.BufferGeometry().setFromPoints([a,b]),
+    new THREE.LineBasicMaterial({color, transparent:true, opacity}));
+  l.userData.baseOp = opacity; return l;
 }
 
 // root
-const rootSphere = addSphere(new THREE.Vector3(0,0,0), 2.6, 0xe8eaf0);
-root3d.add(rootSphere);
-const rootLabel = makeLabel("BOX OF ROX", {fontSize:44, bold:true, color:'#0a0e14', bg:'#e8eaf0', worldH:3.4});
-rootLabel.position.set(0, 4.6, 0);
-root3d.add(rootLabel);
+root3d.add(addSphere(new THREE.Vector3(0,0,0), 2.8, 0xe8eaf0));
+const rl = makeLabel(DATA.name, {fontSize:44, bold:true, color:'#0a0e14', bg:'#e8eaf0', worldH:3.4});
+rl.position.set(0,4.8,0); root3d.add(rl);
 
 const dirs = branchDirs(DATA.children.length);
 const legendEl = document.getElementById('legend');
 
 DATA.children.forEach((branch, bi)=>{
-  const color = branch.color;
+  const color = branch.color || 0x888888;
   const cHex = '#'+color.toString(16).padStart(6,'0');
-  const bg = new THREE.Group();
-  bg.userData = {branchIndex:bi};
-  root3d.add(bg);
-  branchGroups.push(bg);
+  const bg = new THREE.Group(); bg.userData = {branchIndex:bi};
+  root3d.add(bg); branchGroups.push(bg);
 
-  // legend
-  const lg = document.createElement('div');
-  lg.className = 'lg';
+  const lg = document.createElement('div'); lg.className='lg';
   lg.innerHTML = `<span class="dot" style="background:${cHex}"></span>${branch.name}`;
   legendEl.appendChild(lg);
 
   const p1 = dirs[bi].clone().multiplyScalar(R1);
   bg.add(addLine(new THREE.Vector3(0,0,0), p1, color, 0.55));
-  const s1 = addSphere(p1, 1.7, color);
-  s1.userData = {branchIndex:bi};
+  const s1 = addSphere(p1, 1.8, color); s1.userData = {branchIndex:bi};
   bg.add(s1); raycastTargets.push(s1);
   const l1 = makeLabel(branch.name, {fontSize:38, bold:true, color:'#0a0e14', bg:cHex, worldH:2.6});
-  l1.position.copy(p1).add(new THREE.Vector3(0,3.1,0));
-  bg.add(l1);
+  l1.position.copy(p1).add(new THREE.Vector3(0,3.2,0)); bg.add(l1);
 
   const kids = branch.children||[];
   kids.forEach((kid, ki)=>{
-    // cone around branch direction
     const axis = dirs[bi];
-    const ortho1 = new THREE.Vector3(0,1,0).cross(axis).normalize();
-    if(ortho1.lengthSq()<0.01) ortho1.set(1,0,0);
-    const ortho2 = axis.clone().cross(ortho1).normalize();
-    const ang = (ki/Math.max(kids.length,1))*Math.PI*2;
-    const spread = 0.85;
+    let o1 = new THREE.Vector3(0,1,0).cross(axis).normalize();
+    if(o1.lengthSq()<0.01) o1.set(1,0,0);
+    const o2 = axis.clone().cross(o1).normalize();
+    const ang = (ki/Math.max(kids.length,1))*Math.PI*2, spread = 0.85;
     const dir2 = axis.clone()
-      .add(ortho1.clone().multiplyScalar(Math.cos(ang)*spread))
-      .add(ortho2.clone().multiplyScalar(Math.sin(ang)*spread))
-      .normalize();
-    const p2 = p1.clone().add(dir2.multiplyScalar(R2));
+      .add(o1.clone().multiplyScalar(Math.cos(ang)*spread))
+      .add(o2.clone().multiplyScalar(Math.sin(ang)*spread)).normalize();
+    const p2 = p1.clone().add(dir2.clone().multiplyScalar(R2));
     bg.add(addLine(p1, p2, color, 0.38));
-    const s2 = addSphere(p2, 1.0, color);
-    s2.userData = {branchIndex:bi};
+    const sz = kid.sz || 1.0;
+    const s2 = addSphere(p2, sz, color); s2.userData = {branchIndex:bi};
     bg.add(s2); raycastTargets.push(s2);
+    if(kid._id) posById[kid._id] = p2.clone();
     const l2 = makeLabel(kid.name, {fontSize:32, color:'#dfe3ee', worldH:1.9});
-    l2.position.copy(p2).add(new THREE.Vector3(0,2.0,0));
-    bg.add(l2);
+    l2.position.copy(p2).add(new THREE.Vector3(0, sz+1.1, 0)); bg.add(l2);
 
     (kid.children||[]).forEach((leaf, li)=>{
-      const n2 = (kid.children.length);
-      const a2 = (li/n2)*Math.PI*2 + 0.5;
-      const o1 = new THREE.Vector3(0,1,0).cross(dir2).normalize();
-      if(o1.lengthSq()<0.01) o1.set(1,0,0);
-      const o2b = dir2.clone().cross(o1).normalize();
+      const n2 = kid.children.length, a2 = (li/n2)*Math.PI*2+0.5;
+      let q1 = new THREE.Vector3(0,1,0).cross(dir2).normalize();
+      if(q1.lengthSq()<0.01) q1.set(1,0,0);
+      const q2 = dir2.clone().cross(q1).normalize();
       const d3 = dir2.clone()
-        .add(o1.clone().multiplyScalar(Math.cos(a2)*0.95))
-        .add(o2b.clone().multiplyScalar(Math.sin(a2)*0.95))
-        .normalize();
+        .add(q1.clone().multiplyScalar(Math.cos(a2)*0.95))
+        .add(q2.clone().multiplyScalar(Math.sin(a2)*0.95)).normalize();
       const p3 = p2.clone().add(d3.multiplyScalar(R3));
       bg.add(addLine(p2, p3, color, 0.25));
-      const s3 = addSphere(p3, 0.55, color);
-      s3.userData = {branchIndex:bi};
+      const lsz = leaf.sz ? leaf.sz*0.6 : 0.55;
+      const s3 = addSphere(p3, lsz, color); s3.userData = {branchIndex:bi};
       bg.add(s3); raycastTargets.push(s3);
+      if(leaf._id) posById[leaf._id] = p3.clone();
       const l3 = makeLabel(leaf.name, {fontSize:28, color:'#9aa3ba', worldH:1.4});
-      l3.position.copy(p3).add(new THREE.Vector3(0,1.3,0));
-      bg.add(l3);
+      l3.position.copy(p3).add(new THREE.Vector3(0, lsz+0.9, 0)); bg.add(l3);
     });
   });
 });
 
-// ---------- FOCUS (tap branch) ----------
+// cross-domain bonds: curved faint arcs between branches — the "molecule" bonds
+const crossGroup = new THREE.Group();
+root3d.add(crossGroup);
+CROSS.forEach(x=>{
+  const a = posById[x.a], b = posById[x.b];
+  if(!a || !b) return;
+  const mid = a.clone().add(b).multiplyScalar(0.5).multiplyScalar(1.35); // bow outward
+  const curve = new THREE.QuadraticBezierCurve3(a, mid, b);
+  const geo = new THREE.BufferGeometry().setFromPoints(curve.getPoints(24));
+  const line = new THREE.Line(geo, new THREE.LineBasicMaterial(
+    {color:0x8899cc, transparent:true, opacity:Math.min(0.35, 0.08+x.w*0.05)}));
+  line.userData.baseOp = line.material.opacity;
+  crossGroup.add(line);
+});
+
+// focus
 let focused = -1;
 function setFocus(bi){
   focused = (focused===bi) ? -1 : bi;
@@ -260,34 +181,31 @@ function setFocus(bi){
     const dim = (focused!==-1 && i!==focused);
     g.traverse(o=>{
       if(o.material){
-        o.material.opacity = dim ? (o.isLine?0.06:0.12) : (o.isLine ? o.userData.baseOp ?? o.material.opacity : 1);
         o.material.transparent = true;
+        o.material.opacity = dim ? (o.isLine?0.06:0.12)
+                                 : (o.isLine ? (o.userData.baseOp??1) : 1);
       }
     });
   });
+  crossGroup.children.forEach(l=>{
+    l.material.opacity = (focused===-1) ? l.userData.baseOp : 0.04;
+  });
 }
-// store base line opacities
-branchGroups.forEach(g=>g.traverse(o=>{ if(o.isLine) o.userData.baseOp = o.material.opacity; }));
 
-// ---------- CONTROLS (custom orbit: full free rotation) ----------
-let rotVel = {x:0.0008, y:0.0025}; // idle spin
+// controls — free rotation, zoom, tap
+let rotVel = {x:0.0008, y:0.0025};
 let dragging=false, lastX=0, lastY=0, pinchDist=0, interacted=false, moved=0;
-const raycaster = new THREE.Raycaster();
-const pointer = new THREE.Vector2();
+const raycaster = new THREE.Raycaster(), pointer = new THREE.Vector2();
 
 function rotate(dx, dy){
-  // rotate around camera-relative axes → any direction
   const qx = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,1,0), dx);
   const qy = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1,0,0), dy);
   root3d.quaternion.premultiply(qx).premultiply(qy);
 }
-function zoom(f){
-  camDist = THREE.MathUtils.clamp(camDist*f, 18, 300);
-}
+function zoom(f){ camDist = THREE.MathUtils.clamp(camDist*f, 18, 320); }
 
 canvas.addEventListener('pointerdown', e=>{
-  dragging=true; interacted=true; moved=0;
-  lastX=e.clientX; lastY=e.clientY;
+  dragging=true; interacted=true; moved=0; lastX=e.clientX; lastY=e.clientY;
   canvas.setPointerCapture(e.pointerId);
 });
 canvas.addEventListener('pointermove', e=>{
@@ -300,28 +218,24 @@ canvas.addEventListener('pointermove', e=>{
 });
 canvas.addEventListener('pointerup', e=>{
   dragging=false;
-  if(moved<6){ // tap → raycast
-    pointer.x = (e.clientX/innerWidth)*2-1;
-    pointer.y = -(e.clientY/innerHeight)*2+1;
+  if(moved<6){
+    pointer.x=(e.clientX/innerWidth)*2-1; pointer.y=-(e.clientY/innerHeight)*2+1;
     raycaster.setFromCamera(pointer, camera);
     const hits = raycaster.intersectObjects(raycastTargets);
     if(hits.length) setFocus(hits[0].object.userData.branchIndex);
-    else if(focused!==-1) setFocus(focused); // tap empty → clear
+    else if(focused!==-1) setFocus(focused);
   }
 });
 canvas.addEventListener('wheel', e=>{
-  e.preventDefault(); interacted=true;
-  zoom(e.deltaY>0 ? 1.1 : 0.9);
+  e.preventDefault(); interacted=true; zoom(e.deltaY>0?1.1:0.9);
 },{passive:false});
 
-// pinch
 const touches = new Map();
 canvas.addEventListener('touchstart', e=>{
   for(const t of e.changedTouches) touches.set(t.identifier,{x:t.clientX,y:t.clientY});
   if(touches.size===2){
     const [a,b]=[...touches.values()];
-    pinchDist = Math.hypot(a.x-b.x, a.y-b.y);
-    dragging=false;
+    pinchDist = Math.hypot(a.x-b.x, a.y-b.y); dragging=false;
   }
 },{passive:true});
 canvas.addEventListener('touchmove', e=>{
@@ -333,8 +247,7 @@ canvas.addEventListener('touchmove', e=>{
     const [a,b]=[...touches.values()];
     const d = Math.hypot(a.x-b.x, a.y-b.y);
     if(pinchDist>0) zoom(pinchDist/d);
-    pinchDist = d;
-    interacted=true;
+    pinchDist = d; interacted=true;
   }
 },{passive:true});
 canvas.addEventListener('touchend', e=>{
@@ -342,25 +255,22 @@ canvas.addEventListener('touchend', e=>{
   pinchDist=0;
 },{passive:true});
 
-// ---------- RESIZE / LOOP ----------
 function resize(){
-  const w=innerWidth, h=innerHeight;
-  renderer.setSize(w,h,false);
-  camera.aspect=w/h; camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight, false);
+  camera.aspect = innerWidth/innerHeight; camera.updateProjectionMatrix();
 }
 addEventListener('resize', resize); resize();
 
-function tick(){
+(function tick(){
   requestAnimationFrame(tick);
   if(!dragging){
-    if(!interacted){ rotate(rotVel.y, rotVel.x); }
+    if(!interacted) rotate(rotVel.y, rotVel.x);
     else { rotVel.x*=0.94; rotVel.y*=0.94; rotate(rotVel.y, rotVel.x); }
   }
   camera.position.set(0,0,camDist);
   camera.lookAt(0,0,0);
   renderer.render(scene, camera);
-}
-tick();
+})();
 </script>
 </body>
 </html>
