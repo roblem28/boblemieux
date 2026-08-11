@@ -21,5 +21,31 @@
   status = 200
   force = true
 
+# ObstacleBoy is a Unity WebGL build living in its own repo (obstacleboy-web) and
+# its own Netlify project. Proxying it under /games/obstacleboy puts it on this
+# origin alongside the static games in public/games.
+#
+# The bare path redirects rather than proxying, which is the one place this differs
+# from the /projects/nyt/embed rules above. Unity's index.html references its
+# payload relatively ("Build/...", "StreamingAssets/..."), and a browser sitting on
+# /games/obstacleboy with no trailing slash resolves those against /games/ - so a
+# 200 proxy there would serve the page and then 404 every asset it asks for. The
+# 301 moves the browser onto the trailing-slash form first; the wildcard rule below
+# then covers the document and its payload alike.
+[[redirects]]
+  from = "/games/obstacleboy"
+  to = "/games/obstacleboy/"
+  status = 301
+  force = true
+
+# Matches the trailing-slash document with an empty splat, and every asset under
+# it. force = true because the Next.js catch-all route ([[...slug]].tsx) would
+# otherwise be a candidate for these paths.
+[[redirects]]
+  from = "/games/obstacleboy/*"
+  to = "https://obstacleboy.netlify.app/:splat"
+  status = 200
+  force = true
+
 [[plugins]]
   package = "@netlify/plugin-nextjs"
