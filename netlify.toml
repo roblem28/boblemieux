@@ -25,21 +25,18 @@
 # its own Netlify project. Proxying it under /games/obstacleboy puts it on this
 # origin alongside the static games in public/games.
 #
-# The bare path redirects rather than proxying, which is the one place this differs
-# from the /projects/nyt/embed rules above. Unity's index.html references its
-# payload relatively ("Build/...", "StreamingAssets/..."), and a browser sitting on
-# /games/obstacleboy with no trailing slash resolves those against /games/ - so a
-# 200 proxy there would serve the page and then 404 every asset it asks for. The
-# 301 moves the browser onto the trailing-slash form first; the wildcard rule below
-# then covers the document and its payload alike.
-[[redirects]]
-  from = "/games/obstacleboy"
-  to = "/games/obstacleboy/"
-  status = 301
-  force = true
-
-# Matches the trailing-slash document with an empty splat, and every asset under
-# it. force = true because the Next.js catch-all route ([[...slug]].tsx) would
+# One rule covers both /games/obstacleboy and /games/obstacleboy/, because Netlify
+# ignores trailing slashes when matching - the bare path hits this rule with an
+# empty splat. That same normalisation is why there is no "redirect the bare path
+# to the trailing-slash form" rule here: such a rule matches the slashed form too
+# and redirects it to itself, which is an infinite loop rather than a tidy-up.
+#
+# Unity references its payload relatively ("Build/...", "StreamingAssets/..."), so
+# on the bare path a browser would resolve those against /games/. That is fixed in
+# the game's own index.html, which pins a <base> when it is served from a path with
+# no trailing slash - the only place with enough information to do it.
+#
+# force = true because the Next.js catch-all route ([[...slug]].tsx) would
 # otherwise be a candidate for these paths.
 [[redirects]]
   from = "/games/obstacleboy/*"
