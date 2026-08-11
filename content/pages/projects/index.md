@@ -252,6 +252,24 @@ sections:
         styles:
           self:
             textAlign: left
+      - type: FeaturedItem
+        title: ObstacleBoy
+        subtitle: Unity · WebGL · Kids Game
+        text: |-
+          Unity auto-runner for kids — duck, jump and lean past gates across five
+          levels and three difficulty modes. One-thumb touch controls, and every
+          sound in it is synthesised in C# at runtime rather than loaded.
+
+          _Best played in landscape._
+        actions:
+          - type: Link
+            label: Play ObstacleBoy
+            url: /games/obstacleboy/
+            target: _blank
+            rel: noopener noreferrer
+        styles:
+          self:
+            textAlign: left
     actions:
       - type: Link
         label: View all Tech Projects
