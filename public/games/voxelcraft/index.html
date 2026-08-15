@@ -129,7 +129,8 @@
 
   /* ---------- Kid mode: minimap ---------- */
   #minimap {
-    position:fixed; top:14px; right:14px; width:180px; height:180px;
+    position:fixed; top:var(--map-top); right:var(--map-top);
+    width:var(--map-size); height:var(--map-size);
     border-radius:50%; display:none; pointer-events:none;
     background:rgba(10,12,18,.55);
     border:3px solid rgba(255,255,255,.28);
@@ -164,7 +165,7 @@
   /* ---------- Kid mode: star row (crystal progress, no numbers) ---------- */
   #starRow {
     position:fixed; left:50%; transform:translateX(-50%);
-    bottom: calc(112px + env(safe-area-inset-bottom, 0px));
+    bottom: calc(112px + var(--safe-bottom));
     display:none; gap:10px; pointer-events:none; z-index:4;
   }
   body.kid #starRow { display:flex; }
@@ -179,7 +180,7 @@
   @keyframes starpop { 0%{transform:scale(1.12)} 40%{transform:scale(1.5)} 100%{transform:scale(1.12)} }
   /* portrait touch: the hotbar is lifted, so lift the stars clear of it too */
   @media (orientation: portrait) {
-    body.touch #starRow { bottom: calc(252px + env(safe-area-inset-bottom, 0px)); }
+    body.touch #starRow { bottom: calc(252px + var(--safe-bottom)); }
   }
 
   /* ---------- Kid mode: larger, calmer UI ---------- */
@@ -212,17 +213,52 @@
      device reports touch capability. Desktop never matches, so the desktop
      layout is byte-for-byte the same as before.
      ========================================================================== */
+  /* ---- Named sizes. Retune the touch layout from here; every rule below and
+         the hotbar clearance are derived from these. ---- */
+  :root {
+    /* Safe-area insets funnel through these four so every control reads one
+       source, and so the layout can be exercised with simulated notch/home-bar
+       values by overriding them. On a device they are exactly env(). */
+    --safe-top:    env(safe-area-inset-top, 0px);
+    --safe-right:  env(safe-area-inset-right, 0px);
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+    --safe-left:   env(safe-area-inset-left, 0px);
+
+    --stick-size:   96px;   /* thumbstick base diameter (was 120) */
+    --stick-knob:   40px;
+    --stick-left:   24px;
+    --stick-bottom: 24px;
+    --tbtn-size:    52px;   /* jump / break / place / fly (was 64) */
+    --tbtn-gap:      6px;
+    --tbtn-right:   20px;
+    --tbtn-bottom:  12px;
+    --pause-size:   48px;   /* unchanged */
+    --map-size:    180px;   /* minimap edge */
+    --map-top:      14px;
+    --map-gap:      12px;   /* clearance between minimap and the button column */
+    /* four buttons plus the three gaps between them */
+    --tbtn-cluster: calc(4 * var(--tbtn-size) + 3 * var(--tbtn-gap));
+  }
+  /* A 180px map eats nearly half the height of a landscape phone, and the
+     button column has to fit underneath it. Touch gets a smaller one.
+     Landscape is tighter still: 14 + map + gap + cluster + bottom + home-bar
+     has to clear 390px, which a 120px map cannot do. */
+  body.touch { --map-size: 120px; }
+  @media (orientation: landscape) {
+    body.touch { --map-size: 96px; }
+  }
+
   #touchUI { position:fixed; inset:0; display:none; pointer-events:none; z-index:5; }
   body.touch #touchUI { display:block; }
   /* keep the overlays above the touch layer */
   #menu, #loading { z-index:20; }
 
-  /* ---------- Left thumbstick ---------- */
+  /* ---------- Left thumbstick (bottom-left) ---------- */
   #stickBase {
     position:absolute;
-    left:   calc(24px + env(safe-area-inset-left, 0px));
-    bottom: calc(24px + env(safe-area-inset-bottom, 0px));
-    width:120px; height:120px; border-radius:50%;
+    left:   calc(var(--stick-left) + var(--safe-left));
+    bottom: calc(var(--stick-bottom) + var(--safe-bottom));
+    width:var(--stick-size); height:var(--stick-size); border-radius:50%;
     background:rgba(12,12,16,.38);
     border:3px solid rgba(255,255,255,.30);
     box-shadow: inset 0 0 0 2px rgba(0,0,0,.45);
@@ -232,22 +268,28 @@
   #stickBase.on { opacity:1; }
   #stickKnob {
     position:absolute; left:50%; top:50%;
-    width:52px; height:52px; margin:-26px 0 0 -26px; border-radius:50%;
+    width:var(--stick-knob); height:var(--stick-knob);
+    margin: calc(var(--stick-knob) / -2) 0 0 calc(var(--stick-knob) / -2);
+    border-radius:50%;
     background:rgba(255,255,255,.55);
     border:3px solid rgba(0,0,0,.45);
     will-change:transform;
   }
 
-  /* ---------- Right-hand button stack ---------- */
+  /* ---------- Right-hand button column (bottom-right, below the minimap) ----
+     `top` pins the column's box to just under the minimap and the buttons are
+     bottom-aligned inside it, so the cluster can never ride up into the map in
+     either orientation. */
   #touchBtns {
     position:absolute;
-    right:  calc(20px + env(safe-area-inset-right, 0px));
-    bottom: calc(20px + env(safe-area-inset-bottom, 0px));
-    display:flex; flex-direction:column; gap:8px;
+    right:  calc(var(--tbtn-right) + var(--safe-right));
+    bottom: calc(var(--tbtn-bottom) + var(--safe-bottom));
+    top:    calc(var(--map-top) + var(--map-size) + var(--map-gap) + var(--safe-top));
+    display:flex; flex-direction:column; justify-content:flex-end; gap:var(--tbtn-gap);
     pointer-events:none;
   }
   .tBtn {
-    position:relative; width:64px; height:64px; padding:0;
+    position:relative; width:var(--tbtn-size); height:var(--tbtn-size); padding:0;
     background:rgba(12,12,16,.55);
     border:3px solid #3a3a44;
     box-shadow: inset 0 0 0 2px rgba(0,0,0,.55);
@@ -256,7 +298,7 @@
     transition: transform .09s ease-out, border-color .09s ease-out;
   }
   .tBtn .tico {
-    position:absolute; inset:9px; background-size:100% 100%; image-rendering:pixelated;
+    position:absolute; inset:7px; background-size:100% 100%; image-rendering:pixelated;
     filter: drop-shadow(0 2px 0 rgba(0,0,0,.45));
   }
   .tBtn.down { transform:scale(.92); border-color:#f2f2f2; }
@@ -265,14 +307,19 @@
   /* ---------- Pause (touch only: desktop pauses with ESC) ---------- */
   #btnPause {
     position:absolute;
-    left: calc(12px + env(safe-area-inset-left, 0px));
-    top:  calc(12px + env(safe-area-inset-top, 0px));
-    width:48px; height:48px;
+    left: calc(12px + var(--safe-left));
+    top:  calc(12px + var(--safe-top));
+    width:var(--pause-size); height:var(--pause-size);
   }
   /* the HUD lives in the same corner, so step it below the button */
   body.touch #hud {
-    top:  calc(12px + env(safe-area-inset-top, 0px) + 58px);
-    left: calc(12px + env(safe-area-inset-left, 0px));
+    top:  calc(12px + var(--pause-size) + 10px + var(--safe-top));
+    left: calc(12px + var(--safe-left));
+  }
+  /* the minimap keeps clear of the notch too */
+  body.touch #minimap {
+    top:   calc(var(--map-top) + var(--safe-top));
+    right: calc(var(--map-top) + var(--safe-right));
   }
 
   /* ---------- Hotbar: finger-sized and clear of the controls ---------- */
@@ -280,16 +327,111 @@
   body.touch #hotbar {
     flex-wrap:wrap; justify-content:center; max-width:calc(100vw - 24px);
   }
-  body.touch #hotbarWrap { padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px)); }
-  /* portrait cannot fit the bar between the stick and the buttons: lift it */
+  body.touch #hotbarWrap { padding-bottom: calc(16px + var(--safe-bottom)); }
+  /* portrait cannot fit the bar between the stick and the buttons, so lift it
+     clear of the whole button column rather than a hardcoded amount */
   @media (orientation: portrait) {
-    body.touch #hotbarWrap { padding-bottom: calc(156px + env(safe-area-inset-bottom, 0px)); }
+    body.touch #hotbarWrap {
+      padding-bottom: calc(var(--tbtn-bottom) + var(--tbtn-cluster) + 20px +
+                           var(--safe-bottom));
+    }
   }
 
   /* ---------- Menu: swap the key list for touch instructions ---------- */
   .touchOnly { display:none; }
   body.touch .touchOnly { display:grid; }
   body.touch .deskOnly  { display:none; }
+
+  /* ============================================================================
+     ROCKET TRAVEL — planet select + launch fade
+     ==========================================================================
+     Both sit ABOVE #menu and #loading (z-index 20). The select is a dialog the
+     player has to answer; the fade is the curtain the world changes behind. */
+  #planetSelect {
+    position:fixed; inset:0; z-index:30; display:none;
+    align-items:center; justify-content:center; padding:16px;
+    background:rgba(6,10,22,.72);
+    backdrop-filter:blur(5px); -webkit-backdrop-filter:blur(5px);
+  }
+  body.picking #planetSelect { display:flex; }
+  /* the thumbstick would sit under the buttons and steal the tap */
+  body.picking #touchUI { display:none; }
+
+  #planetPanel {
+    background:rgba(9,10,16,.9);
+    border:4px solid #2b2f3a;
+    box-shadow:0 0 0 4px rgba(0,0,0,.6), 0 18px 60px rgba(0,0,0,.75);
+    padding:26px 28px 22px; text-align:center; max-width:760px; width:100%;
+  }
+  #planetPanel h2 { font-size:22px; color:#fff; margin-bottom:8px; text-shadow:3px 3px 0 #000; }
+  #planetPanel .subtitle { margin-bottom:24px; }
+
+  #planetBtns { display:flex; gap:18px; justify-content:center; flex-wrap:wrap; }
+
+  /* Deliberately large: the tap target is the whole tile, not the label. */
+  .planetBtn {
+    -webkit-appearance:none; appearance:none;
+    font-family:inherit; cursor:pointer; touch-action:manipulation;
+    background:rgba(20,24,36,.92); color:#fff;
+    border:4px solid #3a4152; border-radius:14px;
+    padding:16px 14px 14px; width:172px;
+    display:flex; flex-direction:column; align-items:center; gap:10px;
+    transition:transform .12s ease-out, border-color .12s ease-out;
+  }
+  .planetBtn:hover, .planetBtn:focus-visible {
+    border-color:#6ee7b7; transform:translateY(-4px); outline:none;
+  }
+  .planetBtn:active { transform:translateY(0) scale(.97); }
+  .planetBtn .pIco {
+    width:104px; height:104px; image-rendering:pixelated;
+    background-size:contain; background-repeat:no-repeat; background-position:center;
+    pointer-events:none;
+  }
+  .planetBtn .pName {
+    font-size:11px; letter-spacing:.5px; text-shadow:2px 2px 0 #000; pointer-events:none;
+  }
+  .planetBtn.here { border-color:#6ee7b7; }
+
+  #planetHint { margin-top:20px; font-size:8px; color:#93a4bd; }
+
+  /* Launch curtain — above everything, including the loading screen, so a slow
+     planet load is one continuous fade rather than a flash of progress bar. */
+  #fade {
+    position:fixed; inset:0; z-index:40; background:#000;
+    opacity:0; pointer-events:none;
+    transition:opacity .7s ease-in-out;
+    display:flex; align-items:center; justify-content:center;
+  }
+  #fade.on { opacity:1; pointer-events:auto; }
+  /* used at the two hard cuts into and out of the launch clip, where a
+     cross-fade would show the world and the starfield at the same time */
+  #fade.snap { transition:none; }
+
+  /* The launch clip owns the whole screen. Without this the HUD, hotbar,
+     minimap and objective card keep drawing over the starfield, which reads as
+     a rendering glitch rather than a cutscene. */
+  body.clip #hud,
+  body.clip #hotbarWrap,
+  body.clip #minimap,
+  body.clip #objCard,
+  body.clip #starRow,
+  body.clip #crosshair,
+  body.clip #vignette,
+  body.clip #touchUI { display:none !important; }
+  #fadeTxt {
+    font-size:22px; color:#fff; text-shadow:3px 3px 0 #000; letter-spacing:1px;
+    opacity:0; transition:opacity .3s ease-out .25s;
+  }
+  #fade.on #fadeTxt { opacity:1; }
+
+  @media (max-width:640px) {
+    #planetPanel { padding:18px 16px 16px; }
+    #planetPanel h2 { font-size:16px; }
+    #planetBtns { gap:10px; }
+    .planetBtn { width:104px; padding:10px 8px 8px; gap:6px; }
+    .planetBtn .pIco { width:72px; height:72px; }
+    .planetBtn .pName { font-size:8px; }
+  }
 </style>
 </head>
 
@@ -380,6 +522,19 @@
   </div>
 </div>
 
+<!-- ===================== Rocket: planet select ===================== -->
+<div id="planetSelect" role="dialog" aria-modal="true" aria-label="Choose a planet">
+  <div id="planetPanel">
+    <h2>CHOOSE A PLANET</h2>
+    <p class="subtitle">PICK A WORLD TO BLAST OFF TO</p>
+    <div id="planetBtns"></div>
+    <div id="planetHint">ESC OR TAP OUTSIDE — STAY HERE</div>
+  </div>
+</div>
+
+<!-- ===================== Launch curtain ===================== -->
+<div id="fade"><div id="fadeTxt">BLAST OFF!</div></div>
+
 <!-- ===================== Loading screen ===================== -->
 <div id="loading">
   <div class="loadBox">
@@ -458,8 +613,28 @@ const SEED          = 20260725;  // default seed for a brand-new world
 
 /* Persistence */
 const SAVE_KEY      = 'voxelcraft-save-v1';
-const SAVE_VERSION  = 3;   // 2 adds kid-mode guidance, 3 adds the discovery loop
+/* 2 adds kid-mode guidance, 3 adds the discovery loop, 4 splits the single
+   world into `planets` and lifts gems/stars/settings out as global. */
+const SAVE_VERSION  = 4;
 const SAVE_INTERVAL = 10000;     // ms; also acts as the autosave debounce window
+
+/* ---------------------------------------------------------------------------
+ * ROCKET TRAVEL — the landmark that moves the player between planets.
+ * Declared up here because OBJECTIVES (evaluated at module load) uses the
+ * trigger radius, and because none of it may ever be read by the physics code.
+ * ------------------------------------------------------------------------- */
+const ROCKET_TRIGGER = 4.5;    // blocks: walking this close opens the select
+const ROCKET_RELEASE = 6.0;    // blocks: walk this far off to re-arm the trigger
+/* Offset from the landing site. Far enough that a fresh spawn (8.5 blocks away)
+   starts OUTSIDE the release radius, so the rocket is armed and usable on the
+   first step; close enough to be the obvious landmark you spawn looking at. */
+const ROCKET_DX = 6, ROCKET_DZ = 6;
+const ROCKET_GUIDE_RANGE = 24; // kid arrow points at the rocket within this of spawn
+const FADE_MS = 750;           // matches the #fade CSS transition
+const ARRIVAL_MAX_MS = 20000;  // curtain never sticks, even if a planet stalls
+
+/* The clip and activity budgets live with the other pooled caps below, because
+   they are sized by half() and that is not defined until the block IDs are. */
 
 /* ---------------------------------------------------------------------------
  * KID MODE — a gentler ruleset for very young players.
@@ -490,9 +665,13 @@ const KID = {
 };
 const tune = () => kidMode ? KID : ADULT;
 
-/* Thumbstick geometry / feel. Radius is the knob's travel limit in CSS px:
-   #stickBase is 120px across, so 46px keeps the knob inside the ring. */
+/* Thumbstick feel. TOUCH_STICK_RADIUS is the INPUT scale: how far the thumb
+   travels, in CSS px, for full deflection. It is deliberately independent of
+   the drawn size, so shrinking the base does not change how the stick reads.
+   STICK_KNOB_TRAVEL is purely cosmetic — how far the knob slides inside the
+   ring — and is (base - knob) / 2 so the knob stops flush with the rim. */
 const TOUCH_STICK_RADIUS    = 46;
+const STICK_KNOB_TRAVEL     = 28;   // (96 - 40) / 2
 const STICK_DEADZONE        = 0.15;   // fraction of radius ignored at rest
 const TOUCH_SPRINT_AT       = 0.85;   // deflection that triggers the sprint FOV
 
@@ -518,15 +697,46 @@ const CAP_FIREFLIES   = half(60);
 const CAP_DUST        = half(12);
 const CAP_BUTTERFLIES = half(24);
 const CAP_CRITTERS    = half(6);
+const CAP_SHAFTS      = half(20);   // treasure beacons above uncollected clusters
 const CAP_PARTICLES   = half(180);  // global pool shared by every burst
+
+/* ---------------------------------------------------------------------------
+ * LAUNCH CUTSCENE — the short, non-interactive space flight between worlds.
+ * Cheap by construction: ONE Points cloud, ONE sphere and the rocket mesh that
+ * already exists. No new textures, no new models. The clip and the world are
+ * never on screen at the same time, so the starfield never competes with the
+ * discovery pools for the frame — but it is halved on touch by the same rule
+ * and reported through the same budget readout.
+ * ------------------------------------------------------------------------- */
+const CLIP_MS       = 3600;         // full clip
+const SHORT_CLIP_MS = 2000;         // low-perf / touch fallback
+const STAR_COUNT       = half(360); // points in the starfield
+const STAR_COUNT_SHORT = half(140); // ...and in the fallback clip
+const LOW_FPS = 30;                 // measured FPS below this picks the short clip
+
+/* ---------------------------------------------------------------------------
+ * PER-PLANET ACTIVITIES — the signature thing each world asks you to do.
+ * ------------------------------------------------------------------------- */
+const SURFACE_GEM_COUNT  = half(18);  // redrock "gemhunt": gems lying in the open
+const SURFACE_GEM_SPREAD = 34;        // blocks from the landing site
+const TEMPLATE_CAP       = half(16);  // ghost cells drawn for a build template
+const TEMPLATE_CHECK_MS  = 250;       // how often a template re-tests its cells
 
 /* Distance culls, in blocks. Nothing ambient is considered beyond these. */
 const CULL_CRYSTAL = 46;
 const CULL_AMBIENT = 34;
 
 const CAVE_Y          = 20;   // below this the cave glow floor applies
-const CRYSTAL_MAX_Y   = 18;   // crystals only generate below this
+const CRYSTAL_MAX_Y   = 18;   // ceiling for the DEEP clusters
+/* A five-year-old should not have to dig 18 blocks to meet the first gem, so a
+   fraction of clusters look for a home in the shallow caves between CAVE_Y and
+   the surface instead. The deep ones are unchanged. */
+const CRYSTAL_SHALLOW_Y = 34;   // ceiling for the SHALLOW clusters
+const CRYSTAL_SHALLOW_FRACTION = 0.45;
 const CRYSTAL_PICKUP  = 1.5;  // auto-collect radius, blocks
+const CRYSTAL_GUIDE_RANGE = 72;  // how far the arrow will hunt for a gem
+const CRYSTAL_GLOW    = 1.7;  // emissive multiplier: additive, so >1 is brighter
+const DIG_GUIDE_MS    = 25000;   // guidance persists this long after digging down
 const STARS_IN_ROW    = 5;    // HUD stars; a full row triggers the celebration
 const CRYSTALS_PER_STAR = 3;
 const EVENT_MIN_MS    = 90000;
@@ -862,9 +1072,118 @@ const KID_HOTBAR = [GRASS, DIRT, STONE, WOOD, LEAVES, SAND, BRICK, TORCH];
 /** The hotbar in force right now. Every read goes through this. */
 const hotbar = () => (kidMode ? KID_HOTBAR : HOTBAR);
 
+/* ============================================================================
+ * 3b. PLANET REGISTRY
+ * ==========================================================================
+ * A planet is the SAME engine with a different seed, a different block palette
+ * and a different sky. Physics is identical everywhere by construction: no
+ * field below is read by stepPhysics, the collider, GRAVITY or JUMP_SPEED.
+ *
+ * The palette is a REMAP plus a REPAINT rather than a new set of block types:
+ *   remap    terrain role (GRASS/DIRT/STONE/SAND) -> the block whose TEXTURE is
+ *            used for it here. Only the surface role moves, so stone stays
+ *            STONE and the crystal placement rules keep working untouched.
+ *   repaint  block id -> the colour its texture is redrawn in, keeping the
+ *            texture's own light/dark grain.
+ * Repaint rather than a material colour multiplier: multiplying can only ever
+ * darken, so it can turn sand into red rock but could never turn sand into
+ * snow. Redrawing the 16x16 source faces costs ~6k pixel writes per planet
+ * load — once, not per frame — and still means no extra block types, no extra
+ * draw calls, and saves that hold ordinary block ids valid on every planet.
+ *
+ * `seed` here is the FIXED seed for a first visit; a save's own per-planet seed
+ * wins over it, so an existing world is never regenerated underneath a player.
+ * ========================================================================== */
+const PLANETS = {
+  home: {
+    id: 'home',
+    displayName: 'HOME',
+    seed: SEED,
+    remap: null,                 // identity — the original world, pixel for pixel
+    repaint: null,               // textures drawn exactly as buildMaterials made them
+    sky: { day: 0x88ccf5, night: 0x050813, dusk: 0xf07a3c },
+    ambientTint: 0xffffff,
+    fogTint: 0xffffff,
+    crystalDensity: 1,
+    crystalHues: null,           // default blue / purple / green
+    activity: 'build',           // freeform dig/build — the original game
+    icon: { ground: '#4caf50', accent: '#e2d09a' },
+  },
+  redrock: {
+    id: 'redrock',
+    displayName: 'RED ROCK',
+    seed: 70402117,
+    remap: { [GRASS]: SAND, [DIRT]: DIRT, [STONE]: STONE, [SAND]: SAND },
+    repaint: {
+      [GRASS]: 0xc75a2e, [SAND]: 0xc75a2e, [DIRT]: 0x8e4020,
+      [STONE]: 0xa25c3c, [LEAVES]: 0xc2702f, [WOOD]: 0x8a5c3a,
+    },
+    sky: { day: 0xf2a6bf, night: 0x1a0a14, dusk: 0xff8a5c },
+    ambientTint: 0xffd8c8,
+    fogTint: 0xffc9b4,
+    crystalDensity: 1.6,         // gems are the reason to come here
+    crystalHues: [[1.00, 0.62, 0.38], [1.00, 0.45, 0.55], [1.00, 0.82, 0.42]],
+    /* Gems lie in the OPEN here: no digging, just running around picking them
+       up. Cave crystals are switched off so the surface hunt is the activity
+       rather than competing with it. */
+    activity: 'gemhunt',
+    icon: { ground: '#c2542b', accent: '#8f3d21' },
+  },
+  ice: {
+    id: 'ice',
+    displayName: 'ICE WORLD',
+    seed: 31885509,
+    remap: { [GRASS]: SAND, [DIRT]: DIRT, [STONE]: STONE, [SAND]: SAND },
+    repaint: {
+      [GRASS]: 0xf2f8ff, [SAND]: 0xf2f8ff, [DIRT]: 0xc9dff2,
+      [STONE]: 0xa6c8e6, [LEAVES]: 0xe2f1ff, [WOOD]: 0x94a9be,
+    },
+    sky: { day: 0xbfe4ff, night: 0x0a1424, dusk: 0x9fc9f0 },
+    ambientTint: 0xe8f4ff,
+    fogTint: 0xdcefff,
+    crystalDensity: 1.15,
+    /* near-white blues, so a gem here reads as a DIAMOND rather than a jewel */
+    crystalHues: [[0.72, 0.90, 1.00], [0.88, 0.97, 1.00], [0.58, 0.82, 1.00]],
+    /* Build a snowman into a ghost outline and it comes alive. */
+    activity: 'buildtolife',
+    template: 'snowman',
+    icon: { ground: '#eef7ff', accent: '#a9cce8' },
+  },
+};
+
+/* ---------------------------------------------------------------------------
+ * BUILD TEMPLATES — the "buildtolife" activity's data.
+ * `cells` are offsets from the template's base cell, which sits on the ground.
+ * Add an entry here and a planet can use it; nothing else needs to change.
+ * ------------------------------------------------------------------------- */
+const TEMPLATES = {
+  snowman: {
+    label: 'BUILD THE SNOWMAN',
+    speech: 'Hi!',
+    /* body, body, body, head, and two stubby arms — six blocks, reachable by a
+       five-year-old without scaffolding */
+    cells: [
+      [0, 0, 0], [0, 1, 0], [0, 2, 0],
+      [0, 3, 0],
+      [-1, 2, 0], [1, 2, 0],
+    ],
+    /* where the "alive" bob is centred, relative to the base cell */
+    heart: [0, 2, 0],
+  },
+};
+const PLANET_IDS     = Object.keys(PLANETS);
+const DEFAULT_PLANET = 'home';
+let   currentPlanet  = DEFAULT_PLANET;
+const planet = () => PLANETS[currentPlanet] || PLANETS[DEFAULT_PLANET];
+
 const materials  = {};   // id -> THREE.Material
 const iconURLs   = {};   // id -> data URL used by the hotbar
 const MAP_COLORS = {};   // id -> [r,g,b] averaged from the block's own top texture
+
+/* Per-block graphics kept alive after boot, so a planet load can recompose the
+   atlas from the ORIGINAL faces instead of repainting an already-repainted one
+   (which would compound the colour every time you travelled). */
+const blockGfx = {};   // id -> { atlas, actx, tex, src:{top,side,bottom} }
 
 function buildMaterials() {
   for (const idStr of Object.keys(BLOCK_DEFS)) {
@@ -876,12 +1195,11 @@ function buildMaterials() {
     const actx = atlas.getContext('2d');
     actx.imageSmoothingEnabled = false;
 
-    const topC = faceCanvas(def.top);
-    const sideC = faceCanvas(def.side);
-    const botC = faceCanvas(def.bottom);
-    actx.drawImage(topC, 0, 0);
-    actx.drawImage(sideC, 0, TEX);
-    actx.drawImage(botC, 0, TEX * 2);
+    const src = {
+      top: faceCanvas(def.top),
+      side: faceCanvas(def.side),
+      bottom: faceCanvas(def.bottom),
+    };
 
     const tex = new THREE.CanvasTexture(atlas);
     tex.magFilter = THREE.NearestFilter;
@@ -900,26 +1218,92 @@ function buildMaterials() {
       emissiveIntensity: def.emissiveIntensity !== undefined ? def.emissiveIntensity : 1,
     });
 
-    /* average the top face -> the colour this block shows on the minimap.
-       Uses the very same atlas pixels the world is textured with. */
+    blockGfx[id] = { atlas, actx, tex, src };
+  }
+  repaintBlocks();      // composes the atlases, minimap colours and icons
+}
+
+/**
+ * Redraws one 16x16 face into the atlas at row `dy`.
+ * With no target it is a straight copy. With one, every pixel is re-emitted in
+ * the target colour scaled by its own luminance, so the texture's grain, noise
+ * and speckles survive but the hue is replaced — the step that lets snow be
+ * brighter than the sand it is drawn from. Alpha is never touched, so the leaf
+ * cut-outs stay cut out.
+ */
+function paintFace(actx, srcCanvas, dy, target) {
+  if (target === undefined || target === null) {
+    actx.clearRect(0, dy, TEX, TEX);
+    actx.drawImage(srcCanvas, 0, dy);
+    return;
+  }
+  const img = srcCanvas.getContext('2d').getImageData(0, 0, TEX, TEX);
+  const d = img.data;
+  const tr = (target >> 16) & 255, tg = (target >> 8) & 255, tb = target & 255;
+  for (let i = 0; i < d.length; i += 4) {
+    if (d[i + 3] === 0) continue;
+    const lum = (d[i] * 0.299 + d[i + 1] * 0.587 + d[i + 2] * 0.114) / 255;
+    const k = 0.45 + 0.78 * lum;          // keeps contrast, allows lightening
+    d[i]     = clamp255(tr * k);
+    d[i + 1] = clamp255(tg * k);
+    d[i + 2] = clamp255(tb * k);
+  }
+  actx.putImageData(img, 0, dy);
+}
+
+/**
+ * Recomposes every block's atlas, minimap colour and hotbar icon in the
+ * current planet's palette. Runs once per planet load, never per frame.
+ * Deliberately DOM-free so buildMaterials() can call it during scene setup,
+ * long before the UI element table exists.
+ */
+function repaintBlocks() {
+  const rp = planet().repaint;
+  for (const idStr of Object.keys(blockGfx)) {
+    const id = +idStr;
+    const g = blockGfx[id];
+    const target = rp ? rp[id] : null;
+
+    paintFace(g.actx, g.src.top,    0,       target);
+    paintFace(g.actx, g.src.side,   TEX,     target);
+    paintFace(g.actx, g.src.bottom, TEX * 2, target);
+    g.tex.needsUpdate = true;
+
+    /* average the COMPOSED top face -> the colour this block shows on the
+       minimap. Uses the very same pixels the world is textured with, so the
+       map recolours with the planet for free. */
     {
-      const px = topC.getContext('2d').getImageData(0, 0, TEX, TEX).data;
-      let r = 0, g = 0, b = 0, n = 0;
+      const px = g.actx.getImageData(0, 0, TEX, TEX).data;
+      let r = 0, gg = 0, b = 0, n = 0;
       for (let i = 0; i < px.length; i += 4) {
         if (px[i + 3] < 128) continue;              // skip leaf cut-outs
-        r += px[i]; g += px[i + 1]; b += px[i + 2]; n++;
+        r += px[i]; gg += px[i + 1]; b += px[i + 2]; n++;
       }
-      MAP_COLORS[id] = n ? [(r / n) | 0, (g / n) | 0, (b / n) | 0] : [140, 140, 140];
+      MAP_COLORS[id] = n ? [(r / n) | 0, (gg / n) | 0, (b / n) | 0] : [140, 140, 140];
     }
 
-    /* hotbar icon: the side face, upscaled with nearest-neighbour */
+    /* hotbar icon: the composed side face, upscaled with nearest-neighbour */
     const icon = document.createElement('canvas');
     icon.width = icon.height = 64;
     const ictx = icon.getContext('2d');
     ictx.imageSmoothingEnabled = false;
-    ictx.drawImage(sideC, 0, 0, TEX, TEX, 0, 0, 64, 64);
+    ictx.drawImage(g.atlas, 0, TEX, TEX, TEX, 0, 0, 64, 64);
     iconURLs[id] = icon.toDataURL();
   }
+}
+
+/**
+ * Applies the current planet's palette: block textures, minimap colours,
+ * hotbar icons and crystal hues. Called once per planet load, never per frame.
+ * A planet with no `repaint` recomposes every atlas straight from its source
+ * faces, which is exactly the state buildMaterials() left them in — so Home
+ * always looks untouched no matter where you have been.
+ */
+function applyPlanetPalette() {
+  repaintBlocks();
+  CRYSTAL_HUES = planet().crystalHues || CRYSTAL_HUES_DEFAULT;
+  /* icons changed underneath the hotbar, so redraw it */
+  if (el && el.hotbar) buildHotbar();
 }
 
 /**
@@ -993,11 +1377,17 @@ const idx3 = (x, y, z) => x + CS * (z + CS * y);
 
 function generateChunkData(cx, cz) {
   const data = new Uint8Array(CS * CS * WH);
+  /* Hoisted: the palette cannot change while a chunk is being built, and this
+     is the innermost loop in the whole engine. */
+  const rm = planet().remap;
 
   /* --- terrain column pass --- */
   for (let lz = 0; lz < CS; lz++) {
     for (let lx = 0; lx < CS; lx++) {
       const wx = cx * CS + lx, wz = cz * CS + lz;
+      /* columnInfo stays LOGICAL (Desert/Forest, GRASS/SAND) on every planet,
+         so biome objectives, tree placement and surfaceHeight are unaffected;
+         only the block finally written is remapped. */
       const col = columnInfo(wx, wz);
       for (let y = 0; y <= col.h; y++) {
         let t;
@@ -1006,7 +1396,7 @@ function generateChunkData(cx, cz) {
         else if (y >= col.h - 3) t = col.sub;
         else t = STONE;
         if (y > 1 && y < col.h && caveAt(wx, y, wz)) continue;   // carve caves
-        data[idx3(lx, y, lz)] = t;
+        data[idx3(lx, y, lz)] = (rm && rm[t] !== undefined) ? rm[t] : t;
       }
     }
   }
@@ -1157,7 +1547,12 @@ function deserializeOverrides(obj) {
     if (p.length !== 3) continue;
     const x = +p[0], y = +p[1], z = +p[2], type = obj[k] | 0;
     if (!Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(z)) continue;
-    if (y < 0 || y >= WH || type < 0 || type > BRICK) continue;
+    if (y < 0 || y >= WH) continue;
+    /* AIR is a legitimate edit (it is what breaking a block records); anything
+       else has to be a block the game actually defines. This bound used to stop
+       at BRICK, which silently dropped kid-mode TORCH edits on reload — the
+       glow came back but the torch block itself did not. */
+    if (type !== AIR && BLOCK_DEFS[type] === undefined) continue;
     const cx = Math.floor(x / CS), cz = Math.floor(z / CS);
     const ck = key(cx, cz);
     let edits = overrides.get(ck);
@@ -1168,33 +1563,151 @@ function deserializeOverrides(obj) {
   return n;
 }
 
-function buildSavePayload() {
+/* ---------------------------------------------------------------------------
+ * PER-PLANET WORLD STATE (v4)
+ * ---------------------------------------------------------------------------
+ * The split that defines the save format: anything belonging to a WORLD is
+ * per-planet, anything belonging to the PLAYER is global and rides along.
+ *
+ *   per-planet   seed, block edits, where you were standing, which gems you
+ *                already picked up there, torches you placed, that planet's
+ *                landing site and breadcrumb trail
+ *   global       gems, stars, objectives, kid mode, mute, hotbar slot, clock
+ *
+ * crystalsTaken/torches/homePos/breadcrumbs are per-planet on purpose: a gem id
+ * is derived from world coordinates, so a global set would mark Red Rock's gems
+ * as already-collected the moment the same coordinates were cleared at Home.
+ * ------------------------------------------------------------------------- */
+const planetState = Object.create(null);
+
+function emptyPlanetState(id) {
   return {
-    version: SAVE_VERSION,
-    seed: worldSeed,
-    overrides: serializeOverrides(),
-    player: {
+    seed: PLANETS[id].seed,
+    overrides: {},
+    playerTransform: null,      // null = never been here; preload picks a spawn
+    crystalsTaken: [],
+    torches: [],
+    homePos: null,
+    breadcrumbs: [],
+    visited: false,
+    /* whether this planet's activity has been finished, so returning to a
+       built snowman does not re-fire its celebration */
+    activityDone: false,
+  };
+}
+
+function ensurePlanetState(id) {
+  if (!planetState[id]) planetState[id] = emptyPlanetState(id);
+  return planetState[id];
+}
+
+/* True between "a planet started loading" and "preload chose its spawn". While
+   it is set, a snapshot must not record the player's stale position from the
+   planet they just left. */
+let spawnPending = false;
+
+/** Snapshots the live world back into planetState[currentPlanet]. */
+function capturePlanetState() {
+  const s = ensurePlanetState(currentPlanet);
+  s.seed = worldSeed;
+  s.overrides = serializeOverrides();
+  if (!spawnPending) {
+    s.playerTransform = {
       x: player.pos.x, y: player.pos.y, z: player.pos.z,
       yaw: controls.yaw, pitch: controls.pitch,
-    },
-    hotbarSlot: selected,
+    };
+    s.visited = true;
+  }
+  s.crystalsTaken = Array.from(crystalsTaken).slice(-800);
+  s.torches = torches.slice(-400).map(t => [+t.x.toFixed(2), +t.y.toFixed(2), +t.z.toFixed(2)]);
+  s.homePos = homePos ? { x: homePos.x, y: homePos.y, z: homePos.z } : null;
+  s.breadcrumbs = crumbs.slice(-CRUMB_MAX).map(c => [
+    +c.x.toFixed(2), +c.y.toFixed(2), +c.z.toFixed(2),
+  ]);
+  /* gemhunt needs no flag — which gems are gone is already in crystalsTaken */
+  s.activityDone = !!templateDone;
+  return s;
+}
+
+function buildSavePayload() {
+  capturePlanetState();                  // the live world is authoritative
+  const planets = {};
+  for (const id of PLANET_IDS) {
+    const s = ensurePlanetState(id);
+    planets[id] = {
+      seed: s.seed,
+      overrides: s.overrides,
+      playerTransform: s.playerTransform,
+      crystalsTaken: s.crystalsTaken,
+      torches: s.torches,
+      homePos: s.homePos,
+      breadcrumbs: s.breadcrumbs,
+      visited: !!s.visited,
+      activityDone: !!s.activityDone,
+    };
+  }
+  return {
+    version: SAVE_VERSION,
+    currentPlanet,
+    /* --- global: carried across every planet --- */
+    gems: crystalCredit,
+    stars: starsLit,
+    kidMode,
+    muted: speechMuted,
+    hotbar: selected,
     timeOfDay: dayTime,
-    kidMode: kidMode,
-    speechMuted: speechMuted,
     objectiveIndex: objIndex,
     objectiveProgress: objProgress.slice(),
     objectiveState: objState,
-    homePos: homePos ? { x: homePos.x, y: homePos.y, z: homePos.z } : null,
-    breadcrumbs: crumbs.slice(-CRUMB_MAX).map(c => [
-      +c.x.toFixed(2), +c.y.toFixed(2), +c.z.toFixed(2),
-    ]),
-    /* --- discovery loop (v3) --- */
-    crystalsTaken: Array.from(crystalsTaken).slice(-800),
-    crystalCredit,
-    starsLit,
-    torches: torches.slice(-400).map(t => [+t.x.toFixed(2), +t.y.toFixed(2), +t.z.toFixed(2)]),
     /* stored as time remaining, so a reloaded world does not fire instantly */
     eventInMs: Math.max(0, Math.round(eventDueAt - performance.now())),
+    planets,
+  };
+}
+
+/**
+ * v3 -> v4. The v3 save described ONE world; that world becomes planets.home
+ * with its seed, its block edits and its player transform intact, and the two
+ * new planets start empty. Gems, stars, objectives and settings were already
+ * global in v3 and simply move to the top level under their new names.
+ *
+ * Nothing is discarded: every v3 field lands somewhere in the v4 payload. A
+ * missing or malformed field becomes the same default a fresh world would get,
+ * which is what applySave() would have done with it anyway.
+ */
+function migrateV3(d) {
+  const planets = {};
+  for (const id of PLANET_IDS) planets[id] = emptyPlanetState(id);
+
+  planets[DEFAULT_PLANET] = {
+    seed: d.seed,
+    overrides: (d.overrides && typeof d.overrides === 'object') ? d.overrides : {},
+    playerTransform: (d.player && Number.isFinite(d.player.x))
+      ? { x: d.player.x, y: d.player.y, z: d.player.z,
+          yaw: d.player.yaw, pitch: d.player.pitch }
+      : null,
+    crystalsTaken: Array.isArray(d.crystalsTaken) ? d.crystalsTaken : [],
+    torches: Array.isArray(d.torches) ? d.torches : [],
+    homePos: (d.homePos && Number.isFinite(d.homePos.x)) ? d.homePos : null,
+    breadcrumbs: Array.isArray(d.breadcrumbs) ? d.breadcrumbs : [],
+    visited: true,
+  };
+
+  return {
+    version: 4,
+    currentPlanet: DEFAULT_PLANET,
+    gems: d.crystalCredit,
+    stars: d.starsLit,
+    kidMode: d.kidMode,
+    muted: d.speechMuted,
+    hotbar: d.hotbarSlot,
+    timeOfDay: d.timeOfDay,
+    objectiveIndex: d.objectiveIndex,
+    objectiveProgress: d.objectiveProgress,
+    objectiveState: d.objectiveState,
+    eventInMs: d.eventInMs,
+    planets,
+    migratedFrom: 3,
   };
 }
 
@@ -1261,39 +1774,54 @@ function readSave(expectedSeed) {
     discardSave('save data is not an object — discarding it.');
     return null;
   }
+
+  /* A v3 save is UPGRADED, never thrown away: the single world it describes
+     becomes planets.home with everything it held. */
+  if (data.version === 3) {
+    if (!Number.isFinite(data.seed)) {
+      discardSave('v3 save has no usable seed — discarding it.');
+      return null;
+    }
+    data = migrateV3(data);
+    console.info('[VoxelCraft] save migrated v3 -> v4: the existing world is now planets.home.');
+  }
+
   if (data.version !== SAVE_VERSION) {
     discardSave(`save version mismatch (found ${JSON.stringify(data.version)}, expected ${SAVE_VERSION}) — discarding it.`);
     return null;
   }
-  if (!Number.isFinite(data.seed)) {
-    discardSave('save has no usable seed — discarding it.');
+  if (!data.planets || typeof data.planets !== 'object') {
+    discardSave('save has no planets block — discarding it.');
     return null;
   }
-  if (Number.isFinite(expectedSeed) && data.seed !== expectedSeed) {
-    discardSave(`save seed ${data.seed} does not match requested seed ${expectedSeed} — discarding it.`);
+
+  /* An unknown planet id (a save from a build with a different registry) falls
+     back to Home rather than failing the whole save. */
+  const cur = PLANETS[data.currentPlanet] ? data.currentPlanet : DEFAULT_PLANET;
+  data.currentPlanet = cur;
+
+  const here = data.planets[cur];
+  if (!here || !Number.isFinite(here.seed)) {
+    discardSave(`save has no usable seed for planet "${cur}" — discarding it.`);
+    return null;
+  }
+  /* ?seed=N pins the planet you are actually standing on. */
+  if (Number.isFinite(expectedSeed) && here.seed !== expectedSeed) {
+    discardSave(`save seed ${here.seed} does not match requested seed ${expectedSeed} — discarding it.`);
     return null;
   }
   return data;
 }
 
-/** Applies a validated payload. Returns the number of restored block edits. */
+/**
+ * Applies a validated v4 payload: global player state first, then every
+ * planet's stored world, then whichever planet the player was last on is made
+ * live. Returns the number of restored block edits on that planet.
+ */
 function applySave(data) {
-  initNoise(data.seed);
-  const n = deserializeOverrides(data.overrides);
-
-  const p = data.player;
-  if (p && Number.isFinite(p.x) && Number.isFinite(p.y) && Number.isFinite(p.z)) {
-    player.pos.set(p.x, p.y, p.z);
-    player.vel.set(0, 0, 0);
-    if (Number.isFinite(p.yaw)) controls.yaw = p.yaw;
-    if (Number.isFinite(p.pitch)) controls.pitch = p.pitch;
-    restoredSpawn = true;
-  }
+  /* --- global: the player, not the world --- */
   if (Number.isFinite(data.timeOfDay)) dayTime = ((data.timeOfDay % 1) + 1) % 1;
-  if (Number.isInteger(data.hotbarSlot)) selectSlot(data.hotbarSlot);
-
-  /* --- kid-mode guidance state --- */
-  if (typeof data.speechMuted === 'boolean') speechMuted = data.speechMuted;
+  if (typeof data.muted === 'boolean') speechMuted = data.muted;
   if (Number.isInteger(data.objectiveIndex)) {
     objIndex = Math.max(0, Math.min(OBJECTIVES.length - 1, data.objectiveIndex));
   }
@@ -1304,38 +1832,90 @@ function applySave(data) {
     });
   }
   objState = data.objectiveState === 'freeplay' ? 'freeplay' : 'active';
-  if (data.homePos && Number.isFinite(data.homePos.x)) {
-    homePos = new THREE.Vector3(data.homePos.x, data.homePos.y, data.homePos.z);
+  if (Number.isFinite(data.gems)) {
+    crystalCredit = Math.max(0, Math.min(CRYSTALS_PER_STAR - 1, data.gems | 0));
   }
-  if (Array.isArray(data.breadcrumbs)) {
-    crumbs = data.breadcrumbs
-      .filter(c => Array.isArray(c) && c.length === 3 && c.every(Number.isFinite))
-      .slice(-CRUMB_MAX)
-      .map(c => ({ x: c[0], y: c[1], z: c[2] }));
-    refreshCrumbMesh();
-  }
-
-  /* --- discovery loop (v3). Every field is optional and validated: a save
-     written before these existed simply leaves the defaults in place. --- */
-  if (Array.isArray(data.crystalsTaken)) {
-    crystalsTaken = new Set(data.crystalsTaken.filter(s => typeof s === 'string').slice(-800));
-  }
-  if (Number.isFinite(data.crystalCredit)) {
-    crystalCredit = Math.max(0, Math.min(CRYSTALS_PER_STAR - 1, data.crystalCredit | 0));
-  }
-  if (Number.isFinite(data.starsLit)) {
-    starsLit = Math.max(0, Math.min(STARS_IN_ROW, data.starsLit | 0));
-  }
-  if (Array.isArray(data.torches)) {
-    torches = data.torches
-      .filter(t => Array.isArray(t) && t.length === 3 && t.every(Number.isFinite))
-      .slice(-400)
-      .map(t => ({ x: t[0], y: t[1], z: t[2] }));
+  if (Number.isFinite(data.stars)) {
+    starsLit = Math.max(0, Math.min(STARS_IN_ROW, data.stars | 0));
   }
   if (Number.isFinite(data.eventInMs)) {
     eventDueAt = performance.now() + Math.max(0, Math.min(EVENT_MAX_MS, data.eventInMs));
   }
+
+  /* --- per-planet worlds. Every field is optional and validated, so a planet
+     the save has never heard of simply keeps its empty defaults. --- */
+  for (const id of PLANET_IDS) {
+    const s = ensurePlanetState(id);
+    const d = data.planets[id];
+    if (!d || typeof d !== 'object') continue;
+    if (Number.isFinite(d.seed)) s.seed = d.seed >>> 0;
+    if (d.overrides && typeof d.overrides === 'object') s.overrides = d.overrides;
+    if (d.playerTransform && Number.isFinite(d.playerTransform.x)) {
+      s.playerTransform = d.playerTransform;
+    }
+    if (Array.isArray(d.crystalsTaken)) {
+      s.crystalsTaken = d.crystalsTaken.filter(v => typeof v === 'string').slice(-800);
+    }
+    if (Array.isArray(d.torches)) s.torches = d.torches;
+    if (d.homePos && Number.isFinite(d.homePos.x)) s.homePos = d.homePos;
+    if (Array.isArray(d.breadcrumbs)) s.breadcrumbs = d.breadcrumbs;
+    s.activityDone = !!d.activityDone;
+    s.visited = !!d.visited || !!s.playerTransform;
+  }
+
+  currentPlanet = PLANETS[data.currentPlanet] ? data.currentPlanet : DEFAULT_PLANET;
+  const n = activatePlanetState();
+
+  if (Number.isInteger(data.hotbar)) selectSlot(data.hotbar);
   renderStarRow();
+  return n;
+}
+
+/**
+ * Makes the stored state of `currentPlanet` the live world: its seed, palette
+ * and sky, its block edits, the player's transform on it and its own discovery
+ * state. Everything global (gems, stars, objectives) is deliberately untouched.
+ * Returns the number of restored block edits.
+ */
+function activatePlanetState() {
+  const s = ensurePlanetState(currentPlanet);
+
+  initNoise(s.seed);
+  applyPlanetPalette();
+  applyPlanetSky();
+
+  const n = deserializeOverrides(s.overrides);
+
+  const p = s.playerTransform;
+  if (p && Number.isFinite(p.x) && Number.isFinite(p.y) && Number.isFinite(p.z)) {
+    player.pos.set(p.x, p.y, p.z);
+    player.vel.set(0, 0, 0);
+    if (Number.isFinite(p.yaw)) controls.yaw = p.yaw;
+    if (Number.isFinite(p.pitch)) controls.pitch = p.pitch;
+    restoredSpawn = true;
+    spawnPending = false;
+  } else {
+    /* First visit: preload() places the player on the surface and only then is
+       a transform worth recording. */
+    restoredSpawn = false;
+    spawnPending = true;
+  }
+
+  crystalsTaken = new Set(s.crystalsTaken || []);
+  torches = (s.torches || [])
+    .filter(t => Array.isArray(t) && t.length === 3 && t.every(Number.isFinite))
+    .slice(-400)
+    .map(t => ({ x: t[0], y: t[1], z: t[2] }));
+  homePos = (s.homePos && Number.isFinite(s.homePos.x))
+    ? new THREE.Vector3(s.homePos.x, s.homePos.y, s.homePos.z)
+    : null;
+  crumbs = (s.breadcrumbs || [])
+    .filter(c => Array.isArray(c) && c.length === 3 && c.every(Number.isFinite))
+    .slice(-CRUMB_MAX)
+    .map(c => ({ x: c[0], y: c[1], z: c[2] }));
+  lastCrumb = null;
+  refreshCrumbMesh();
+
   return n;
 }
 
@@ -1860,7 +2440,17 @@ class PointerLockLook {
       return;
     }
     this.synthetic = false;
-    this.dom.requestPointerLock();
+    /* requestPointerLock can THROW synchronously (a detached or non-focusable
+       root document, some embedded/automation contexts) rather than firing
+       pointerlockerror. It is called from timers as well as clicks now — the
+       landing step of a launch — and an escaping throw there would abandon the
+       rest of the arrival, so the failure is swallowed and treated as "still
+       unlocked", which just leaves the pause menu up. */
+    try { this.dom.requestPointerLock(); }
+    catch (err) {
+      this.locked = false;
+      onLockChange(false);
+    }
   }
   /** Leave play. Mirrors lock(): releases whichever kind of lock is held. */
   unlock() {
@@ -1956,6 +2546,8 @@ function breakBlock() {
   if (targetBlock.y <= 0) return;                 // keep the world floor intact
   const was = getBlock(targetBlock.x, targetBlock.y, targetBlock.z);
   const { x, y, z } = targetBlock;
+  /* breaking below your own feet is the "I am digging down" signal */
+  if (kidMode && y < player.pos.y - 0.9) noteDigDown();
   setBlock(x, y, z, AIR);
   kidBlockEvent('break', x, y, z, was);
   swing = 1;
@@ -2008,6 +2600,11 @@ const el = {
   playBtn: document.getElementById('playBtn'),
   newWorldBtn: document.getElementById('newWorldBtn'),
   kidBtn: document.getElementById('kidBtn'),
+  /* --- rocket travel --- */
+  planetSelect: document.getElementById('planetSelect'),
+  planetBtns: document.getElementById('planetBtns'),
+  fade: document.getElementById('fade'),
+  fadeTxt: document.getElementById('fadeTxt'),
 };
 
 function buildHotbar() {
@@ -2109,7 +2706,12 @@ function readSpeechPref() {
 }
 
 function onLockChange(locked) {
-  el.menu.style.display = locked ? 'none' : 'flex';
+  /* The planet select and the launch curtain release the lock the same way the
+     pause menu does, so without these guards the pause menu would rise behind
+     them and the player would be looking at two overlays at once. */
+  const busy = (typeof planetSelectOpen !== 'undefined' && planetSelectOpen) ||
+               (typeof travelling !== 'undefined' && travelling);
+  el.menu.style.display = (locked || busy) ? 'none' : 'flex';
   if (!locked) for (const k in keys) keys[k] = false;
 }
 
@@ -2148,6 +2750,12 @@ const OBJECTIVES = [
     target: () => nearestCrystal() },
   { id: 'lightitup', icon: 'torch', label: 'LIGHT IT UP', kind: 'torch', need: 1,
     target: () => null },
+  /* --- rocket travel ---
+     Appended rather than inserted: objIndex is a saved integer, so slotting a
+     new objective into the middle would silently move every migrated v3 save
+     onto a different goal. */
+  { id: 'gorocket', icon: 'rocket', label: 'GO TO ROCKET', kind: 'reach', need: 1,
+    radius: ROCKET_TRIGGER, target: () => rocketPos },
 ];
 
 let objIndex     = 0;
@@ -2162,7 +2770,56 @@ let speechMuted  = false;
 let minimapOn    = true;
 let crumbsOn     = true;
 
-const activeObjective = () => (objState === 'freeplay' ? null : OBJECTIVES[objIndex] || null);
+/* ---------------------------------------------------------------------------
+ * ACTIVITY OBJECTIVES — owned by the PLANET, not by the linear chain.
+ * These are never entries in OBJECTIVES and never touch objIndex: while a
+ * planet's activity is unfinished it simply overrides what the card and the
+ * arrow are pointing at, and when it is done the linear chain reappears
+ * exactly where the player left it. That is what lets Home keep its original
+ * progression untouched while Red Rock and Ice each ask for their own thing.
+ * `progress`/`needFn` let them report a live count instead of using the shared
+ * objProgress array, which is indexed by the linear objIndex.
+ * ------------------------------------------------------------------------- */
+const ACTIVITY_OBJECTIVES = {
+  gemhunt: {
+    id: 'gemhunt', icon: 'crystal', label: 'COLLECT THE GEMS', kind: 'activity',
+    needFn: () => Math.max(1, surfaceGemTotal),
+    progress: () => surfaceGemsTaken,
+    target: () => nearestSurfaceGem(),
+  },
+  buildtolife: {
+    id: 'buildtolife', icon: 'tower', kind: 'activity',
+    get label() { return (templateDef && templateDef.label) || 'BUILD IT'; },
+    needFn: () => (templateDef ? templateDef.cells.length : 1),
+    progress: () => templateFilled.reduce((n, f) => n + (f ? 1 : 0), 0),
+    target: () => nearestTemplateCell(),
+  },
+};
+
+/** This planet's activity objective, or null once it is finished. */
+function activityObjective() {
+  const a = planet().activity;
+  if (a === 'gemhunt') {
+    return (surfaceGemTotal > 0 && surfaceGemsTaken < surfaceGemTotal)
+      ? ACTIVITY_OBJECTIVES.gemhunt : null;
+  }
+  if (a === 'buildtolife') {
+    return (templateDef && !templateDone) ? ACTIVITY_OBJECTIVES.buildtolife : null;
+  }
+  return null;   // 'build' — Home's freeform play, the original game
+}
+
+const activeObjective = () => {
+  const act = activityObjective();
+  if (act) return act;
+  return objState === 'freeplay' ? null : OBJECTIVES[objIndex] || null;
+};
+
+/* An objective's requirement and progress may be live values (activities) or
+   the shared per-index arrays (the linear chain). Every read goes through
+   these two so the card, the dots and the completion test always agree. */
+const objNeed = (o) => (o && o.needFn ? o.needFn() : (o ? o.need : 1));
+const objProg = (o) => (o && o.progress ? o.progress() : objProgress[objIndex]);
 
 /* ---------------------------------------------------------------------------
  * Canvas-drawn icons (same approach as the hotbar block icons)
@@ -2212,6 +2869,13 @@ function paintIcons() {
       P(c, 6, 4, 4, 4, '#ffb14a'); P(c, 7, 2, 2, 3, '#ffe07a');
       P(c, 5, 6, 1, 2, '#ff8a2a'); P(c, 10, 6, 1, 2, '#ff8a2a');
     },
+    rocket: (c) => {                                  // white rocket, red nose
+      P(c, 6, 0, 4, 3, '#e0483c');                              // nose cone
+      P(c, 6, 3, 4, 8, '#e6ecf7');                              // body
+      P(c, 7, 4, 2, 2, '#7fd4ff');                              // window
+      P(c, 4, 7, 2, 4, '#e0483c'); P(c, 10, 7, 2, 4, '#e0483c'); // fins
+      P(c, 6, 11, 4, 2, '#f5a623'); P(c, 7, 13, 2, 2, '#ffe07a'); // flame
+    },
   };
   for (const k of Object.keys(defs)) {
     const src = document.createElement('canvas');
@@ -2256,13 +2920,47 @@ function findNearest(what, maxR) {
 }
 
 /** Where guidance is currently pointing, or null for "no target".
- *  A live discovery event outranks the objective: the whole point of an event
- *  is that the arrow swings to it. The explicit H "go home" override still wins. */
+ *
+ *  Priority: the H "go home" override, then a live discovery event (the whole
+ *  point of an event is that the arrow swings to it), then the objective's own
+ *  target, and finally — underground or mid-dig in kid mode — the nearest
+ *  uncollected gem. That last one is a fallback, not a replacement: it only
+ *  fills the gap when nothing else is asking for the arrow, which is exactly
+ *  when a child is wandering a cave with no idea where to go.
+ */
 function guidanceTarget() {
   if (guideHome) return homePos;
   if (typeof activeEvent !== 'undefined' && activeEvent) return activeEvent.target;
   const o = activeObjective();
-  return o ? o.target() : null;
+  const ot = o ? o.target() : null;
+  if (ot) return ot;
+  if (typeof crystalGuidanceWanted === 'function' && crystalGuidanceWanted()) {
+    return nearestCrystal(CRYSTAL_GUIDE_RANGE);
+  }
+  /* Last resort: nothing else wants the arrow and the player is loitering near
+     the landing site, so point at the rocket. Sits BELOW the objective and the
+     gem hunt on purpose — it fills a gap, it never hijacks a live goal — and is
+     skipped for a "dig down" objective, which owns the arrow's tilt instead. */
+  if (kidMode && rocketPos && !(o && o.down) && nearLandingSite()) return rocketPos;
+  return null;
+}
+
+/** Is the player still hanging around this planet's landing site? */
+function nearLandingSite() {
+  if (!homePos) return false;
+  return Math.hypot(player.pos.x - homePos.x, player.pos.z - homePos.z) <= ROCKET_GUIDE_RANGE;
+}
+
+/** True when the arrow should tilt at the floor rather than point across it. */
+function arrowWantsDown(t) {
+  if (guideHome) return false;
+  if (typeof activeEvent !== 'undefined' && activeEvent) return false;
+  const o = activeObjective();
+  if (o && o.down && !(o.target && o.target())) return true;   // DIG DOWN
+  /* a gem below and roughly underfoot reads as "dig here", not "walk there" */
+  if (!t || !crystalGuidanceWanted()) return false;
+  const horiz = Math.hypot(t.x - player.pos.x, t.z - player.pos.z);
+  return (player.pos.y - t.y) > 2.5 && horiz < 7;
 }
 
 /* ---------------------------------------------------------------------------
@@ -2328,20 +3026,24 @@ const elObjLabel = document.getElementById('objLabel');
 const elObjDots  = document.getElementById('objDots');
 
 function renderObjectiveCard() {
-  if (objState === 'freeplay') {
+  /* activeObjective() already prefers this planet's activity, so ask it FIRST:
+     a player who has finished the linear chain is in 'freeplay', and showing
+     them FREE PLAY on a planet that is asking them to collect gems would hide
+     the only goal that world has. */
+  const o = activeObjective();
+  if (!o) {
     elObjIcon.style.backgroundImage = `url(${KID_ICONS.star})`;
     elObjLabel.textContent = 'FREE PLAY';
     elObjDots.innerHTML = '';
     return;
   }
-  const o = activeObjective();
-  if (!o) return;
   elObjIcon.style.backgroundImage = `url(${KID_ICONS[o.icon]})`;
   elObjLabel.textContent = o.label;
 
   /* dots only — never a number or a percentage */
-  const shown = Math.min(o.need, 10);
-  const filled = Math.round((Math.min(objProgress[objIndex], o.need) / o.need) * shown);
+  const need = Math.max(1, objNeed(o));
+  const shown = Math.min(need, 10);
+  const filled = Math.round((Math.min(objProg(o), need) / need) * shown);
   let html = '';
   for (let i = 0; i < shown; i++) html += `<i class="${i < filled ? 'on' : ''}"></i>`;
   elObjDots.innerHTML = html;
@@ -2352,7 +3054,7 @@ function announceObjective() {
   elObjCard.classList.remove('slide');
   void elObjCard.offsetWidth;          // restart the slide-in
   elObjCard.classList.add('slide');
-  speak(objState === 'freeplay' ? 'Free play' : (activeObjective() || {}).label || '');
+  speak((activeObjective() || {}).label || 'Free play');
 }
 
 function completeObjective() {
@@ -2411,10 +3113,16 @@ function updateObjectives(now) {
     if (now >= objAdvanceAt) advanceObjective();
     return;
   }
-  if (objState === 'freeplay') return;
-
   const o = activeObjective();
   if (!o) return;
+
+  /* An activity belongs to the planet, not to the linear chain: it completes
+     through its own hooks (a gem picked up, the last cell filled) and must
+     never advance objIndex. Checked before the freeplay gate so a player who
+     has finished the whole chain still gets the activity on a new planet. */
+  if (o.kind === 'activity') { renderObjectiveCard(); return; }
+
+  if (objState === 'freeplay') return;
 
   /* position-derived objectives are evaluated here rather than on an event */
   if (o.kind === 'reach') {
@@ -2432,7 +3140,7 @@ function updateObjectives(now) {
   }
   /* 'crystal' and 'torch' are event-driven (addCrystalCredit / kidBlockEvent) */
 
-  if (objProgress[objIndex] >= o.need) completeObjective();
+  if (objProgress[objIndex] >= objNeed(o)) completeObjective();
   else renderObjectiveCard();
 }
 
@@ -2442,6 +3150,8 @@ function updateObjectives(now) {
  * ------------------------------------------------------------------------- */
 const MAP_SIZE = 180;
 const MAP_R    = 64;                    // blocks sampled in each direction
+const MAP_GEM_RANGE = 60;               // gem markers considered within this
+const MAP_GEM_MAX   = 6;                // and at most this many drawn
 const mapCanvas = document.getElementById('minimap');
 const mapCtx    = mapCanvas ? mapCanvas.getContext('2d') : null;
 const mapSrc    = document.createElement('canvas');
@@ -2480,16 +3190,30 @@ function mapProject(p) {
   return { x: (dx * c - dz * s) * MAP_PPB, y: (dx * s + dz * c) * MAP_PPB };
 }
 
-function drawMapMarker(ctx, p, icon) {
+/** Where a marker lands on the map, clamped to the rim when it is off-map.
+ *  Shared by the renderer and by automation, so both agree on the clamp. */
+function mapMarkerAt(p) {
   const R = MAP_SIZE / 2 - 12;
   let { x, y } = mapProject(p);
   const dist = Math.hypot(x, y);
   const off = dist > R;
   if (off) { x = x / dist * R; y = y / dist * R; }
+  return { x, y, off, rim: R };
+}
+
+function drawMapMarker(ctx, p, icon) {
+  const { x, y, off } = mapMarkerAt(p);
 
   ctx.save();
   ctx.translate(x, y);
-  if (icon === 'home') {
+  if (icon === 'gem') {                        // small faceted gem, cave blue
+    ctx.fillStyle = '#9ad7ff';
+    ctx.strokeStyle = 'rgba(0,0,0,.55)';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(0, -6); ctx.lineTo(4.5, -1.5); ctx.lineTo(0, 6); ctx.lineTo(-4.5, -1.5);
+    ctx.closePath(); ctx.fill(); ctx.stroke();
+  } else if (icon === 'home') {
     ctx.fillStyle = '#4ade80';
     ctx.beginPath(); ctx.moveTo(0, -7); ctx.lineTo(7, 0); ctx.lineTo(-7, 0); ctx.closePath(); ctx.fill();
     ctx.fillRect(-5, 0, 10, 7);
@@ -2506,7 +3230,7 @@ function drawMapMarker(ctx, p, icon) {
   }
   if (off) {                                   // small arrow pointing off-map
     ctx.rotate(Math.atan2(y, x));
-    ctx.fillStyle = icon === 'home' ? '#4ade80' : '#ffc93c';
+    ctx.fillStyle = icon === 'home' ? '#4ade80' : icon === 'gem' ? '#9ad7ff' : '#ffc93c';
     ctx.beginPath(); ctx.moveTo(11, 0); ctx.lineTo(4, -4.5); ctx.lineTo(4, 4.5); ctx.closePath(); ctx.fill();
   }
   ctx.restore();
@@ -2534,6 +3258,13 @@ function drawMinimap() {
   mapCtx.restore();
 
   if (homePos) drawMapMarker(mapCtx, homePos, 'home');
+  /* uncollected gem clusters, so digging toward one has a top-down reference.
+     drawMapMarker already clamps anything off-map to the rim. */
+  if (typeof nearbyClusters === 'function') {
+    for (const g of nearbyClusters(MAP_GEM_RANGE, MAP_GEM_MAX)) {
+      drawMapMarker(mapCtx, g, 'gem');
+    }
+  }
   const t = guidanceTarget();
   if (t && (!homePos || t !== homePos)) drawMapMarker(mapCtx, t, 'star');
   mapCtx.restore();
@@ -2574,10 +3305,11 @@ const ARROW_AHEAD = 6, ARROW_HEIGHT = 3, ARROW_ARRIVE = 4;
 let arrivedChimed = false;
 
 function updateArrow(now) {
-  /* DIG DOWN has no world target: the instruction is a direction, so the arrow
-     simply tilts toward the floor and stays until the depth is reached. */
-  const od = activeObjective();
-  if (!guideHome && (typeof activeEvent === 'undefined' || !activeEvent) && od && od.down) {
+  const t = guidanceTarget();
+
+  /* Point at the floor rather than across it: DIG DOWN, or a gem sitting
+     underneath the player. Either way the instruction is "dig here". */
+  if (arrowWantsDown(t)) {
     const hx = -Math.sin(controls.yaw), hz = -Math.cos(controls.yaw);
     const ax = player.pos.x + hx * ARROW_AHEAD * 0.6;
     const az = player.pos.z + hz * ARROW_AHEAD * 0.6;
@@ -2589,7 +3321,6 @@ function updateArrow(now) {
     return;
   }
 
-  const t = guidanceTarget();
   if (!t) { arrowGroup.visible = false; arrivedChimed = false; return; }
 
   const dist = Math.hypot(player.pos.x - t.x, player.pos.z - t.z);
@@ -2854,21 +3585,48 @@ const sndFanfare  = () => tone([523.25, 659.25, 783.99, 1046.5, 1318.5], 0.18, 0
 const sndCritter  = () => tone([880, 1174.7], 0.10, 0.22, 'triangle');
 const sndPop      = () => tone([392, 587.3, 880], 0.16, 0.4);
 const sndDiscover = () => tone([659.25, 880, 1174.7], 0.15, 0.5);
+/* Launch: a rising run, longer and rounder than the pickup chimes. */
+const sndLaunch   = () => tone([196, 261.6, 329.6, 392, 523.25], 0.17, 0.9, 'triangle');
 
 /* ---------------------------------------------------------------------------
  * CRYSTALS — the visible treasure that pulls him underground
  * ------------------------------------------------------------------------- */
-const CRYSTAL_HUES = [
+const CRYSTAL_HUES_DEFAULT = [
   [0.45, 0.62, 1.00],   // blue
   [0.72, 0.48, 1.00],   // purple
   [0.45, 1.00, 0.72],   // green
 ];
+/* Swapped wholesale by applyPlanetPalette(); Home always gets the default set. */
+let CRYSTAL_HUES = CRYSTAL_HUES_DEFAULT;
 const crystalMesh = makePool(
   new THREE.OctahedronGeometry(0.30, 0),
   new THREE.MeshBasicMaterial({ transparent: true, opacity: 0.95, depthWrite: false,
                                 blending: THREE.AdditiveBlending, fog: true }),
   CAP_CRYSTALS * 6
 );
+
+/* Treasure beacon: a soft vertical shaft standing above every uncollected
+   cluster, tall enough to break the surface so a cluster reads as a landmark
+   from above ground as well as across a cave. Capped and distance-culled on the
+   same budget as the crystals themselves. */
+const SHAFT_HEIGHT = 26;
+const shaftMesh = makePool(
+  new THREE.CylinderGeometry(0.42, 0.18, 1, 7, 1, true),
+  new THREE.MeshBasicMaterial({ transparent: true, opacity: 0.20, depthWrite: false,
+                                blending: THREE.AdditiveBlending, fog: false,
+                                side: THREE.DoubleSide }),
+  CAP_SHAFTS
+);
+let shaftsDrawn = 0;
+
+/** Non-uniform variant of writeInstance, for the shaft's tall thin scale. */
+function writeInstanceXYZ(mesh, i, x, y, z, sx, sy, sz, r, g, b) {
+  _dP.set(x, y, z); _dS.set(sx, sy, sz);
+  _dMat.compose(_dP, _dQ, _dS);
+  mesh.setMatrixAt(i, _dMat);
+  _dC.setRGB(r, g, b);
+  mesh.setColorAt(i, _dC);
+}
 
 const CRY_STEP = 6;                    // candidate grid, in blocks
 const crystalSpots = new Map();        // "gx,gz" -> resolved (prevents re-scanning)
@@ -2878,8 +3636,15 @@ let   crystalScanAt = 0;
 let   crystalsDrawn = 0;               // measured instance count, for reporting
 
 function scanCrystals() {
+  /* On a gemhunt planet the gems lie in the open and there is nothing to dig
+     for, so the cave scan is switched off entirely rather than competing with
+     the surface hunt for the arrow and the beacon cap. */
+  if (planet().activity === 'gemhunt') return;
   const px = Math.floor(player.pos.x), pz = Math.floor(player.pos.z);
   const R = CULL_CRYSTAL;
+  /* Base rejection rate, scaled by the planet. Clamped at 1 so a generous
+     planet cannot make EVERY candidate spot a cluster and blow the cap. */
+  const dens = Math.min(1, 0.34 * planet().crystalDensity);
   for (let dz = -R; dz <= R; dz += CRY_STEP) {
     for (let dx = -R; dx <= R; dx += CRY_STEP) {
       if (dx * dx + dz * dz > R * R) continue;
@@ -2888,11 +3653,20 @@ function scanCrystals() {
       const sk = gx + ',' + gz;
       if (crystalSpots.has(sk)) continue;
       /* deterministic: the same world always grows crystals in the same places */
-      if (hash2(gx * 31 + 7, gz * 17 + 3) > 0.34) { crystalSpots.set(sk, 1); continue; }
+      if (hash2(gx * 31 + 7, gz * 17 + 3) > dens) { crystalSpots.set(sk, 1); continue; }
       if (!chunks.has(key(Math.floor(gx / CS), Math.floor(gz / CS)))) continue;  // retry once loaded
 
+      /* Deterministically split spots into shallow and deep. A shallow spot
+         searches the caves just under the surface first and only those; a deep
+         one keeps the original range. Either way the gem still has to land in
+         real air on a real stone floor, so shallow ones only appear where a
+         shallow cave actually exists. */
+      const shallow = hash2(gx * 7 + 101, gz * 13 + 57) < CRYSTAL_SHALLOW_FRACTION;
+      const yTop = shallow ? CRYSTAL_SHALLOW_Y : CRYSTAL_MAX_Y;
+      const yBottom = shallow ? CAVE_Y - 4 : 3;
+
       let found = null;
-      for (let y = CRYSTAL_MAX_Y; y >= 3; y--) {
+      for (let y = yTop; y >= yBottom; y--) {
         if (getBlock(gx, y, gz) !== AIR) continue;
         if (getBlock(gx, y - 1, gz) !== STONE) continue;
         found = y; break;
@@ -2907,10 +3681,12 @@ function scanCrystals() {
         const rr = 0.35 + hash2(gx + i, gz - i) * 0.9;
         crystals.push({
           id: gx + '|' + gz + '|' + i,
+          ck: gx + '|' + gz,                 // cluster key: beacons and map markers
+          cx: gx + 0.5, cy: found + 0.4, cz: gz + 0.5,   // cluster centre
           x: gx + 0.5 + Math.cos(a) * rr,
           y: found + 0.3 + hash2(gx - i, gz + i) * 0.5,
           z: gz + 0.5 + Math.sin(a) * rr,
-          hue,
+          hue, shallow,
         });
       }
     }
@@ -2922,6 +3698,78 @@ function collectCrystal(c) {
   burst(c.x, c.y, c.z, 12, c.hue[0], c.hue[1], c.hue[2], 3.4, 0.8, 1.1);
   sndCrystal();
   addCrystalCredit();
+  if (c.surface) noteSurfaceGem();
+}
+
+/* ---------------------------------------------------------------------------
+ * ACTIVITY: GEMHUNT — gems lying in the open, no digging required.
+ * They are ordinary crystal records with `surface: true`, so every system that
+ * already exists (drawing, distance cull, the auto-collect radius, the beacon
+ * shafts, the minimap markers, crystalsTaken persistence) works on them
+ * untouched. The only new things are where they are placed and what finishing
+ * the set is worth.
+ * ------------------------------------------------------------------------- */
+let surfaceGemsPlaced = false;
+let surfaceGemTotal   = 0;
+let surfaceGemsTaken  = 0;
+
+/** Scatters this planet's surface gems around the landing site. Runs once. */
+function placeSurfaceGems() {
+  if (surfaceGemsPlaced || planet().activity !== 'gemhunt') return;
+  surfaceGemsPlaced = true;
+
+  const base = homePos || player.pos;
+  const bx = Math.floor(base.x), bz = Math.floor(base.z);
+  let placed = 0, taken = 0;
+
+  for (let i = 0; i < SURFACE_GEM_COUNT; i++) {
+    /* Deterministic from the landing site and the index, so the same world
+       always puts the same gems in the same places — which is what makes the
+       saved `crystalsTaken` ids mean anything after a reload. */
+    const a = hash2(bx + i * 197, bz - i * 131) * Math.PI * 2;
+    const r = 7 + hash2(bx - i * 71, bz + i * 53) * (SURFACE_GEM_SPREAD - 7);
+    const gx = Math.round(bx + Math.cos(a) * r);
+    const gz = Math.round(bz + Math.sin(a) * r);
+    const gy = surfaceHeight(gx, gz);
+    if (gy <= 1) continue;                       // column not loaded / no ground
+
+    const id = 'surf|' + gx + '|' + gz;
+    if (crystals.some(c => c.id === id)) continue;   // two draws hit one cell
+    const hue = CRYSTAL_HUES[(hash2(gx, gz) * CRYSTAL_HUES.length) | 0] || CRYSTAL_HUES[0];
+    crystals.push({
+      id, ck: id,
+      cx: gx + 0.5, cy: gy + 0.6, cz: gz + 0.5,
+      x: gx + 0.5, y: gy + 0.6, z: gz + 0.5,
+      hue, shallow: true, surface: true,
+    });
+    placed++;
+    if (crystalsTaken.has(id)) taken++;
+  }
+  surfaceGemTotal = placed;
+  surfaceGemsTaken = taken;
+}
+
+/** Nearest surface gem still lying out there, for the kid-mode arrow. */
+function nearestSurfaceGem() {
+  let best = null, bd = Infinity;
+  for (let i = 0; i < crystals.length; i++) {
+    const c = crystals[i];
+    if (!c.surface || crystalsTaken.has(c.id)) continue;
+    const d = (c.x - player.pos.x) ** 2 + (c.z - player.pos.z) ** 2;
+    if (d < bd) { bd = d; best = c; }
+  }
+  return best ? new THREE.Vector3(best.x, best.y, best.z) : null;
+}
+
+/** Picking up the last one is the payoff, not just the next star. */
+function noteSurfaceGem() {
+  surfaceGemsTaken++;
+  renderObjectiveCard();
+  if (surfaceGemTotal > 0 && surfaceGemsTaken >= surfaceGemTotal) {
+    speak('You found them all!');
+    celebrateStars();                 // fireworks + fanfare, the existing reward
+  }
+  requestSave();
 }
 
 function updateCrystals(now, dt) {
@@ -2939,23 +3787,206 @@ function updateCrystals(now, dt) {
     if (dx * dx + dz * dz > cull2) continue;
     if (dx * dx + dy * dy + dz * dz <= CRYSTAL_PICKUP * CRYSTAL_PICKUP) { collectCrystal(c); continue; }
     const pulse = 0.85 + 0.25 * Math.sin(t + i);
+    /* additive blending, so a colour above 1 simply reads brighter — this is
+       what makes a gem visible from the far side of a cave */
     writeInstance(crystalMesh, n++, c.x, c.y + Math.sin(t * 0.7 + i) * 0.06, c.z,
-                  pulse, c.hue[0], c.hue[1], c.hue[2]);
+                  pulse * 1.15,
+                  c.hue[0] * CRYSTAL_GLOW, c.hue[1] * CRYSTAL_GLOW, c.hue[2] * CRYSTAL_GLOW);
   }
   crystalsDrawn = n;
   flushPool(crystalMesh, n);
+  updateShafts(now);
 }
 
-/** Nearest uncollected crystal, for the FIND CRYSTAL arrow. */
-function nearestCrystal() {
+/** One beacon per uncollected cluster in range, nearest first, capped. */
+function updateShafts(now) {
+  const px = player.pos.x, pz = player.pos.z;
+  const cull2 = CULL_CRYSTAL * CULL_CRYSTAL;
+  const seen = new Set();
+  let n = 0;
+  const t = now * 0.0016;
+  for (let i = 0; i < crystals.length && n < CAP_SHAFTS; i++) {
+    const c = crystals[i];
+    if (crystalsTaken.has(c.id) || seen.has(c.ck)) continue;
+    const dx = c.cx - px, dz = c.cz - pz;
+    if (dx * dx + dz * dz > cull2) continue;
+    seen.add(c.ck);
+    const breathe = 0.75 + 0.25 * Math.sin(t + n);
+    writeInstanceXYZ(shaftMesh, n++, c.cx, c.cy + SHAFT_HEIGHT / 2, c.cz,
+                     1, SHAFT_HEIGHT, 1,
+                     c.hue[0] * breathe, c.hue[1] * breathe, c.hue[2] * breathe);
+  }
+  shaftsDrawn = n;
+  flushPool(shaftMesh, n);
+}
+
+/** Distinct uncollected clusters near the player, nearest first. */
+function nearbyClusters(maxR, maxN) {
+  const out = [];
+  const seen = new Set();
+  const r2 = maxR * maxR;
+  for (let i = 0; i < crystals.length; i++) {
+    const c = crystals[i];
+    if (crystalsTaken.has(c.id) || seen.has(c.ck)) continue;
+    const dx = c.cx - player.pos.x, dz = c.cz - player.pos.z;
+    const d2 = dx * dx + dz * dz;
+    if (d2 > r2) continue;
+    seen.add(c.ck);
+    out.push({ x: c.cx, y: c.cy, z: c.cz, d2, hue: c.hue });
+  }
+  out.sort((a, b) => a.d2 - b.d2);
+  return maxN ? out.slice(0, maxN) : out;
+}
+
+/** Nearest uncollected crystal, for the FIND CRYSTAL arrow and for the
+ *  persistent underground guidance. Range defaults to unlimited. */
+function nearestCrystal(maxR) {
+  const r2 = maxR ? maxR * maxR : Infinity;
   let best = null, bd = Infinity;
   for (let i = 0; i < crystals.length; i++) {
     const c = crystals[i];
     if (crystalsTaken.has(c.id)) continue;
     const d = (c.x - player.pos.x) ** 2 + (c.z - player.pos.z) ** 2;
-    if (d < bd) { bd = d; best = c; }
+    if (d < bd && d <= r2) { bd = d; best = c; }
   }
   return best ? new THREE.Vector3(best.x, best.y, best.z) : null;
+}
+
+/* "Has started digging down": set when a block below the player's feet is
+   broken, and it keeps guidance alive for a while afterwards so the arrow does
+   not blink out between swings. */
+let lastDigDownAt = -Infinity;
+function noteDigDown() { lastDigDownAt = performance.now(); }
+
+/** Should the arrow fall back to hunting gems? Kid mode, underground or digging. */
+function crystalGuidanceWanted() {
+  if (!kidMode) return false;
+  if (player.pos.y < CAVE_Y) return true;
+  return performance.now() - lastDigDownAt < DIG_GUIDE_MS;
+}
+
+/* ---------------------------------------------------------------------------
+ * ACTIVITY: BUILDTOLIFE — fill a ghost outline and it comes alive.
+ * The ghost is a to-do list you can walk around: only the UNFILLED cells are
+ * drawn, so it empties as the child builds. Fill the last one and the whole
+ * figure lights up, bobs, waves and says hello.
+ * Entirely data-driven from TEMPLATES; adding a template needs no code here.
+ * ------------------------------------------------------------------------- */
+/* Normal blending, not additive: the discovery pools glow ADDITIVELY, which is
+   invisible against Ice World's white snow. A ghost cell has to read as a
+   target on any palette, so it is a solid translucent box in a saturated
+   colour instead. */
+const templateMesh = makePool(
+  new THREE.BoxGeometry(1.04, 1.04, 1.04),
+  new THREE.MeshBasicMaterial({ transparent: true, opacity: 0.5, depthWrite: false,
+                                fog: true }),
+  TEMPLATE_CAP
+);
+const TEMPLATE_TODO  = [0.20, 0.55, 1.00];   // blue: "put a block here"
+const TEMPLATE_ALIVE = [1.00, 0.82, 0.30];   // gold: "it worked"
+let templateDef     = null;    // the TEMPLATES entry in force on this planet
+let templateBase    = null;    // world cell that cells[0] is measured from
+let templateFilled  = [];      // parallel to templateDef.cells
+let templateDone    = false;
+let templateAliveAt = 0;
+let templateCheckAt = 0;
+let templateDrawn   = 0;       // measured instance count, for the budget readout
+
+/** Stands this planet's template beside the landing site. Runs once per visit. */
+function placeTemplate(alreadyDone) {
+  templateDef = null; templateBase = null; templateFilled = [];
+  templateDone = false; templateDrawn = 0;
+  flushPool(templateMesh, 0);
+
+  const p = planet();
+  if (p.activity !== 'buildtolife') return;
+  const def = TEMPLATES[p.template];
+  if (!def) return;
+
+  const base = homePos || player.pos;
+  /* the opposite corner from the rocket, so the two landmarks never overlap */
+  const bx = Math.floor(base.x) + 4, bz = Math.floor(base.z) - 5;
+  const by = surfaceHeight(bx, bz);
+  if (by <= 1) return;
+
+  templateDef = def;
+  templateBase = new THREE.Vector3(bx, by, bz);
+  templateFilled = def.cells.map(() => false);
+  templateDone = !!alreadyDone;      // saved: never re-fire the celebration
+  refreshTemplate();
+}
+
+/** Re-tests every cell against the world. Cheap, and throttled by its caller. */
+function refreshTemplate() {
+  if (!templateDef || !templateBase) return false;
+  let all = true;
+  for (let i = 0; i < templateDef.cells.length; i++) {
+    const c = templateDef.cells[i];
+    const filled = isSolidType(getBlock(
+      templateBase.x + c[0], templateBase.y + c[1], templateBase.z + c[2]));
+    templateFilled[i] = filled;
+    if (!filled) all = false;
+  }
+  if (all && !templateDone) completeTemplate();
+  else if (!all && templateDone) templateDone = false;   // knocked a block out
+  return all;
+}
+
+function completeTemplate() {
+  templateDone = true;
+  templateAliveAt = performance.now();
+  speak(templateDef.speech);
+  const h = templateDef.heart;
+  burst(templateBase.x + h[0] + 0.5, templateBase.y + h[1] + 1.4, templateBase.z + h[2] + 0.5,
+        14, 0.80, 0.95, 1.00, 3.8, 1.3, 1.25);
+  celebrateStars();                  // the existing star + firework payoff
+  requestSave();
+}
+
+/** Nearest cell still waiting for a block, for the kid-mode arrow. */
+function nearestTemplateCell() {
+  if (!templateDef || !templateBase || templateDone) return null;
+  let best = null, bd = Infinity;
+  for (let i = 0; i < templateDef.cells.length; i++) {
+    if (templateFilled[i]) continue;
+    const c = templateDef.cells[i];
+    const x = templateBase.x + c[0] + 0.5,
+          y = templateBase.y + c[1] + 0.5,
+          z = templateBase.z + c[2] + 0.5;
+    const d = (x - player.pos.x) ** 2 + (z - player.pos.z) ** 2;
+    if (d < bd) { bd = d; best = new THREE.Vector3(x, y, z); }
+  }
+  return best;
+}
+
+function updateTemplate(now) {
+  if (!templateDef || !templateBase) { templateDrawn = 0; flushPool(templateMesh, 0); return; }
+  if (now - templateCheckAt > TEMPLATE_CHECK_MS) { templateCheckAt = now; refreshTemplate(); }
+
+  const alive = templateDone;
+  const t = now - templateAliveAt;
+  /* alive: the glow sits ON the blocks the child placed and breathes; arms
+     swing outward, which is the whole "it waved at me" moment */
+  const bob  = alive ? Math.sin(t * 0.005) * 0.16 : 0;
+  const wave = alive ? Math.sin(t * 0.008) * 0.30 : 0;
+
+  /* a slow breathe so the marker never sits dead-still on screen */
+  const pulse = alive ? (0.85 + 0.15 * Math.sin(t * 0.006)) : (0.80 + 0.20 * Math.sin(now * 0.004));
+  const col = alive ? TEMPLATE_ALIVE : TEMPLATE_TODO;
+
+  let n = 0;
+  for (let i = 0; i < templateDef.cells.length && n < TEMPLATE_CAP; i++) {
+    if (!alive && templateFilled[i]) continue;      // done cells stop nagging
+    const c = templateDef.cells[i];
+    const arm = c[0] !== 0 ? Math.sign(c[0]) : 0;
+    const x = templateBase.x + c[0] + 0.5 + (arm ? wave * arm : 0);
+    const y = templateBase.y + c[1] + 0.5 + bob + (arm ? wave * 0.5 : 0);
+    const z = templateBase.z + c[2] + 0.5;
+    writeInstance(templateMesh, n++, x, y, z, alive ? 1.06 : 1.0,
+                  col[0] * pulse, col[1] * pulse, col[2] * pulse);
+  }
+  templateDrawn = n;
+  flushPool(templateMesh, n);
 }
 
 /* ---------------------------------------------------------------------------
@@ -3432,8 +4463,8 @@ function updateEvents(now) {
 /* ---------------------------------------------------------------------------
  * Driver / visibility / reset
  * ------------------------------------------------------------------------- */
-const DISCOVERY_MESHES = [partMesh, crystalMesh, torchGlowMesh, flowerMesh,
-                          fireflyMesh, critterMesh, butterflyMesh];
+const DISCOVERY_MESHES = [partMesh, crystalMesh, shaftMesh, torchGlowMesh, flowerMesh,
+                          fireflyMesh, critterMesh, butterflyMesh, templateMesh];
 
 function applyDiscoveryVisibility() {
   const on = !!kidMode;
@@ -3443,6 +4474,12 @@ function applyDiscoveryVisibility() {
     sparkleMesh.visible = false;
     bigFlower.visible = false;
     clearEvent();
+    /* updateDiscovery() stops running, so empty the pools rather than leaving
+       the last kid-mode frame's instance counts sitting there. Otherwise the
+       budget readout reports geometry that is no longer being drawn. */
+    for (const m of DISCOVERY_MESHES) flushPool(m, 0);
+    crystalsDrawn = shaftsDrawn = torchesDrawn = flowersDrawn = 0;
+    firefliesDrawn = crittersDrawn = butterfliesDrawn = 0;
   } else {
     renderStarRow();
   }
@@ -3451,6 +4488,7 @@ function applyDiscoveryVisibility() {
 function updateDiscovery(now, dt) {
   if (!kidMode) return;                 // the whole loop is kid-mode only
   updateCrystals(now, dt);
+  updateTemplate(now);           // this planet's build-to-life activity, if any
   updateTorches(now);
   tryBloomFlower(now);
   updateFlowers(dt);
@@ -3468,6 +4506,7 @@ function resetDiscovery(now) {
   crystalSpots.clear();
   crystalCredit = 0;
   starsLit = 0;
+  lastDigDownAt = -Infinity;
   torches = [];
   flowers = [];
   fireflies = [];
@@ -3484,6 +4523,11 @@ function discoveryCounts() {
   return {
     particles: partsActive.length, particleCap: CAP_PARTICLES,
     crystals: crystalsDrawn, crystalCap: CAP_CRYSTALS * 6,
+    shafts: shaftsDrawn, shaftCap: CAP_SHAFTS,
+    template: templateDrawn, templateCap: TEMPLATE_CAP,
+    /* the launch clip: a single Points draw, never on screen with the world */
+    cutsceneStars: cutActive ? cutStarsUsed : 0, cutsceneStarCap: STAR_COUNT,
+    surfaceGems: surfaceGemTotal, surfaceGemCap: SURFACE_GEM_COUNT,
     torches: torchesDrawn, torchCap: half(24),
     flowers: flowersDrawn, flowerCap: CAP_FLOWERS,
     fireflies: firefliesDrawn, fireflyCap: CAP_FIREFLIES,
@@ -3503,6 +4547,8 @@ window.addEventListener('keydown', (e) => {
   /* ESC pauses on any machine with a keyboard. Under a real pointer lock the
      browser also exits on ESC and pointerlockchange does this anyway; under a
      synthetic lock nothing else would, so the menu could never be reopened. */
+  /* Escape backs out of the planet select before it reaches the pause menu. */
+  if (e.code === 'Escape' && planetSelectOpen) { closePlanetSelect(true); return; }
   if (e.code === 'Escape' && controls.locked) { controls.unlock(); return; }
 
   if (!controls.locked) return;
@@ -3569,6 +4615,21 @@ el.menu.addEventListener('click', (e) => { if (e.target === el.menu) controls.lo
 
 el.newWorldBtn.addEventListener('click', (e) => { e.stopPropagation(); newWorld(); });
 el.kidBtn.addEventListener('click', (e) => { e.stopPropagation(); setKidMode(!kidMode); });
+
+/* ---- planet select ----
+   Click alone covers both inputs: the buttons carry touch-action:manipulation
+   so a tap fires click with no 300ms delay, and #touchUI is hidden by CSS while
+   the overlay is up so the thumbstick cannot swallow the tap first. */
+el.planetBtns.addEventListener('click', (e) => {
+  const b = e.target.closest && e.target.closest('.planetBtn');
+  if (!b) return;
+  e.stopPropagation();
+  travelTo(b.dataset.planet);
+});
+/* tapping the backdrop means "stay here" */
+el.planetSelect.addEventListener('click', (e) => {
+  if (e.target === el.planetSelect) closePlanetSelect(true);
+});
 
 /* Final flush — the 10s autosave gate is bypassed here on purpose. */
 window.addEventListener('beforeunload', () => { if (started) writeSave(); });
@@ -3673,10 +4734,11 @@ if (TOUCH_ENABLED) {
   let lookId  = null, lookLx = 0, lookLy = 0;
 
   const isUiTarget = (t) =>
-    !!(t && t.closest && t.closest('#touchBtns, #hotbarWrap, #menu, #loading'));
+    !!(t && t.closest && t.closest('#touchBtns, #hotbarWrap, #menu, #loading, #planetSelect'));
 
   const setKnob = (nx, ny) => {
-    tEl.knob.style.transform = `translate(${nx * TOUCH_STICK_RADIUS}px, ${ny * TOUCH_STICK_RADIUS}px)`;
+    /* visual only — the movement vector comes from touchStick, not from this */
+    tEl.knob.style.transform = `translate(${nx * STICK_KNOB_TRAVEL}px, ${ny * STICK_KNOB_TRAVEL}px)`;
   };
   const releaseStick = () => {
     stickId = null;
@@ -3860,6 +4922,7 @@ function resizeView() {
   camera.updateProjectionMatrix();
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   renderer.setSize(window.innerWidth, window.innerHeight);
+  resizeCutCam();          // the clip shares the canvas, so it shares the size
 }
 window.addEventListener('resize', resizeView);
 
@@ -3879,9 +4942,24 @@ if (TOUCH_ENABLED) {
  * ========================================================================== */
 let dayTime = 0.10;                       // 0 = sunrise, 0.25 = noon, 0.5 = sunset
 
+/* Mutable on purpose: a planet load rewrites these in place, so updateSky()
+   itself stays exactly as it was and no per-frame branch is added. */
 const C_DAY     = new THREE.Color(0x88ccf5);
 const C_NIGHT   = new THREE.Color(0x050813);
 const C_DUSK    = new THREE.Color(0xf07a3c);
+const C_AMB_TINT = new THREE.Color(0xffffff);   // planet tint on ambient light
+const C_FOG_TINT = new THREE.Color(0xffffff);   // planet tint on the fog/haze
+
+/** Repaints the sky, fog and ambient tint for the current planet. */
+function applyPlanetSky() {
+  const p = planet();
+  C_DAY.setHex(p.sky.day);
+  C_NIGHT.setHex(p.sky.night);
+  C_DUSK.setHex(p.sky.dusk);
+  C_AMB_TINT.setHex(p.ambientTint);
+  C_FOG_TINT.setHex(p.fogTint);
+}
+
 const C_SUN_LOW = new THREE.Color(0xffb066);
 const C_SUN_HI  = new THREE.Color(0xfff6e0);
 const C_MOON_SKY = new THREE.Color(0x3d4f86);
@@ -3912,7 +4990,7 @@ function updateSky(dt) {
   _skyColor.copy(C_NIGHT).lerp(C_DAY, day);
   _skyColor.lerp(C_DUSK, twilight * 0.62);
   scene.background.copy(_skyColor);
-  scene.fog.color.copy(_skyColor);
+  scene.fog.color.copy(_skyColor).multiply(C_FOG_TINT);
 
   _sunColor.copy(C_SUN_LOW).lerp(C_SUN_HI, clamp01(elev / 0.4));
 
@@ -3944,6 +5022,8 @@ function updateSky(dt) {
   } else {
     ambient.color.setRGB(1, 1, 1);
   }
+  /* the planet's own colour cast, applied last so it survives both branches */
+  ambient.color.multiply(C_AMB_TINT);
 
   /* sky dome bodies */
   skyGroup.position.copy(camera.position);
@@ -3963,6 +5043,463 @@ function clockString() {
 }
 
 /* ============================================================================
+ * 15b. ROCKET TRAVEL
+ * ==========================================================================
+ * The whole add-on in one place: a landmark you can walk up to, a picture menu
+ * of destinations, and a fade that the world changes behind.
+ *
+ * Budget note: the rocket is a Group of six ordinary meshes built once at boot.
+ * It is deliberately NOT part of any instanced pool, so it costs nothing
+ * against CAP_PARTICLES / CAP_CRYSTALS / the rest, and unlike the discovery
+ * meshes it stays visible in adult mode — adults travel too.
+ * ========================================================================== */
+
+/* ---- the landmark ---- */
+const rocketGroup = new THREE.Group();
+rocketGroup.visible = false;
+scene.add(rocketGroup);
+{
+  const bodyMat = new THREE.MeshLambertMaterial({ color: 0xdfe6f2 });
+  const trimMat = new THREE.MeshLambertMaterial({ color: 0xe0483c });
+  const winMat  = new THREE.MeshBasicMaterial({ color: 0x7fd4ff });
+
+  const body = new THREE.Mesh(new THREE.CylinderGeometry(0.75, 0.92, 4.2, 10), bodyMat);
+  body.position.y = 2.1;
+  rocketGroup.add(body);
+
+  const nose = new THREE.Mesh(new THREE.ConeGeometry(0.78, 1.7, 10), trimMat);
+  nose.position.y = 5.05;
+  rocketGroup.add(nose);
+
+  const win = new THREE.Mesh(new THREE.SphereGeometry(0.30, 10, 8), winMat);
+  win.position.set(0, 3.2, 0.70);
+  rocketGroup.add(win);
+
+  for (let i = 0; i < 3; i++) {
+    const fin = new THREE.Mesh(new THREE.ConeGeometry(0.52, 1.6, 4), trimMat);
+    const a = (i / 3) * Math.PI * 2;
+    fin.position.set(Math.cos(a) * 0.92, 0.8, Math.sin(a) * 0.92);
+    fin.rotation.y = -a;
+    rocketGroup.add(fin);
+  }
+}
+
+let rocketPos   = null;    // THREE.Vector3 at the base, or null when not placed
+let rocketArmed = true;    // false while the player is still standing at it
+
+function hideRocket() { rocketGroup.visible = false; rocketPos = null; }
+
+/**
+ * Stands the rocket on the ground beside this planet's landing site. Called
+ * from preload(), once the chunks it needs to measure the ground actually
+ * exist. Home's rocket is the departure pad; every other planet's is the
+ * return pad, and they are the same object with the same behaviour.
+ */
+function placeRocket() {
+  const base = homePos || player.pos;
+  const gx = Math.floor(base.x) + ROCKET_DX;
+  const gz = Math.floor(base.z) + ROCKET_DZ;
+  rocketPos = new THREE.Vector3(gx + 0.5, surfaceHeight(gx, gz), gz + 0.5);
+  rocketGroup.position.copy(rocketPos);
+  rocketGroup.visible = true;
+  /* Disarmed if the player is already inside the trigger — landing next to the
+     return rocket must not slam the menu open in their face. */
+  rocketArmed = false;
+}
+
+/**
+ * Proximity trigger. The armed/released hysteresis is what stops the overlay
+ * reopening the instant it is dismissed while the player is still stood at the
+ * rocket: you have to walk away before it will fire again.
+ */
+function updateRocket(dt) {
+  if (!rocketPos) return;
+  rocketGroup.rotation.y += dt * 0.25;            // slow idle turn, one number
+
+  if (travelling || planetSelectOpen || !started) return;
+  const d = Math.hypot(player.pos.x - rocketPos.x, player.pos.z - rocketPos.z);
+  if (!rocketArmed) {
+    if (d > ROCKET_RELEASE) rocketArmed = true;
+    return;
+  }
+  if (d <= ROCKET_TRIGGER && Math.abs(player.pos.y - rocketPos.y) <= 6) openPlanetSelect();
+}
+
+/* ---- planet buttons: canvas-drawn, same approach as the kid icons ---- */
+const PLANET_ICONS = {};
+function paintPlanetIcons() {
+  for (const id of PLANET_IDS) {
+    const p = PLANETS[id];
+    const src = document.createElement('canvas');
+    src.width = src.height = 16;
+    const c = src.getContext('2d');
+
+    const g = p.icon.ground, a = p.icon.accent;
+    const gr = parseInt(g.slice(1, 3), 16), gg = parseInt(g.slice(3, 5), 16), gb = parseInt(g.slice(5, 7), 16);
+    const ar = parseInt(a.slice(1, 3), 16), ag = parseInt(a.slice(3, 5), 16), ab = parseInt(a.slice(5, 7), 16);
+    const cx = 7.5, cy = 7.5, r = 7.2;
+
+    for (let y = 0; y < 16; y++) {
+      for (let x = 0; x < 16; x++) {
+        const dx = x - cx + 0.5, dy = y - cy + 0.5;
+        if (Math.sqrt(dx * dx + dy * dy) > r) continue;      // clips the bands too
+        /* two accent bands give each ball a silhouette a child can tell apart
+           from across the room, without a second texture */
+        const band = (y === 5 && x > 3 && x < 12) || (y === 10 && x > 2 && x < 13);
+        const br = band ? ar : gr, bg = band ? ag : gg, bb = band ? ab : gb;
+        const k = 0.58 + ((-dx - dy) / (r * 2) + 0.5) * 0.78;  // lit from upper-left
+        c.fillStyle = rgb(br * k, bg * k, bb * k);
+        c.fillRect(x, y, 1, 1);
+      }
+    }
+
+    const big = document.createElement('canvas');
+    big.width = big.height = 128;
+    const bc = big.getContext('2d');
+    bc.imageSmoothingEnabled = false;
+    bc.drawImage(src, 0, 0, 16, 16, 0, 0, 128, 128);
+    PLANET_ICONS[id] = big.toDataURL();
+  }
+}
+paintPlanetIcons();
+
+/* ============================================================================
+ * 15c. LAUNCH CUTSCENE — the space flight between worlds
+ * ==========================================================================
+ * A second, tiny scene that is rendered INSTEAD of the world while it plays,
+ * so the two never cost a frame together. Contents: one Points starfield, one
+ * sphere for the destination, and the rocket group temporarily re-parented out
+ * of the world. Nothing here is interactive and nothing reads input.
+ * ========================================================================== */
+const cutScene = new THREE.Scene();
+cutScene.background = new THREE.Color(0x000000);
+const cutCam = new THREE.PerspectiveCamera(62, 1, 0.1, 400);
+cutCam.position.set(0, 0, 0);
+cutScene.add(cutCam);
+
+/* The rocket is Lambert-shaded, so the clip needs its own light. */
+cutScene.add(new THREE.AmbientLight(0xffffff, 0.75));
+{
+  const key = new THREE.DirectionalLight(0xffffff, 2.1);
+  key.position.set(-3, 4, 6);
+  cutScene.add(key);
+}
+
+/* Starfield: ONE Points cloud, allocated at the full size once and drawn with
+   a smaller draw range for the short clip — no reallocation per launch. */
+const cutStarGeo = new THREE.BufferGeometry();
+{
+  const pos = new Float32Array(STAR_COUNT * 3);
+  const rnd = mulberry32(90210);
+  for (let i = 0; i < STAR_COUNT; i++) {
+    /* a shell in front of the camera, so every star is actually on screen */
+    pos[i * 3]     = (rnd() * 2 - 1) * 60;
+    pos[i * 3 + 1] = (rnd() * 2 - 1) * 40;
+    pos[i * 3 + 2] = -8 - rnd() * 150;
+  }
+  cutStarGeo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+}
+const cutStars = new THREE.Points(cutStarGeo, new THREE.PointsMaterial({
+  color: 0xffffff, size: 1.5, sizeAttenuation: true,
+  transparent: true, opacity: 0.95, depthWrite: false, fog: false,
+}));
+cutScene.add(cutStars);
+
+/* Destination: one sphere, recoloured per trip. */
+const cutPlanet = new THREE.Mesh(
+  new THREE.SphereGeometry(1, 20, 14),
+  new THREE.MeshLambertMaterial({ color: 0xffffff })
+);
+cutScene.add(cutPlanet);
+
+let cutActive = false;      // is the clip on screen right now?
+let cutT = 0;               // ms elapsed within the clip
+let cutLen = CLIP_MS;       // this trip's length
+let cutStarsUsed = 0;       // measured, for the budget readout
+let cutOnDone = null;       // what to run when the clip finishes
+let rocketHome = null;      // the parent to give the rocket back to
+
+const easeInOut = t => t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+
+/** Low-perf devices (and phones) get the shorter, thinner clip. */
+function pickClip() {
+  const short = TOUCH_BUDGET || (fps > 0 && fps < LOW_FPS);
+  cutLen = short ? SHORT_CLIP_MS : CLIP_MS;
+  cutStarsUsed = short ? Math.min(STAR_COUNT_SHORT, STAR_COUNT) : STAR_COUNT;
+  cutStarGeo.setDrawRange(0, cutStarsUsed);
+  return short;
+}
+
+/**
+ * Begins the clip toward `destId`. The rocket is borrowed from the world scene
+ * rather than duplicated — literally the same mesh the player walked up to.
+ */
+function startCutscene(destId, onDone) {
+  pickClip();
+  const p = PLANETS[destId] || PLANETS[DEFAULT_PLANET];
+
+  cutPlanet.material.color.setHex(p.sky.day);
+  cutPlanet.position.set(4.2, -0.5, -34);
+  cutPlanet.scale.setScalar(0.15);
+
+  rocketHome = rocketGroup.parent;
+  cutScene.add(rocketGroup);                 // re-parents, does not clone
+  rocketGroup.visible = true;
+  rocketGroup.scale.setScalar(0.34);
+
+  cutStars.rotation.set(0, 0, 0);
+  cutT = 0;
+  cutOnDone = onDone;
+  cutActive = true;
+  document.body.classList.add('clip');   // the clip owns the screen
+  resizeCutCam();
+}
+
+/** Returns the rocket to the world and stops rendering the clip. */
+function endCutscene() {
+  cutActive = false;
+  document.body.classList.remove('clip');
+  rocketGroup.scale.setScalar(1);
+  rocketGroup.rotation.set(0, 0, 0);
+  if (rocketHome) rocketHome.add(rocketGroup);
+  rocketHome = null;
+  rocketGroup.visible = false;              // placeRocket() puts it back
+  const done = cutOnDone;
+  cutOnDone = null;
+  if (done) done();
+}
+
+function resizeCutCam() {
+  cutCam.aspect = window.innerWidth / Math.max(1, window.innerHeight);
+  cutCam.updateProjectionMatrix();
+}
+
+/**
+ * One frame of the clip. Driven from frame(), so it pauses with the tab and
+ * shares the single render call — the world is not drawn while this runs.
+ */
+function updateCutscene(dt) {
+  cutT += dt * 1000;
+  const p = Math.min(1, cutT / cutLen);
+  const e = easeInOut(p);
+
+  /* the destination swells from a dot to a world filling the far side of the
+     view. It stays well BEHIND the rocket's flight plane so the rocket is
+     never swallowed by it. */
+  cutPlanet.scale.setScalar(0.15 + e * e * 5.1);
+  cutPlanet.position.z = -34 + e * 14;
+  cutPlanet.rotation.y += dt * 0.25;
+
+  /* the rocket crosses the frame in front, tilting and rolling as it goes */
+  rocketGroup.position.set(-8 + e * 16, -3.5 + e * 6, -9 + Math.sin(p * Math.PI) * 1.4);
+  rocketGroup.rotation.set(0.22, 0.9 - e * 0.6, -0.5 + e * 0.3 + Math.sin(p * Math.PI * 2) * 0.12);
+
+  /* parallax: the field drifts and rolls, which is what sells "moving" */
+  cutStars.rotation.z += dt * 0.06;
+  cutStars.position.z = (cutT * 0.004) % 20;
+
+  renderer.render(cutScene, cutCam);
+
+  if (p >= 1) endCutscene();
+}
+
+/* ---- the select overlay ---- */
+let planetSelectOpen = false;
+let travelling = false;
+
+function buildPlanetButtons() {
+  el.planetBtns.innerHTML = '';
+  for (const id of PLANET_IDS) {
+    const p = PLANETS[id];
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'planetBtn' + (id === currentPlanet ? ' here' : '');
+    b.dataset.planet = id;
+    b.setAttribute('aria-label', p.displayName + (id === currentPlanet ? ' (you are here)' : ''));
+    b.innerHTML = `<div class="pIco" style="background-image:url(${PLANET_ICONS[id]})"></div>
+                   <div class="pName">${p.displayName}${id === currentPlanet ? ' ★' : ''}</div>`;
+    el.planetBtns.appendChild(b);
+  }
+}
+
+/**
+ * Opens the picture menu. Releases the pointer lock exactly the way the pause
+ * menu does, so the buttons are clickable on desktop; the planetSelectOpen
+ * guard in onLockChange() is what keeps the pause menu from rising behind it.
+ */
+function openPlanetSelect() {
+  if (planetSelectOpen || travelling) return;
+  planetSelectOpen = true;
+  buildPlanetButtons();
+  document.body.classList.add('picking');
+  controls.unlock();
+  onLockChange(controls.locked);        // re-evaluate with the flag now set
+  speak('Where do you want to go?');
+}
+
+/**
+ * @param relock re-enter play. Safe to ask for only from inside a real user
+ *        gesture: pointer lock is gesture-gated on desktop.
+ */
+function closePlanetSelect(relock) {
+  if (!planetSelectOpen) return;
+  planetSelectOpen = false;
+  document.body.classList.remove('picking');
+  rocketArmed = false;                  // still standing at the rocket
+  if (relock) controls.lock();
+  onLockChange(controls.locked);
+}
+
+/* ---- the trip ---- */
+
+/**
+ * The whole trip: cut to the space clip, fly it, then swap worlds behind the
+ * curtain and hand control back. No piloting and no minigame — a five-year-old
+ * picks a picture, watches the rocket fly, and arrives.
+ *
+ *   [snap to black] -> clip fades in -> flight -> clip fades out
+ *                   -> world loads under the curtain -> curtain lifts
+ *
+ * The re-lock happens HERE, inside the click that chose the planet, because
+ * requestPointerLock() is only granted during a user gesture — asking for it
+ * after a timer fires would be refused and would strand the player on the
+ * pause menu.
+ */
+function travelTo(id) {
+  if (travelling || !PLANETS[id]) return false;
+
+  const staying = (id === currentPlanet);
+  /* Set BEFORE the overlay closes: closePlanetSelect re-evaluates onLockChange,
+     and without the flag already up the pause menu would flash for the frame
+     between the overlay closing and pointer lock being granted. */
+  if (!staying) travelling = true;
+  closePlanetSelect(true);
+  if (staying) return false;            // "you are here" is just a way out
+
+  speak('Blast off!');                  // kid mode + unmuted, same as all speech
+  sndLaunch();
+
+  /* Snap the curtain down with no transition so the world vanishes on the same
+     frame the clip takes over — a 0.7s cross-fade here would show the world
+     and the starfield at once. */
+  el.fadeTxt.textContent = 'BLAST OFF!';
+  el.fade.classList.add('snap', 'on');
+
+  startCutscene(id, () => {
+    /* clip over: curtain back down, then load the world behind it */
+    el.fade.classList.add('snap', 'on');
+    requestAnimationFrame(() => {
+      el.fadeTxt.textContent = PLANETS[id].displayName;
+      loadPlanet(id);
+      waitForArrival(0, performance.now());
+    });
+  });
+
+  /* next frame: hand the screen to the clip and lift the curtain off it */
+  requestAnimationFrame(() => {
+    el.fade.classList.remove('snap');
+    requestAnimationFrame(() => el.fade.classList.remove('on'));
+  });
+  return true;
+}
+
+/**
+ * Holds the curtain down until the new planet has finished streaming in.
+ *
+ * The timeout counts only time the page was actually ANIMATING, not wall clock.
+ * A backgrounded tab suspends requestAnimationFrame, which suspends chunk
+ * building along with it; charging that gap against the deadline would lift the
+ * curtain on a half-built world the moment the player came back to the tab.
+ */
+function waitForArrival(elapsed, lastTick) {
+  const now = performance.now();
+  const acc = elapsed + Math.min(now - lastTick, 250);
+  if (!started && acc < ARRIVAL_MAX_MS) {
+    requestAnimationFrame(() => waitForArrival(acc, performance.now()));
+    return;
+  }
+  el.fadeTxt.textContent = PLANETS[currentPlanet].displayName;
+  setTimeout(() => {
+    el.fade.classList.remove('on');
+    travelling = false;
+    rocketArmed = false;                // you land next to the return rocket
+    /* Normally still locked from the click. If something dropped it, the touch
+       path re-locks silently and desktop falls back to the pause menu, which is
+       the game's existing "click to play" contract rather than a dead end. */
+    if (!controls.locked) controls.lock();
+    onLockChange(controls.locked);
+  }, 300);
+}
+
+/**
+ * Switches worlds. Saves the planet being left, rebuilds the engine around the
+ * new planet's seed/palette/sky, and persists immediately so a reload comes
+ * back here rather than to Home. Physics is not involved: nothing in this path
+ * reads or writes GRAVITY, JUMP_SPEED or the collider.
+ */
+function loadPlanet(id) {
+  if (!PLANETS[id]) return false;
+
+  capturePlanetState();                 // snapshot the world we are leaving
+  currentPlanet = id;
+  clearWorldForPlanet();
+  activatePlanetState();
+  scheduleEvent(performance.now());
+
+  writeSave();                          // currentPlanet must survive a reload NOW
+  console.info(`[VoxelCraft] travelled to ${id} (seed ${worldSeed})`);
+  startPreload();
+  return true;
+}
+
+/**
+ * Clears everything tied to the world being left. Deliberately does NOT touch
+ * gems, stars or objectives — those are the player's, not the world's, and the
+ * whole point is that they ride along.
+ */
+function clearWorldForPlanet() {
+  for (const c of chunks.values()) disposeMeshes(c);
+  chunks.clear();
+  overrides.clear();
+
+  crystals = [];
+  crystalsTaken = new Set();
+  crystalSpots.clear();
+  lastDigDownAt = -Infinity;
+
+  /* activities are per-planet: each world loads only its own */
+  surfaceGemsPlaced = false;
+  surfaceGemTotal = 0;
+  surfaceGemsTaken = 0;
+  templateDef = null;
+  templateBase = null;
+  templateFilled = [];
+  templateDone = false;
+  templateDrawn = 0;
+  flushPool(templateMesh, 0);
+
+  torches = [];
+  flowers = [];
+  fireflies = [];
+  critters = [];
+  butterflies.length = 0;
+  while (partsActive.length) partsFree.push(partsActive.pop());
+  clearEvent();
+
+  crumbs = [];
+  lastCrumb = null;
+  homePos = null;
+  guideHome = false;
+  stackRun = null;
+  arrivedChimed = false;
+  _nearCache.clear();
+  refreshCrumbMesh();
+
+  hideRocket();
+  player.vel.set(0, 0, 0);
+}
+
+/* ============================================================================
  * 16. MAIN LOOP
  * ========================================================================== */
 let last = performance.now();
@@ -3974,6 +5511,10 @@ function frame(now) {
   let dt = (now - last) / 1000;
   last = now;
   if (dt > 0.1) dt = 0.1;               // avoid tunnelling after a stall
+
+  /* The launch clip owns the screen while it plays: it renders its own scene
+     and the world is not drawn at all, so the two never share a frame. */
+  if (cutActive) { updateCutscene(dt); return; }
 
   if (!started) return;
 
@@ -4025,6 +5566,7 @@ function frame(now) {
 
   updateSky(dt);
   updateChunks(6);
+  updateRocket(dt);
   if (controls.locked) updateTarget();
 
   renderer.render(scene, camera);
@@ -4101,6 +5643,19 @@ function preload() {
   /* kid mode starts every world in flight; F still toggles it off */
   if (kidMode) player.flying = true;
 
+  /* The spawn is real now, so the rocket has ground to stand on and this
+     planet's transform is finally worth recording. */
+  placeRocket();
+  /* this planet's activity — placed after the spawn, because both are measured
+     from the landing site and both need the ground to exist */
+  placeSurfaceGems();
+  placeTemplate(ensurePlanetState(currentPlanet).activityDone);
+  renderObjectiveCard();
+
+  spawnPending = false;
+  capturePlanetState();
+  requestSave();
+
   el.loading.style.display = 'none';
   preloading = false;
   started = true;
@@ -4118,23 +5673,28 @@ function startPreload() {
   requestAnimationFrame(preload);
 }
 
-/** Discards the save, picks a fresh seed, and rebuilds the world from scratch. */
+/**
+ * Discards the save and rebuilds from scratch. With planets in play this is a
+ * full reset, not just a reseed of the world you happen to be standing on:
+ * every planet goes back to empty, gems and stars go back to zero, and the
+ * player is returned to Home. Only Home gets a random seed — the other planets
+ * are fixed destinations, so they keep the seeds in the registry.
+ */
 function newWorld() {
   discardSave();
   clearSaveWarning();
   saveErrorActive = false;
 
-  initNoise((Math.random() * 0x100000000) >>> 0);
-  for (const c of chunks.values()) disposeMeshes(c);
-  chunks.clear();
-  overrides.clear();
+  for (const id of PLANET_IDS) planetState[id] = emptyPlanetState(id);
+  planetState[DEFAULT_PLANET].seed = (Math.random() * 0x100000000) >>> 0;
+  currentPlanet = DEFAULT_PLANET;
 
+  clearWorldForPlanet();
   dayTime = 0.10;
-  restoredSpawn = false;
-  homePos = null;
-  resetKidGuidance();
+  resetKidGuidance();               // objectives, gems and stars all back to zero
+  activatePlanetState();            // seed + palette + sky + (empty) world state
+
   player.pos.set(0.5, 64, 0.5);
-  player.vel.set(0, 0, 0);
   player.flying = false;
   controls.yaw = 0; controls.pitch = 0;
   selectSlot(0);
@@ -4158,9 +5718,14 @@ function boot() {
   const data = readSave(pinned);
   if (data) {
     const n = applySave(data);
-    console.info(`[VoxelCraft] save restored: seed ${worldSeed}, ${n} block edit(s).`);
+    console.info(`[VoxelCraft] save restored: planet ${currentPlanet}, seed ${worldSeed}, ${n} block edit(s).`);
   } else {
-    initNoise(Number.isFinite(pinned) ? pinned : SEED);
+    /* No save: a fresh start is always at Home, on the pinned seed if one was
+       asked for and the registry's fixed seed otherwise. */
+    currentPlanet = DEFAULT_PLANET;
+    ensurePlanetState(currentPlanet).seed =
+      Number.isFinite(pinned) ? pinned : PLANETS[DEFAULT_PLANET].seed;
+    activatePlanetState();
   }
 
   selectSlot(selected);          // idempotent: applies whatever the save chose, else 0
@@ -4221,11 +5786,116 @@ try {
       SAVE_KEY, SAVE_VERSION,
       get speechMuted() { return speechMuted; },
 
+      /* --- rocket travel --- */
+      PLANETS, PLANET_IDS, DEFAULT_PLANET,
+      ROCKET_TRIGGER, ROCKET_RELEASE, ROCKET_GUIDE_RANGE, FADE_MS,
+      get currentPlanet() { return currentPlanet; },
+      get worldSeed() { return worldSeed; },
+      get planetState() { return JSON.parse(JSON.stringify(planetState)); },
+      get planetSelectOpen() { return planetSelectOpen; },
+      get travelling() { return travelling; },
+      get planetButtons() {
+        return [...el.planetBtns.querySelectorAll('.planetBtn')].map(b => b.dataset.planet);
+      },
+      get planetSelectVisible() {
+        return getComputedStyle(el.planetSelect).display !== 'none';
+      },
+      get rocketPos() { return rocketPos ? rocketPos.clone() : null; },
+      get rocketVisible() { return rocketGroup.visible; },
+      get rocketArmed() { return rocketArmed; },
+      openPlanetSelect, closePlanetSelect, travelTo, loadPlanet,
+      capturePlanetState, activatePlanetState, buildSavePayload, migrateV3,
+      applyPlanetPalette, applyPlanetSky, placeRocket,
+      get skyHex() { return scene.background.getHexString(); },
+      get fogHex() { return scene.fog.color.getHexString(); },
+      get ambientHex() { return ambient.color.getHexString(); },
+      get crystalHues() { return CRYSTAL_HUES.map(h => h.slice()); },
+      get gems() { return crystalCredit; },
+      get stars() { return starsLit; },
+      addGems(n) { for (let i = 0; i < n; i++) addCrystalCredit(); },
+      /* The repainted texture itself, sampled at the centre of each top face —
+         the only honest way to ask "what colour is sand on this planet". */
+      get blockPixels() {
+        const o = {};
+        for (const k of Object.keys(blockGfx)) {
+          const d = blockGfx[k].actx.getImageData(8, 8, 1, 1).data;
+          o[k] = [d[0], d[1], d[2]].join(',');
+        }
+        return o;
+      },
+      get repaint() { return planet().repaint; },
+
+      /* --- launch cutscene --- */
+      CLIP_MS, SHORT_CLIP_MS, STAR_COUNT, STAR_COUNT_SHORT, LOW_FPS,
+      cutScene, cutStars, cutPlanet,
+      get cutActive() { return cutActive; },
+      get cutT() { return cutT; },
+      get cutLen() { return cutLen; },
+      get cutStarsUsed() { return cutStarsUsed; },
+      get cutDrawRange() { return cutStarGeo.drawRange.count; },
+      get cutPlanetScale() { return cutPlanet.scale.x; },
+      get cutPlanetColor() { return cutPlanet.material.color.getHexString(); },
+      get cutRocketInClip() { return rocketGroup.parent === cutScene; },
+      get cutRocketPos() { return [rocketGroup.position.x, rocketGroup.position.y, rocketGroup.position.z]; },
+      pickClip, startCutscene, endCutscene,
+      get fps() { return fps; },
+
+      /* --- per-planet activities --- */
+      TEMPLATES, SURFACE_GEM_COUNT, SURFACE_GEM_SPREAD, TEMPLATE_CAP,
+      get activity() { return planet().activity; },
+      activityObjective, ACTIVITY_OBJECTIVES, objNeed, objProg,
+      get surfaceGemTotal() { return surfaceGemTotal; },
+      get surfaceGemsTaken() { return surfaceGemsTaken; },
+      get surfaceGems() {
+        return crystals.filter(c => c.surface)
+          .map(c => ({ id: c.id, x: c.x, y: c.y, z: c.z, taken: crystalsTaken.has(c.id) }));
+      },
+      nearestSurfaceGem,
+      get templateId() { return templateDef ? (planet().template || null) : null; },
+      get templateBase() { return templateBase ? templateBase.clone() : null; },
+      get templateCells() { return templateDef ? templateDef.cells.map(c => c.slice()) : null; },
+      get templateFilled() { return templateFilled.slice(); },
+      get templateDone() { return templateDone; },
+      get templateDrawn() { return templateDrawn; },
+      refreshTemplate, nearestTemplateCell, placeTemplate, placeSurfaceGems,
+      /** Fills every template cell with a block — the fast path to the payoff. */
+      buildTemplate(type) {
+        if (!templateDef || !templateBase) return false;
+        for (const c of templateDef.cells) {
+          setBlock(templateBase.x + c[0], templateBase.y + c[1], templateBase.z + c[2],
+                   type === undefined ? BRICK : type);
+        }
+        refreshTemplate();
+        return true;
+      },
+      /** Walks the player onto every surface gem, collecting the lot. */
+      collectAllSurfaceGems() {
+        const gems = crystals.filter(c => c.surface && !crystalsTaken.has(c.id));
+        for (const g of gems) { player.pos.set(g.x, g.y, g.z); updateCrystals(performance.now(), 0.016); }
+        return surfaceGemsTaken;
+      },
+      get mapColors() { return JSON.parse(JSON.stringify(MAP_COLORS)); },
+      get overrideCount() {
+        let n = 0; for (const m of overrides.values()) n += m.size; return n;
+      },
+      get started() { return started; },
+
       /* --- touch --- */
       TOUCH_CAPABLE, COARSE_POINTER, TOUCH_OVERRIDE,
       TOUCH_ENABLED, TOUCH_DEFAULT_ON, TOUCH_AUTO_REVEAL, TOUCH_IDLE_MS,
       BASE_RD, RD, TOUCH_RENDER_DISTANCE_REDUCTION,
-      TOUCH_STICK_RADIUS, STICK_DEADZONE, TOUCH_SPRINT_AT,
+      TOUCH_STICK_RADIUS, STICK_KNOB_TRAVEL, STICK_DEADZONE, TOUCH_SPRINT_AT,
+      /** Live layout sizes, read from the CSS custom properties. */
+      layout() {
+        const cs = getComputedStyle(document.documentElement);
+        const px = (n) => parseFloat(cs.getPropertyValue(n));
+        return {
+          stick: px('--stick-size'), knob: px('--stick-knob'),
+          button: px('--tbtn-size'), gap: px('--tbtn-gap'),
+          pause: px('--pause-size'),
+          map: parseFloat(getComputedStyle(document.body).getPropertyValue('--map-size')),
+        };
+      },
       get touchActive() { return touchActive; },
       get synthetic() { return controls.synthetic; },
       renderer,
@@ -4249,7 +5919,9 @@ try {
       TORCH, KID_HOTBAR, hotbar,
       CAP_CRYSTALS, CAP_FLOWERS, CAP_FIREFLIES, CAP_DUST, CAP_BUTTERFLIES,
       CAP_CRITTERS, CAP_PARTICLES, TOUCH_BUDGET,
-      CRYSTAL_MAX_Y, CRYSTAL_PICKUP, STARS_IN_ROW, CRYSTALS_PER_STAR,
+      CRYSTAL_MAX_Y, CRYSTAL_SHALLOW_Y, CRYSTAL_SHALLOW_FRACTION, CRYSTAL_PICKUP,
+      CRYSTAL_GUIDE_RANGE, CRYSTAL_GLOW, CAP_SHAFTS, SHAFT_HEIGHT, DIG_GUIDE_MS,
+      MAP_GEM_RANGE, MAP_GEM_MAX, STARS_IN_ROW, CRYSTALS_PER_STAR,
       EVENT_MIN_MS, EVENT_MAX_MS, EVENT_ARRIVE, CAVE_Y,
       DISCOVERY_EVENTS,
       counts: discoveryCounts,
@@ -4278,11 +5950,16 @@ try {
       },
       selectSlot,
       scanCrystals, nearestCrystal, addCrystalCredit, celebrateStars,
+      nearbyClusters, crystalGuidanceWanted, arrowWantsDown, noteDigDown,
+      drawMapMarker, mapMarkerAt,
+      get arrowVisible() { return arrowGroup.visible; },
+      get arrowDown() { return arrowWantsDown(guidanceTarget()); },
       startEvent, clearEvent, scheduleEvent, resetDiscovery,
       spawnParticle, burst, updateDiscovery, guidanceTarget,
       setEventDue(ms) { eventDueAt = performance.now() + ms; },
       forceCrystalAt(x, y, z) {
-        const c = { id: 'test|' + x + '|' + y + '|' + z, x, y, z, hue: CRYSTAL_HUES[0] };
+        const c = { id: 'test|' + x + '|' + y + '|' + z, ck: 'test|' + x + '|' + z,
+                    cx: x, cy: y, cz: z, x, y, z, hue: CRYSTAL_HUES[0], shallow: y > CAVE_Y };
         crystals.push(c);
         return c.id;
       },
