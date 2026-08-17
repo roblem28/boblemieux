@@ -41,6 +41,7 @@ import { TextFormControlModel } from './TextFormControl';
 import { TextSectionModel } from './TextSection';
 import { ThemeStyleModel } from './ThemeStyle';
 import { VideoBlockModel } from './VideoBlock';
+import { QbertGameSectionModel } from './QbertGameSection';
 
 export const allModels = [
     BackgroundImageModel,
@@ -84,6 +85,7 @@ export const allModels = [
     TextareaFormControlModel,
     TextFormControlModel,
     TextSectionModel,
+    QbertGameSectionModel,
     ThemeStyleModel,
     VideoBlockModel
 ];
