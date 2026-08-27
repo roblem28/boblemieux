@@ -11,7 +11,19 @@ import { Html, Head, Main, NextScript } from 'next/document';
 export default function Document() {
     return (
         <Html lang="en">
-            <Head />
+            <Head>
+                {/* Was an @import at the top of main.css, which created a
+                    three-origin critical chain (html -> css -> googleapis ->
+                    gstatic) with no preconnect. Only DM Mono is referenced -
+                    style.json sets fontBody to it - so Azeret Mono, half the
+                    downloaded faces, is dropped. */}
+                <link rel="preconnect" href="https://fonts.googleapis.com" />
+                <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+                <link
+                    rel="stylesheet"
+                    href="https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,400;0,500;1,400;1,500&display=swap"
+                />
+            </Head>
             <body data-theme="colors-a">
                 <Main />
                 <NextScript />

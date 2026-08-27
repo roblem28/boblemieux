@@ -46,3 +46,54 @@
 
 [[plugins]]
   package = "@netlify/plugin-nextjs"
+# Cache headers. Without these every asset served max-age=0, so 2.08 MB of
+# images revalidated on every navigation.
+#
+# The Next.js plugin already fingerprints and caches /_next/static itself; the
+# rule below is stated explicitly so the policy is visible in one place.
+[[headers]]
+  for = "/_next/static/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+# Copied from node_modules by scripts/copy-vendor-css.mjs at build time. Not
+# fingerprinted, so it revalidates daily rather than being pinned for a year.
+[[headers]]
+  for = "/vendor/*"
+  [headers.values]
+    Cache-Control = "public, max-age=86400, must-revalidate"
+
+# Content images change only on redeploy, but the filenames are stable, so a
+# week with revalidation rather than an immutable year.
+[[headers]]
+  for = "/images/*"
+  [headers.values]
+    Cache-Control = "public, max-age=604800, must-revalidate"
+
+# Static apps outside the Next pipeline: the games, the comic, /wire and the
+# mindmap widget. Their payloads are large and change rarely.
+[[headers]]
+  for = "/games/*"
+  [headers.values]
+    Cache-Control = "public, max-age=604800, must-revalidate"
+
+[[headers]]
+  for = "/comics/*"
+  [headers.values]
+    Cache-Control = "public, max-age=604800, must-revalidate"
+
+[[headers]]
+  for = "/widgets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=604800, must-revalidate"
+
+# Baseline security headers. No CSP here: /wire, the games and the comic use
+# inline scripts and styles, so a policy strict enough to be worth setting would
+# break them. That needs its own pass.
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    X-Frame-Options = "SAMEORIGIN"
+    Permissions-Policy = "geolocation=(self), camera=(), microphone=()"
