@@ -1,4 +1,4 @@
-import Head from 'next/head';
+import StandalonePageHead from '@/components/StandalonePageHead';
 
 import BaseLayout from '@/components/layouts/BaseLayout';
 import { allContent } from '@/utils/content';
@@ -19,14 +19,11 @@ const EMBED_SRC = '/projects/nyt/embed';
 export default function NytPage(props: any) {
     return (
         <>
-            <Head>
-                <title>NYT Daily Digest — Article Index</title>
-                <meta
-                    name="description"
-                    content="An auto-updating index of New York Times articles with full-text search, section filters, and keyword tagging. Built with Python, SQLite FTS5, and Netlify."
-                />
-                <meta name="viewport" content="width=device-width, initial-scale=1" />
-            </Head>
+            <StandalonePageHead
+                title={'NYT Daily Digest — Article Index'}
+                description={'An auto-updating index of New York Times articles with full-text search, section filters, and keyword tagging. Built with Python, SQLite FTS5, and Netlify.'}
+                path="/projects/nyt/"
+            />
             <BaseLayout {...props}>
                 {/* Pinned to the digest's own --bg-body so the frame edge does
                     not show a seam or flash white before it paints. */}

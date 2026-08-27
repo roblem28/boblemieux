@@ -1,6 +1,8 @@
 ---
 type: ProjectLayout
 title: BobLemieux.ai Personal LLM Ecosystem
+metaDescription: >-
+  The personal AI lab behind boblemieux.ai: local language models, agent workflows, and document pipelines tested against real construction data.
 colors: colors-a
 date: '2025-01-25'
 client: ''

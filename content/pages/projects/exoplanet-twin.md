@@ -1,6 +1,8 @@
 ---
 type: ProjectLayout
 title: Exoplanet Twin
+metaDescription: >-
+  Twelve NASA-confirmed exoplanets rendered in real time with GLSL shaders in Three.js. Procedural surfaces seeded from actual planet parameters.
 colors: colors-a
 date: '2025-03-01'
 client: ''

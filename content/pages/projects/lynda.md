@@ -1,6 +1,8 @@
 ---
 type: ProjectLayout
 title: The Lynda Project
+metaDescription: >-
+  An experimental conversational AI platform exploring persistent memory, contextual awareness, and long-term continuity between people and agents.
 colors: colors-a
 date: '2025-01-20'
 client: ''

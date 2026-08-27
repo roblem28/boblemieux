@@ -1,6 +1,8 @@
 ---
 type: PageLayout
 title: Tech Projects
+metaDescription: >-
+  Digital twins, edge AI, and project-controls automation built by Bob LeMieux: data pipelines, dashboards, and 3D visualisation.
 colors: colors-a
 sections:
   - type: HeroSection

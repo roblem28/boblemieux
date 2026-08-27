@@ -1,4 +1,4 @@
-import Head from 'next/head';
+import StandalonePageHead from '@/components/StandalonePageHead';
 
 import BaseLayout from '@/components/layouts/BaseLayout';
 import { allContent } from '@/utils/content';
@@ -11,14 +11,11 @@ import { allContent } from '@/utils/content';
 export default function FecPage(props: any) {
     return (
         <>
-            <Head>
-                <title>FEC Campaign Finance Explorer — OpenFEC</title>
-                <meta
-                    name="description"
-                    content="Explore FEC campaign-finance data: contributions, committees, candidates, independent expenditures, filings, and a contributor↔federal-contract cross-reference."
-                />
-                <meta name="viewport" content="width=device-width, initial-scale=1" />
-            </Head>
+            <StandalonePageHead
+                title={'FEC Campaign Finance Explorer — OpenFEC'}
+                description={'Explore FEC campaign-finance data: contributions, committees, candidates, independent expenditures, filings, and a contributor/federal-contract cross-reference.'}
+                path="/projects/fec/"
+            />
             <BaseLayout {...props}>
                 <iframe
                     src="/projects/fec/index.html"

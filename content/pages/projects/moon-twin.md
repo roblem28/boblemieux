@@ -1,6 +1,8 @@
 ---
 type: ProjectLayout
 title: Moon Twin
+metaDescription: >-
+  An interactive 3D lunar surface from NASA LRO WAC imagery and LOLA elevation data. Apollo landing sites, Tycho Crater, and the lunar South Pole.
 colors: colors-a
 date: '2025-03-01'
 client: ''

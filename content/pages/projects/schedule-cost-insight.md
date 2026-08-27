@@ -1,6 +1,8 @@
 ---
 type: ProjectLayout
 title: Schedule + Cost Insight Layer
+metaDescription: >-
+  An AI pipeline that reads P6 XML and cost reports to surface critical-path changes, variances, and emerging risk in plain language.
 colors: colors-a
 date: '2025-01-05'
 client: ''

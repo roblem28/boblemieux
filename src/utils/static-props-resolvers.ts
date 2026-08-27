@@ -18,8 +18,22 @@ import { deepMapObject } from './data-utils';
 
 export function resolveStaticProps(urlPath: string, allData: ContentObject[]): PageComponentProps {
     const originalPage = allData.find((obj) => obj.__metadata.urlPath === urlPath);
+    const site = allData.find((obj) => obj.__metadata.modelName === ConfigModel.name) as Config;
+
+    // seo-utils reads site.env.URL to turn relative og:image paths into absolute
+    // ones, but nothing ever populated it, so every og:image shipped as "/images/…"
+    // and no scraper could resolve it. Netlify sets URL (production) and
+    // DEPLOY_PRIME_URL (branch/preview deploys); the literal is the local fallback.
     const globalProps: GlobalProps = {
-        site: allData.find((obj) => obj.__metadata.modelName === ConfigModel.name) as Config,
+        // Config is generated from the Stackbit model and has no `env` field, so
+        // the widened object is cast back through unknown deliberately.
+        site: {
+            ...site,
+            env: {
+                ...(site as any)?.env,
+                URL: (process.env.URL || process.env.DEPLOY_PRIME_URL || 'https://boblemieux.ai').replace(/\/$/, '')
+            }
+        } as unknown as Config,
         theme: allData.find((obj) => obj.__metadata.modelName === ThemeStyleModel.name) as ThemeStyle
     };
 

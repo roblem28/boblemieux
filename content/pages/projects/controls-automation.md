@@ -1,6 +1,8 @@
 ---
 type: ProjectLayout
 title: Controls Automation Toolset
+metaDescription: >-
+  Excel and VBA automation that ingests P6 exports, contractor submittals, and budget trackers to produce audit-ready executive dashboards.
 colors: colors-a
 date: '2025-01-10'
 client: ''

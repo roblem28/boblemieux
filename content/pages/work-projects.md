@@ -1,6 +1,8 @@
 ---
 type: PageLayout
 title: Work Projects
+metaDescription: >-
+  Capital project delivery by Bob LeMieux: scheduling, earned value management, and controls leadership on major EPC and data centre programmes.
 colors: colors-a
 sections:
   - type: HeroSection

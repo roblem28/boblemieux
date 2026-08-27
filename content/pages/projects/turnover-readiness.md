@@ -1,6 +1,8 @@
 ---
 type: ProjectLayout
 title: Turnover Readiness Command Center
+metaDescription: >-
+  A live command centre consolidating punch lists, system completion status, and handover documentation so teams see what is blocking turnover.
 colors: colors-a
 date: '2025-01-15'
 client: ''

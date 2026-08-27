@@ -1,6 +1,8 @@
 ---
 type: ProjectLayout
 title: Marley1
+metaDescription: >-
+  A portable edge-AI platform running local LLMs and agent systems offline, built for industrial sites and field work without reliable connectivity.
 colors: colors-a
 backgroundImage:
   type: BackgroundImage

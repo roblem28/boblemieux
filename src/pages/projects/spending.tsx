@@ -1,4 +1,4 @@
-import Head from 'next/head';
+import StandalonePageHead from '@/components/StandalonePageHead';
 
 import BaseLayout from '@/components/layouts/BaseLayout';
 import { allContent } from '@/utils/content';
@@ -9,14 +9,11 @@ import { allContent } from '@/utils/content';
 export default function SpendingPage(props: any) {
     return (
         <>
-            <Head>
-                <title>Federal Award Explorer — USAspending.gov</title>
-                <meta
-                    name="description"
-                    content="Explore federal contract awards by place of performance: a USAspending.gov choropleth + sortable, exportable award table."
-                />
-                <meta name="viewport" content="width=device-width, initial-scale=1" />
-            </Head>
+            <StandalonePageHead
+                title={'Federal Award Explorer — USAspending.gov'}
+                description={'Explore federal contract awards by place of performance: a USAspending.gov choropleth plus a sortable, exportable award table.'}
+                path="/projects/spending/"
+            />
             <BaseLayout {...props}>
                 <iframe
                     src="/projects/spending/index.html"

@@ -1,6 +1,8 @@
 ---
 type: ProjectLayout
 title: Earth Twin
+metaDescription: >-
+  A browser-based 3D digital twin of Earth built on NASA Blue Marble, VIIRS, ESRI, and AWS terrain data with MapLibre GL JS. No API keys.
 colors: colors-a
 date: '2025-03-01'
 client: ''

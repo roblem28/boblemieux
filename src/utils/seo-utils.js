@@ -7,10 +7,27 @@ export function seoGenerateMetaTags(page, site) {
         });
     }
 
+    const title = seoGenerateTitle(page, site);
+    const description = seoGenerateMetaDescription(page, site);
+    const ogImage = seoGenerateOgImage(page, site);
+    const canonical = seoGenerateCanonicalUrl(page, site);
+    const isPost = page.__metadata?.modelName === 'PostLayout';
+
+    // Previously only og:title and og:image were emitted, and config.json has no
+    // defaultMetaTags, so og:type, og:url, og:description and every twitter:*
+    // tag were missing on every route.
     pageMetaTags = {
         ...pageMetaTags,
-        ...(seoGenerateTitle(page, site) && { 'og:title': seoGenerateTitle(page, site) }),
-        ...(seoGenerateOgImage(page, site) && { 'og:image': seoGenerateOgImage(page, site) })
+        'og:type': isPost ? 'article' : 'website',
+        'og:site_name': 'Bob LeMieux',
+        ...(title && { 'og:title': title }),
+        ...(description && { 'og:description': description }),
+        ...(ogImage && { 'og:image': ogImage }),
+        ...(canonical && { 'og:url': canonical }),
+        'twitter:card': ogImage ? 'summary_large_image' : 'summary',
+        ...(title && { 'twitter:title': title }),
+        ...(description && { 'twitter:description': description }),
+        ...(ogImage && { 'twitter:image': ogImage })
     };
 
     if (page.metaTags?.length) {
@@ -44,16 +61,23 @@ export function seoGenerateTitle(page, site) {
 }
 
 export function seoGenerateMetaDescription(page, site) {
-    let metaDescription = null;
-    // Blog posts use the exceprt as the default meta description
-    if (page.__metadata.modelName === 'PostLayout') {
-        metaDescription = page.excerpt;
-    }
-    // page metaDescription field overrides all others
+    // Any page carrying an excerpt can use it as the description, not just
+    // PostLayout. The explicit metaDescription field still wins.
+    let metaDescription = page.excerpt || null;
     if (page.metaDescription) {
         metaDescription = page.metaDescription;
     }
     return metaDescription;
+}
+
+// Absolute URL for the current page, used for og:url and rel=canonical.
+export function seoGenerateCanonicalUrl(page, site) {
+    const domainUrl = site.env?.URL;
+    const urlPath = page.__metadata?.urlPath;
+    if (!domainUrl || !urlPath) return null;
+    // next.config.js sets trailingSlash: true, so the canonical form ends in "/".
+    const path = urlPath === '/' ? '/' : urlPath.endsWith('/') ? urlPath : `${urlPath}/`;
+    return `${domainUrl}${path}`;
 }
 
 export function seoGenerateOgImage(page, site) {
