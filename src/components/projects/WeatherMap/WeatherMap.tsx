@@ -754,7 +754,33 @@ export default function WeatherMap() {
         }
 
         // --- boot ----------------------------------------------------------------
-        map.on('load', () => {
+        // Booting off map 'load' meant nothing on this page ever started: 'load'
+        // only fires once the style AND the first full render have completed, and
+        // when the basemap's vector source stalls it never fires at all. Every
+        // layer, the legend images and the initial alert fetch were inside that
+        // callback, so the page sat on "Loading…" with two broken-image legends.
+        //
+        // None of that work actually needs tiles — it needs the style parsed, so
+        // layers can be inserted and labelLayerId resolved. Boot on the earliest
+        // signal that is true, whichever arrives, and guard against running twice.
+        // An <img> with an empty src renders as a broken-image icon with its alt
+        // text showing, which is what visitors saw. Keep them hidden until they
+        // have a real URL, and hide them again if the legend fails to load.
+        function setLegendSrc(id: string, url: string) {
+            const img = document.getElementById(id) as HTMLImageElement | null;
+            if (!img) return;
+            img.onload = () => { img.hidden = false; };
+            img.onerror = () => { img.hidden = true; };
+            img.src = url;
+        }
+
+        let booted = false;
+        let bootWatchdog: ReturnType<typeof setTimeout> | undefined;
+
+        function boot() {
+            if (booted) return;
+            booted = true;
+            if (bootWatchdog) clearTimeout(bootWatchdog);
             labelLayerId = firstSymbolLayerId();
 
             addAlertLayers('warnings');
@@ -763,8 +789,8 @@ export default function WeatherMap() {
             addOrRefreshWms('radar');
             addOrRefreshWms('precip');
 
-            (document.getElementById('radar-legend') as HTMLImageElement).src = legendUrl(WMS_LAYERS.radar);
-            (document.getElementById('precip-legend') as HTMLImageElement).src = legendUrl(WMS_LAYERS.precip);
+            setLegendSrc('radar-legend', legendUrl(WMS_LAYERS.radar));
+            setLegendSrc('precip-legend', legendUrl(WMS_LAYERS.precip));
             buildAlertLegend();
 
             wireControls();
@@ -791,13 +817,32 @@ export default function WeatherMap() {
                 refreshRadar();
                 refreshAlerts();
             }, 5 * 60 * 1000);
-        });
+        }
+
+        if (map.isStyleLoaded()) {
+            boot();
+        } else {
+            map.once('styledata', boot);
+            map.once('load', boot);
+        }
+
+        // If neither signal arrives, say so rather than leaving "Loading…" up
+        // forever. Previously the only failure path was a console.warn nobody saw.
+        bootWatchdog = setTimeout(() => {
+            if (booted) return;
+            const statusEl = document.getElementById('status');
+            if (statusEl) {
+                statusEl.textContent =
+                    'The map could not finish loading. The basemap or the NOAA feed may be unavailable — try refreshing.';
+            }
+        }, 12000);
 
         map.on('error', (e: any) => console.warn('map error', e && e.error));
 
         // Teardown on unmount.
         return () => {
             if (refreshIntervalId) clearInterval(refreshIntervalId);
+            if (bootWatchdog) clearTimeout(bootWatchdog);
             map.remove();
         };
     }, []);
@@ -851,12 +896,12 @@ export default function WeatherMap() {
                         <div className="legend-block">
                             <div className="legend-title">Radar reflectivity</div>
                             {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img id="radar-legend" alt="radar legend" />
+                            <img id="radar-legend" alt="Radar reflectivity legend" hidden />
                         </div>
                         <div className="legend-block" id="precip-legend-block" hidden>
                             <div className="legend-title">Precip type</div>
                             {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img id="precip-legend" alt="precip type legend" />
+                            <img id="precip-legend" alt="Precipitation type legend" hidden />
                         </div>
                         <div className="legend-block">
                             <div className="legend-title">Alerts (by hazard)</div>
