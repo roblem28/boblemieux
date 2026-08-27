@@ -231,69 +231,6 @@ sections:
           self:
             textAlign: left
       - type: FeaturedItem
-        title: VoxelCraft
-        subtitle: Three.js · WebGL · JavaScript
-        text: |-
-          Browser-based procedural voxel world, single-file Three.js, with a kid
-          mode for young players.
-
-          _Requires a desktop browser with keyboard and mouse._
-        actions:
-          - type: Link
-            label: Play VoxelCraft
-            url: /games/voxelcraft/index.html
-            target: _blank
-            rel: noopener noreferrer
-        styles:
-          self:
-            textAlign: left
-      - type: FeaturedItem
-        title: Flash Frenzy
-        text: >-
-          Interactive flash card game — quiz, flip, and 60-second speed modes
-          with a streak-powered BLITZ multiplier.
-        actions:
-          - type: Link
-            label: Play Flash Frenzy
-            url: https://flash-frenzy.netlify.app
-            target: _blank
-            rel: noopener noreferrer
-        styles:
-          self:
-            textAlign: left
-      - type: FeaturedItem
-        title: The Cheeseburgler
-        subtitle: HTML5 Canvas · JavaScript · Kids Game
-        text: >-
-          Browser arcade game for kids — sneak around the diner, steal
-          cheeseburgers, dodge Chef Pickles. Pure HTML5 canvas, no dependencies.
-          Keyboard + touch controls.
-        actions:
-          - type: Link
-            label: Play The Cheeseburgler
-            url: /games/cheeseburgler.html
-            target: _blank
-            rel: noopener noreferrer
-        styles:
-          self:
-            textAlign: left
-      - type: FeaturedItem
-        title: "Bob & Kenny in: GAS STATION GUMMIES!"
-        subtitle: Interactive Comic · SVG · JavaScript
-        text: >-
-          Silver Age Marvel style interactive comic book (Issue #1). Join Bob &
-          Kenny on a 3 AM gas station trip featuring branching paths, WebAudio SFX,
-          and halftone art.
-        actions:
-          - type: Link
-            label: Read Comic
-            url: /comics/gas-station-gummies.html
-            target: _blank
-            rel: noopener noreferrer
-        styles:
-          self:
-            textAlign: left
-      - type: FeaturedItem
         title: NYT Daily Digest
         subtitle: Python · SQLite FTS5 · Netlify
         text: >-
@@ -323,20 +260,15 @@ sections:
           self:
             textAlign: left
       - type: FeaturedItem
-        title: ObstacleBoy
-        subtitle: Unity · WebGL · Kids Game
-        text: |-
-          Unity auto-runner for kids — duck, jump and lean past gates across five
-          levels and three difficulty modes. One-thumb touch controls, and every
-          sound in it is synthesised in C# at runtime rather than loaded.
-
-          _Best played in landscape._
+        title: Play
+        subtitle: Games & an interactive comic
+        text: >-
+          Browser games and a Silver Age interactive comic — VoxelCraft,
+          ObstacleBoy, The Cheeseburgler, Flash Frenzy, and Gas Station Gummies.
         actions:
           - type: Link
-            label: Play ObstacleBoy
-            url: /games/obstacleboy/
-            target: _blank
-            rel: noopener noreferrer
+            label: Open Play
+            url: /projects/play
         styles:
           self:
             textAlign: left
