@@ -36,7 +36,7 @@ bottomSections:
     colors: colors-f
     form:
       type: FormBlock
-      elementId: sign-up-form
+      elementId: newsletter
       fields:
         - name: firstName
           label: First Name

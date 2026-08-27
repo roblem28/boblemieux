@@ -250,7 +250,7 @@ sections:
     colors: colors-f
     form:
       type: FormBlock
-      elementId: sign-up-form
+      elementId: contact
       fields:
         - name: firstName
           label: First Name
