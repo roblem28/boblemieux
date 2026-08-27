@@ -41,7 +41,9 @@ export function resolveStaticProps(urlPath: string, allData: ContentObject[]): P
         const type = value?.__metadata?.modelName;
         if (type && PropsResolvers[type]) {
             const resolver = PropsResolvers[type];
-            return resolver(value, allData);
+            // Project pools need to know which branch of the site they are being
+            // rendered on, so the containing page's urlPath is passed through.
+            return resolver(value, allData, urlPath);
         } else {
             return value;
         }
@@ -54,7 +56,7 @@ export function resolveStaticProps(urlPath: string, allData: ContentObject[]): P
     };
 }
 
-type ResolverFunction = (props: ContentObject, allData: ContentObject[]) => ContentObject;
+type ResolverFunction = (props: ContentObject, allData: ContentObject[], pageUrlPath?: string) => ContentObject;
 
 const PropsResolvers: Partial<Record<ContentObjectType, ResolverFunction>> = {
     PostFeedLayout: (props, allData) => {
@@ -72,7 +74,9 @@ const PropsResolvers: Partial<Record<ContentObjectType, ResolverFunction>> = {
         };
     },
     ProjectLayout: (props, allData) => {
-        const allProjects = getAllProjectsSorted(allData);
+        // Scope to the branch this document itself lives in, so /work/* pages
+        // through /work/* and /projects/* through /projects/*.
+        const allProjects = getAllProjectsSorted(allData, sectionPrefixFor(props.__metadata?.urlPath));
         const currentProjectId = props.__metadata?.id;
         const currentProjectIndex = allProjects.findIndex((project) => project.__metadata?.id === currentProjectId);
         const nextProject = currentProjectIndex > 0 ? allProjects[currentProjectIndex - 1] : null;
@@ -83,15 +87,15 @@ const PropsResolvers: Partial<Record<ContentObjectType, ResolverFunction>> = {
             nextProject
         };
     },
-    ProjectFeedLayout: (props, allData) => {
-        const allProjects = getAllProjectsSorted(allData);
+    ProjectFeedLayout: (props, allData, pageUrlPath) => {
+        const allProjects = getAllProjectsSorted(allData, sectionPrefixFor(pageUrlPath));
         return {
             ...(props as ProjectFeedLayout),
             items: allProjects
         };
     },
-    RecentProjectsSection: (props, allData) => {
-        const recentProjects = getAllProjectsSorted(allData).slice(
+    RecentProjectsSection: (props, allData, pageUrlPath) => {
+        const recentProjects = getAllProjectsSorted(allData, sectionPrefixFor(pageUrlPath)).slice(
             0,
             (props as RecentProjectsSection).recentCount || 3
         );
@@ -108,8 +112,24 @@ function getAllPostsSorted(objects: ContentObject[]) {
     return sorted;
 }
 
-function getAllProjectsSorted(objects: ContentObject[]) {
-    const all = objects.filter((object) => object.__metadata?.modelName === 'ProjectLayout') as ProjectLayout[];
+// Both the work case studies and the tech projects are authored as ProjectLayout
+// documents, so filtering on modelName alone returned all 13 as one pool. That
+// put BP Whiting and CPChem into grids headed "Tech Projects", and let the
+// prev/next nav page straight out of /projects into /work. The two branches are
+// distinguished by where the document lives, not by its model.
+const WORK_PREFIX = '/work/';
+const PROJECTS_PREFIX = '/projects/';
+
+function sectionPrefixFor(urlPath?: string) {
+    return urlPath?.startsWith(WORK_PREFIX) || urlPath === '/work' ? WORK_PREFIX : PROJECTS_PREFIX;
+}
+
+function getAllProjectsSorted(objects: ContentObject[], sectionPrefix?: string) {
+    const all = objects.filter((object) => {
+        if (object.__metadata?.modelName !== 'ProjectLayout') return false;
+        if (!sectionPrefix) return true;
+        return (object.__metadata?.urlPath ?? '').startsWith(sectionPrefix);
+    }) as ProjectLayout[];
     const sorted = all.sort(
         (projectA, projectB) => new Date(projectB.date).getTime() - new Date(projectA.date).getTime()
     );
