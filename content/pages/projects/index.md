@@ -124,6 +124,76 @@ sections:
           self:
             textAlign: left
       - type: FeaturedItem
+        title: Earth Twin
+        subtitle: MapLibre GL JS · NASA · AWS Terrain
+        text: >-
+          A browser-based 3D digital twin of Earth on free public data — NASA
+          Blue Marble imagery, VIIRS night lights, ESRI tiles, AWS terrain, and
+          OpenFreeMap buildings. Orbit to street level, no API keys.
+        actions:
+          - type: Link
+            label: Learn more
+            url: /projects/earth-twin
+        styles:
+          self:
+            textAlign: left
+      - type: FeaturedItem
+        title: Moon Twin
+        subtitle: MapLibre GL JS · NASA LRO · LOLA
+        text: >-
+          An interactive 3D lunar surface from NASA LRO WAC mosaic imagery and
+          LOLA elevation, with quick descent to all six Apollo landing sites,
+          Tycho Crater, and the lunar South Pole.
+        actions:
+          - type: Link
+            label: Learn more
+            url: /projects/moon-twin
+        styles:
+          self:
+            textAlign: left
+      - type: FeaturedItem
+        title: Exoplanet Twin
+        subtitle: Three.js · GLSL · NASA Exoplanet Archive
+        text: >-
+          Twelve NASA-confirmed exoplanets across eight type categories, each
+          surface generated in real time by GLSL shaders seeded from the
+          planet's actual radius, temperature, and host-star type.
+        actions:
+          - type: Link
+            label: Learn more
+            url: /projects/exoplanet-twin
+        styles:
+          self:
+            textAlign: left
+      - type: FeaturedItem
+        title: The AI Wire
+        subtitle: Static · zero JavaScript
+        text: >-
+          A hand-built AI news digest. The whole page is 3 KB gzipped and ships
+          no JavaScript at all.
+        actions:
+          - type: Link
+            label: Read The AI Wire
+            url: /wire/
+        styles:
+          self:
+            textAlign: left
+      - type: FeaturedItem
+        title: 3D Mind Map
+        subtitle: Three.js · WebGL
+        text: >-
+          The interactive 3D concept graph embedded on the home page, viewable
+          on its own.
+        actions:
+          - type: Link
+            label: Open the mind map
+            url: /widgets/mindmap-3d.html
+            target: _blank
+            rel: noopener noreferrer
+        styles:
+          self:
+            textAlign: left
+      - type: FeaturedItem
         title: Weather Map
         text: >-
           An interactive MapLibre weather map with live NOAA/NWS radar, precip
