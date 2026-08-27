@@ -17,6 +17,10 @@ export default function Document() {
                     gstatic) with no preconnect. Only DM Mono is referenced -
                     style.json sets fontBody to it - so Azeret Mono, half the
                     downloaded faces, is dropped. */}
+                {/* Brand primary. Until now #0804F6 and #FE491F were defined in
+                    style.json and rendered nowhere: only colors-a and colors-f are
+                    used by any content, so the site painted pure monochrome. */}
+                <meta name="theme-color" content="#0804F6" />
                 <link rel="preconnect" href="https://fonts.googleapis.com" />
                 <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
                 <link

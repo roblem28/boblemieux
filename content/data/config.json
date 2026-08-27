@@ -49,7 +49,7 @@
         ],
         "styles": {
             "self": {
-                "width": "full"
+                "width": "narrow"
             }
         }
     },
