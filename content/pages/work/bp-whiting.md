@@ -18,7 +18,7 @@ media:
   type: ImageBlock
   url: /images/bp-whiting.jpg
   altText: BP Whiting Refinery — Fluor EPC program
-metaTitle: BP Whiting Refinery Modernization — Bob LeMieux Project Controls
+metaTitle: BP Whiting Refinery Modernization
 metaDescription: >-
   Project Controls Manager on BP's Whiting Refinery Modernization — a $3.8B+
   EPC program at one of the largest refineries in the Midwest, executed

@@ -1,7 +1,7 @@
 ﻿---
 type: PageLayout
 title: Home
-metaTitle: Bob LeMieux — Project Controls & Scheduling Manager
+metaTitle: Project Controls & Scheduling Manager
 metaDescription: >-
   40+ years delivering billion-dollar capital programs. Project controls,
   scheduling, AI-enabled workflows, and construction automation. Currently

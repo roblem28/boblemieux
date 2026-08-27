@@ -17,7 +17,7 @@ media:
   type: ImageBlock
   url: /images/integra.jpg
   altText: Integra Mission Critical — data center construction
-metaTitle: Integra Mission Critical — Bob LeMieux Schedule and EVM Manager
+metaTitle: Integra — Schedule and EVM Manager
 metaDescription: >-
   Senior Construction Schedule and EVM Manager at Integra Mission Critical,
   managing schedule and earned value performance for turnkey data center

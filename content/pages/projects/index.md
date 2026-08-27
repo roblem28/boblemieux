@@ -1,7 +1,7 @@
 ---
 type: PageLayout
 title: Projects
-metaTitle: Bob LeMieux — Projects
+metaTitle: Projects
 metaDescription: >-
   Project portfolio: turnover readiness systems, controls automation toolsets,
   AI-enabled schedule analytics, and experimental hardware and software projects.

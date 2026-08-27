@@ -17,7 +17,7 @@ media:
   type: ImageBlock
   url: /images/harvard-nw.jpg
   altText: Harvard Northwest Science Building interior
-metaTitle: Harvard Northwest Science Building — Bob LeMieux Project Controls
+metaTitle: Harvard Northwest Science Building
 metaDescription: >-
   Owner's Representative on project controls for the Harvard Northwest Science
   Building — a multidisciplinary research facility in Cambridge housing the

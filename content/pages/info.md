@@ -1,7 +1,7 @@
 ---
 type: PageLayout
 title: About
-metaTitle: Bob LeMieux — About
+metaTitle: About
 metaDescription: >-
   Project Controls and Scheduling Manager with 40+ years across EPC,
   mission-critical, data center, and industrial construction. Currently

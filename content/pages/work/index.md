@@ -1,7 +1,7 @@
 ---
 type: PageLayout
 title: Selected Work Experience
-metaTitle: Bob LeMieux — Selected Work Experience
+metaTitle: Selected Work Experience
 metaDescription: >-
   Selected project controls and scheduling work across capital programs,
   EPC projects, data centers, and academic research facilities.

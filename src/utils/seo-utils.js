@@ -36,7 +36,9 @@ export function seoGenerateMetaTags(page, site) {
 export function seoGenerateTitle(page, site) {
     let title = page.metaTitle ? page.metaTitle : page.title;
     if (site.titleSuffix && page.addTitleSuffix !== false) {
-        title = `${title} - ${site.titleSuffix}`;
+        // titleSuffix already carries its own separator (e.g. "| Bob LeMieux"),
+        // so joining with " - " here produced "Title - | Bob LeMieux".
+        title = `${title} ${site.titleSuffix}`;
     }
     return title;
 }

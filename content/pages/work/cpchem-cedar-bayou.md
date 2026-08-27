@@ -17,7 +17,7 @@ media:
   type: ImageBlock
   url: /images/cpchem-cedar-bayou.jpg
   altText: CPChem Cedar Bayou — Fluor EPC program
-metaTitle: CPChem Cedar Bayou Ethane Cracker — Bob LeMieux Project Controls
+metaTitle: CPChem Cedar Bayou Ethane Cracker
 metaDescription: >-
   Project Controls Scheduling Lead at Fluor on Chevron Phillips Chemical's
   Cedar Bayou ethane cracker — one of the world's largest ethane crackers
