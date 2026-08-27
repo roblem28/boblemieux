@@ -1,3 +1,4 @@
+import { applyCors } from '@/utils/api-cors';
 /* Next.js API route: USAspending.gov CORS proxy
  * (ported from usaspending-dashboard/netlify/functions/usaspending.js).
  *
@@ -17,15 +18,6 @@ const API_BASE = 'https://api.usaspending.gov/api/v2';
 // Allow-list: only these exact paths may be proxied.
 const ALLOWED_PATHS = new Set(['search/spending_by_geography', 'search/spending_by_award']);
 
-const CORS = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type'
-};
-
-function applyCors(res) {
-  for (const [k, v] of Object.entries(CORS)) res.setHeader(k, v);
-}
 
 function sendJson(res, statusCode, obj) {
   res.setHeader('Content-Type', 'application/json');
@@ -33,7 +25,7 @@ function sendJson(res, statusCode, obj) {
 }
 
 export default async function handler(req, res) {
-  applyCors(res);
+  applyCors(req, res);
 
   // Preflight.
   if (req.method === 'OPTIONS') {

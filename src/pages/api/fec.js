@@ -1,3 +1,4 @@
+import { applyCors } from '@/utils/api-cors';
 /* Next.js API route: OpenFEC (FEC campaign-finance) proxy.
  * (Mirrors the usaspending.js / wfs.js CORS-proxy pattern in this repo.)
  *
@@ -39,15 +40,6 @@ const ALLOWED_PREFIXES = [
 // Params we never forward upstream (control params / our own key handling).
 const RESERVED = new Set(['endpoint', 'health', 'api_key']);
 
-const CORS = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'GET, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type'
-};
-
-function applyCors(res) {
-  for (const [k, v] of Object.entries(CORS)) res.setHeader(k, v);
-}
 
 function sendJson(res, statusCode, obj) {
   res.setHeader('Content-Type', 'application/json');
@@ -97,7 +89,7 @@ function buildUpstream(endpoint, query, apiKey) {
 }
 
 export default async function handler(req, res) {
-  applyCors(res);
+  applyCors(req, res);
 
   if (req.method === 'OPTIONS') {
     return res.status(204).end();

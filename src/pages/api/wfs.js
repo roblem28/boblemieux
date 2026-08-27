@@ -1,3 +1,4 @@
+import { applyCors } from '@/utils/api-cors';
 /* Next.js API route: WFS proxy (ported from weather-map-app/netlify/functions/wfs.js).
  * Browsers can't fetch the GeoServer WFS JSON directly (no CORS headers upstream),
  * so this proxies the request, forces GeoJSON output in EPSG:4326, and adds CORS.
@@ -14,18 +15,9 @@ const ENDPOINTS = {
   'wwa:hazards': 'https://opengeo.ncep.noaa.gov/geoserver/wwa/hazards/ows'
 };
 
-const CORS = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'GET, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type'
-};
-
-function applyCors(res) {
-  for (const [k, v] of Object.entries(CORS)) res.setHeader(k, v);
-}
 
 export default async function handler(req, res) {
-  applyCors(res);
+  applyCors(req, res);
 
   if (req.method === 'OPTIONS') {
     return res.status(204).end();

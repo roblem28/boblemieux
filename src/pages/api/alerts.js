@@ -1,3 +1,4 @@
+import { applyCors } from '@/utils/api-cors';
 /* Next.js API route: api.weather.gov proxy.
  *
  * api.weather.gov *sends* permissive CORS headers, so a browser could call it
@@ -18,15 +19,6 @@ const BASE = 'https://api.weather.gov';
 // Descriptive UA is mandatory; api.weather.gov 403s requests without one.
 const USER_AGENT = 'boblemieux.ai weather map, contact roblem28@gmail.com';
 
-const CORS = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'GET, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type'
-};
-
-function applyCors(res) {
-  for (const [k, v] of Object.entries(CORS)) res.setHeader(k, v);
-}
 
 function finiteNum(v) {
   const n = Number(v);
@@ -88,7 +80,7 @@ function resolveUpstream(qp) {
 }
 
 export default async function handler(req, res) {
-  applyCors(res);
+  applyCors(req, res);
 
   if (req.method === 'OPTIONS') {
     return res.status(204).end();
