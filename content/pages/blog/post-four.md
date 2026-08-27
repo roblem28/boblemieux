@@ -1,6 +1,6 @@
 ---
 type: PostLayout
-title: 'Sharing What I Have Learned After 40+ Years of Building Things'
+title: 'Sharing What I Have Learned After 45 Years of Building Things'
 colors: colors-a
 date: '2026-03-03'
 author: content/data/team/bob-lemieux.json
@@ -30,7 +30,7 @@ bottomSections:
     showReadMoreLink: true
   - type: ContactSection
     backgroundSize: full
-    title: 'Stay up-to-date with my words ✍️'
+    title: 'Get new posts by email'
     colors: colors-f
     form:
       type: FormBlock
@@ -58,7 +58,7 @@ bottomSections:
           width: full
           type: EmailFormControl
         - name: updatesConsent
-          label: Sign me up to receive my words
+          label: Send me new posts
           isRequired: false
           width: full
           type: CheckboxFormControl

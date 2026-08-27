@@ -1,12 +1,12 @@
 {
     "type": "Person",
     "firstName": "Bob",
-    "lastName": "Lemieux",
+    "lastName": "LeMieux",
     "email": "roblem28@gmail.com",
     "url": "https://boblemieux.ai",
     "image": {
         "type": "ImageBlock",
         "url": "/images/about.jpg",
-        "altText": "Bob Lemieux photo"
+        "altText": "Bob LeMieux photo"
     }
 }

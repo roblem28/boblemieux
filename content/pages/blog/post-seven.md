@@ -32,7 +32,7 @@ bottomSections:
     showReadMoreLink: true
   - type: ContactSection
     backgroundSize: full
-    title: 'Stay up-to-date with my words ✍️'
+    title: 'Get new posts by email'
     colors: colors-f
     form:
       type: FormBlock
@@ -60,7 +60,7 @@ bottomSections:
           width: full
           type: EmailFormControl
         - name: updatesConsent
-          label: Sign me up to receive my words
+          label: Send me new posts
           isRequired: false
           width: full
           type: CheckboxFormControl

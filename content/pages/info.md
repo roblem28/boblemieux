@@ -3,7 +3,7 @@ type: PageLayout
 title: About
 metaTitle: About
 metaDescription: >-
-  Project Controls and Scheduling Manager with 40+ years across EPC,
+  Project Controls and Scheduling Manager with 45 years across EPC,
   mission-critical, data center, and industrial construction. Currently
   at Integra on mission-critical data center construction programs.
 socialImage: /images/bob.jpg
@@ -13,19 +13,17 @@ sections:
     colors: colors-f
     backgroundSize: full
     text: >-
-      # 40+ years building and controlling complex projects
+      # 45 years building and controlling complex projects
 
-      Bob LeMieux is a Project Controls and Scheduling Manager with over four
-      decades of experience across EPC, mission-critical, data center, and
+      Bob LeMieux is a Project Controls and Scheduling Manager with 45 years of experience across EPC, mission-critical, data center, and
       industrial construction. He has directly led controls on projects up to
       $300M and contributed as a key controls leader on programs up to $20B.
       Currently serving as Senior Construction Schedule and EVM Manager
       at Integra on mission-critical data center construction programs. Previous work includes scheduling and controls for
       [Harvard's Center for Brain Science](/work/harvard-brain-science) and 60 Oxford Street Data Center,
       $400M+ annual capital programs at Cargill, and 26 years at Fluor
-      Enterprises on flagship EPC programs including ExxonMobil Baytown
-      Expansion, Dow LHC-9, BP Whiting Refinery, and Chevron Phillips
-      Hydrocracker. He combines deep field experience with modern tools —
+      Enterprises on flagship EPC programs including Dow LHC-9, BP Whiting
+      Refinery, and Chevron Phillips Chemical — Cedar Bayou Ethane Cracker, Baytown, TX. He combines deep field experience with modern tools —
       Primavera P6, Power BI, SAP, Acumen Fuse — and AI-enabled workflows
       to surface risk earlier, compress reporting cycles, and give leadership
       the clarity to make better decisions faster.
@@ -186,8 +184,7 @@ sections:
 
           Project Controls Lead, Senior Scheduler, and Site Manager on EPC and
           design-build projects up to $20B. Key programs include ExxonMobil
-          Baytown Expansion, Dow LHC-9, BP Whiting Refinery, and Chevron Phillips
-          Hydrocracker. Scope included data centers, clean rooms, labs, and
+          Dow LHC-9, BP Whiting Refinery, and Chevron Phillips Chemical — Cedar Bayou Ethane Cracker, Baytown, TX. Scope included data centers, clean rooms, labs, and
           control room environments. Advanced to site management supervising
           craft and subcontractors across disciplines.
 
@@ -285,7 +282,7 @@ sections:
           isRequired: false
           width: full
           type: CheckboxFormControl
-      submitLabel: "Send it 🚀"
+      submitLabel: "Send"
       styles:
         self:
           textAlign: center

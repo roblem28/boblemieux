@@ -7,7 +7,7 @@
         "type": "Header",
         "headerVariant": "variant-c",
         "isSticky": false,
-        "title": "Bob Lemieux",
+        "title": "Bob LeMieux",
         "isTitleVisible": true,
         "primaryLinks": [
             {
@@ -32,13 +32,6 @@
             }
         ],
         "socialLinks": [
-            {
-                "type": "Social",
-                "altText": "Instagram",
-                "label": "Instagram",
-                "url": "https://instagram.com/spazzmaster28",
-                "icon": "instagram"
-            },
             {
                 "type": "Social",
                 "altText": "GitHub",
@@ -104,7 +97,7 @@
             "address": "USA",
             "addressAltText": "My location"
         },
-        "copyrightText": "© 2026 Bob Lemieux",
+        "copyrightText": "© 2026 Bob LeMieux",
         "styles": {
             "self": {
                 "width": "narrow",

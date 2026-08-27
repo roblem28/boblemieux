@@ -5,7 +5,7 @@ metaTitle: Selected Work Experience
 metaDescription: >-
   Selected project controls and scheduling work across capital programs,
   EPC projects, data centers, and academic research facilities.
-  40+ years delivering on programs from $300M to $20B.
+  45 years delivering on programs from $300M to $20B.
 socialImage: /images/bob.jpg
 colors: colors-a
 sections:

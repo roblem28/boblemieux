@@ -3,7 +3,7 @@ type: PageLayout
 title: Home
 metaTitle: Project Controls & Scheduling Manager
 metaDescription: >-
-  40+ years delivering billion-dollar capital programs. Project controls,
+  45 years delivering billion-dollar capital programs. Project controls,
   scheduling, AI-enabled workflows, and construction automation. Currently
   leading schedule and EVM on mission-critical data center programs at Integra.
 socialImage: /images/bob.jpg
@@ -68,7 +68,7 @@ sections:
     backgroundSize: full
     title: Project Leadership
     text: >-
-      I bring four decades of experience delivering billion-dollar capital and
+      I bring 45 years of experience delivering billion-dollar capital and
       industrial projects, guiding teams from concept through mechanical
       completion. As a Construction Manager, Superintendent, and Project
       Controls leader, I've owned execution at the field level and driven
@@ -391,7 +391,7 @@ sections:
           isRequired: false
           width: full
           type: CheckboxFormControl
-      submitLabel: "Submit 🚀"
+      submitLabel: "Subscribe"
       styles:
         self:
           textAlign: center
