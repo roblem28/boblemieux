@@ -96,6 +96,15 @@
 </style>
 </head>
 <body>
+<!-- Site chrome for the hand-written pages under public/. These sit outside the
+     Next.js pipeline, so BaseLayout never renders for them and they shipped with
+     no header, no footer and no route back to the site at all. Kept deliberately
+     small so it does not obstruct the full-bleed game and widget canvases.
+     Hidden when framed, because mindmap-3d.html is embedded in an iframe on the
+     home page and must not show a nav link inside that embed. -->
+<a id="site-home-link" href="/" style="position:fixed;top:10px;left:10px;z-index:2147483647;display:inline-block;padding:6px 10px;font:500 12px/1 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;letter-spacing:.02em;color:#FBFFF2;background:#0804F6;border-radius:6px;text-decoration:none;opacity:.85">&#8592; boblemieux.ai</a>
+<script>if(window.self!==window.top){var l=document.getElementById('site-home-link');if(l)l.style.display='none';}</script>
+
 <header>
   <h1>The Cheeseburgler</h1>
   <div class="hud">
