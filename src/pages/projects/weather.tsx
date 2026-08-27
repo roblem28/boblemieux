@@ -1,3 +1,4 @@
+import Head from 'next/head';
 import StandalonePageHead from '@/components/StandalonePageHead';
 import dynamic from 'next/dynamic';
 
@@ -10,6 +11,13 @@ const WeatherMap = dynamic(() => import('@/components/projects/WeatherMap/Weathe
 export default function WeatherPage(props: any) {
     return (
         <>
+            <Head>
+                {/* Was a global import in _app.js, which put 64,602 raw bytes of
+                    render-blocking CSS on all 33 pages for a library used on this
+                    one. public/vendor/maplibre-gl.css is copied from the installed
+                    package by scripts/copy-vendor-css.mjs on the prebuild hook. */}
+                <link rel="stylesheet" href="/vendor/maplibre-gl.css" />
+            </Head>
             <StandalonePageHead
                 title={'Weather Map — Radar, Precip Type & Alerts'}
                 description={'Live NOAA/NWS radar, precip type, and severe-weather alerts on an interactive MapLibre map.'}

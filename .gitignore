@@ -39,3 +39,6 @@ yarn-error.log*
 
 # Local Netlify folder
 .netlify
+
+# generated at build time (scripts/copy-vendor-css.mjs)
+/public/vendor/
