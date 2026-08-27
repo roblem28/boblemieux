@@ -44,6 +44,39 @@
   status = 200
   force = true
 
+# IA consolidation. /work-projects became /work/systems (it is controls systems
+# built on live programmes, and belongs under Work), and /tech-projects was a
+# second, smaller view of the same set /projects already shows.
+#
+# Both are 301s rather than deletions: the URLs stay reachable, keep their link
+# equity, and anything already pointing at them still lands somewhere correct.
+#
+# force = true because the Next.js catch-all ([[...slug]].tsx) would otherwise
+# be a candidate for these paths.
+[[redirects]]
+  from = "/work-projects"
+  to = "/work/systems/"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/work-projects/*"
+  to = "/work/systems/"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/tech-projects"
+  to = "/projects/"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/tech-projects/*"
+  to = "/projects/"
+  status = 301
+  force = true
+
 [[plugins]]
   package = "@netlify/plugin-nextjs"
 # Cache headers. Without these every asset served max-age=0, so 2.08 MB of

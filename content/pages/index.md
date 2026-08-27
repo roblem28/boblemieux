@@ -81,7 +81,20 @@ sections:
       better decisions with less friction. Ready to lead at any level—shaping
       both strategy and hands-on execution—while modernizing how project
       delivery gets done.
-    actions: []
+
+
+      The clearest example is
+      [BP Whiting Refinery Modernization](/work/bp-whiting) — scheduling and
+      earned value across a $3.8B+ program. On the technical side, the
+      [Weather Map](/projects/weather) is live NOAA radar and severe-weather
+      alerts on an interactive map, built end to end.
+    actions:
+      - type: Link
+        label: Read the BP Whiting case study
+        url: /work/bp-whiting
+      - type: Link
+        label: Open the Weather Map
+        url: /projects/weather
     styles:
       self:
         height: auto
@@ -256,8 +269,8 @@ sections:
             textAlign: left
     actions:
       - type: Link
-        label: View all Work Projects
-        url: /work-projects
+        label: View systems & tooling
+        url: /work/systems
     styles:
       self:
         height: auto
@@ -289,8 +302,8 @@ sections:
     colors: colors-f
     actions:
       - type: Link
-        label: View all Tech Projects
-        url: /tech-projects
+        label: View all projects
+        url: /projects
     styles:
       self:
         height: auto

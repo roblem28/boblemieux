@@ -51,6 +51,11 @@
         <priority>0.6</priority>
     </url>
     <url>
+        <loc>https://boblemieux.ai/contact/</loc>
+        <lastmod>2026-08-27</lastmod>
+        <priority>0.6</priority>
+    </url>
+    <url>
         <loc>https://boblemieux.ai/games/cheeseburgler.html</loc>
         <lastmod>2026-08-27</lastmod>
         <priority>0.6</priority>
@@ -141,22 +146,12 @@
         <priority>0.8</priority>
     </url>
     <url>
-        <loc>https://boblemieux.ai/tech-projects/</loc>
-        <lastmod>2026-08-27</lastmod>
-        <priority>0.6</priority>
-    </url>
-    <url>
         <loc>https://boblemieux.ai/widgets/mindmap-3d.html</loc>
         <lastmod>2026-08-27</lastmod>
         <priority>0.6</priority>
     </url>
     <url>
         <loc>https://boblemieux.ai/wire/</loc>
-        <lastmod>2026-08-27</lastmod>
-        <priority>0.6</priority>
-    </url>
-    <url>
-        <loc>https://boblemieux.ai/work-projects/</loc>
         <lastmod>2026-08-27</lastmod>
         <priority>0.6</priority>
     </url>
@@ -182,6 +177,11 @@
     </url>
     <url>
         <loc>https://boblemieux.ai/work/integra/</loc>
+        <lastmod>2026-08-27</lastmod>
+        <priority>0.8</priority>
+    </url>
+    <url>
+        <loc>https://boblemieux.ai/work/systems/</loc>
         <lastmod>2026-08-27</lastmod>
         <priority>0.8</priority>
     </url>

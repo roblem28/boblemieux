@@ -12,7 +12,7 @@
         "primaryLinks": [
             {
                 "type": "Link",
-                "label": "Info",
+                "label": "About",
                 "url": "/info"
             },
             {
@@ -29,6 +29,11 @@
                 "type": "Link",
                 "label": "Blog",
                 "url": "/blog"
+            },
+            {
+                "type": "Link",
+                "label": "Contact",
+                "url": "/contact"
             }
         ],
         "socialLinks": [
@@ -65,7 +70,7 @@
             {
                 "type": "Link",
                 "label": "Contact",
-                "url": "mailto:roblem28@gmail.com",
+                "url": "/contact",
                 "altText": ""
             },
             {

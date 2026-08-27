@@ -1,12 +1,12 @@
 ---
 type: PageLayout
-title: Work Projects
+title: Systems & Tooling
 metaDescription: >-
-  Capital project delivery by Bob LeMieux: scheduling, earned value management, and controls leadership on major EPC and data centre programmes.
+  Controls systems Bob LeMieux built on live capital programmes: turnover readiness tracking, reporting automation, and schedule and cost analysis.
 colors: colors-a
 sections:
   - type: HeroSection
-    title: Work Projects
+    title: Systems & Tooling
     subtitle: ''
     actions: []
     colors: colors-f

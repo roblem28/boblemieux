@@ -70,8 +70,8 @@ sections:
             textAlign: left
     actions:
       - type: Link
-        label: View all Work Projects
-        url: /work-projects
+        label: View systems & tooling
+        url: /work/systems
     styles:
       self:
         height: auto
@@ -340,10 +340,7 @@ sections:
         styles:
           self:
             textAlign: left
-    actions:
-      - type: Link
-        label: View all Tech Projects
-        url: /tech-projects
+    actions: []
     styles:
       self:
         height: auto
