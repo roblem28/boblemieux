@@ -23,7 +23,7 @@ export default function SelectFormControl(props) {
             )}
             <select
                 id={name}
-                className="w-full py-3 pl-3 bg-transparent border border-current pr-7 placeholder:text-current placeholder:opacity-50 focus:outline-none focus:ring-1 focus:ring-current sm:text-xl"
+                className="w-full py-3 pl-3 bg-transparent border border-current pr-7 placeholder:text-current placeholder:opacity-50 sm:text-xl"
                 name={name}
                 {...attr}
             >

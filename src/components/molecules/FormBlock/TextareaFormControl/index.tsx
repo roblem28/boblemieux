@@ -26,7 +26,7 @@ export default function TextareaFormControl(props) {
             )}
             <textarea
                 id={name}
-                className="w-full p-3 bg-transparent border border-current placeholder:text-current placeholder:opacity-50 focus:outline-none focus:ring-1 focus:ring-current sm:text-xl"
+                className="w-full p-3 bg-transparent border border-current placeholder:text-current placeholder:opacity-50 sm:text-xl"
                 name={name}
                 rows="5"
                 {...attr}

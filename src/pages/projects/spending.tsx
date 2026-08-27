@@ -15,6 +15,12 @@ export default function SpendingPage(props: any) {
                 path="/projects/spending/"
             />
             <BaseLayout {...props}>
+                {/* These pages were bare iframes: no heading, no byline, and
+                    therefore zero headings in the document outline. */}
+                <div className="max-w-7xl mx-auto px-4 pt-8 pb-2">
+                    <h1 className="text-3xl sm:text-4xl">Federal Award Explorer</h1>
+                    <p className="mt-2 max-w-3xl sm:text-lg opacity-80">Federal contract awards by place of performance: a USAspending.gov choropleth with a sortable, exportable award table.</p>
+                </div>
                 <iframe
                     src="/projects/spending/index.html"
                     title="Federal Award Explorer"

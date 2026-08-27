@@ -360,28 +360,28 @@ sections:
       fields:
         - name: firstName
           label: First Name
-          hideLabel: true
+          hideLabel: false
           placeholder: First Name
           isRequired: true
           width: 1/2
           type: TextFormControl
         - name: lastName
           label: Last Name
-          hideLabel: true
+          hideLabel: false
           placeholder: Last Name
           isRequired: false
           width: 1/2
           type: TextFormControl
         - name: email
           label: Email
-          hideLabel: true
+          hideLabel: false
           placeholder: Email
           isRequired: true
           width: 1/2
           type: EmailFormControl
         - name: message
           label: Message
-          hideLabel: true
+          hideLabel: false
           placeholder: What are you working on?
           isRequired: true
           width: full

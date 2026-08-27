@@ -853,7 +853,7 @@ export default function WeatherMap() {
 
             <div id="panel" className="panel collapsed">
                 <div className="panel-head">
-                    <h1>Weather Map</h1>
+                    <h2>Weather Map</h2>
                     <button id="panel-toggle" type="button" className="panel-toggle" aria-expanded="false" aria-label="Toggle controls">
                         Layers ▾
                     </button>

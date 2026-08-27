@@ -13,8 +13,11 @@ import Section from '../Section';
  field. These are added by the <AnnotatedField> helper.
  The motivation for these annotations: allowing the content editor to edit styles at the field level.
  */
-export default function Component(props: HeroSection) {
+export default function Component(props: HeroSection & { isPageTitle?: boolean }) {
     const { elementId, colors, backgroundSize, title, subtitle, text, media, actions = [], styles = {} } = props;
+    // This hardcoded an <h1>, so the home page - which has two heroes - shipped
+    // two of them. PageLayout marks only the first hero on a page as the title.
+    const Heading = props.isPageTitle === false ? 'h2' : 'h1';
     const sectionFlexDirection = styles.self?.flexDirection ?? 'row';
     const sectionAlign = styles.self?.textAlign ?? 'left';
     return (
@@ -23,7 +26,7 @@ export default function Component(props: HeroSection) {
                 <div className={classNames('flex-1 w-full', mapStyles({ textAlign: sectionAlign }))}>
                     {title && (
                         <AnnotatedField path=".title">
-                            <h1 className="text-5xl sm:text-6xl whitespace-pre-line">{title}</h1>
+                            <Heading className="text-5xl sm:text-6xl whitespace-pre-line">{title}</Heading>
                         </AnnotatedField>
                     )}
                     {subtitle && (

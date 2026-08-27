@@ -25,6 +25,12 @@ export default function NytPage(props: any) {
                 path="/projects/nyt/"
             />
             <BaseLayout {...props}>
+                {/* These pages were bare iframes: no heading, no byline, and
+                    therefore zero headings in the document outline. */}
+                <div className="max-w-7xl mx-auto px-4 pt-8 pb-2">
+                    <h1 className="text-3xl sm:text-4xl">NYT Daily Digest</h1>
+                    <p className="mt-2 max-w-3xl sm:text-lg opacity-80">An auto-updating index of New York Times articles with full-text search, section filters and keyword tagging. Python, SQLite FTS5 and Netlify.</p>
+                </div>
                 {/* Pinned to the digest's own --bg-body so the frame edge does
                     not show a seam or flash white before it paints. */}
                 <div style={{ backgroundColor: '#0b0f19' }}>

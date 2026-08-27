@@ -17,6 +17,12 @@ export default function FecPage(props: any) {
                 path="/projects/fec/"
             />
             <BaseLayout {...props}>
+                {/* These pages were bare iframes: no heading, no byline, and
+                    therefore zero headings in the document outline. */}
+                <div className="max-w-7xl mx-auto px-4 pt-8 pb-2">
+                    <h1 className="text-3xl sm:text-4xl">FEC Campaign Finance Explorer</h1>
+                    <p className="mt-2 max-w-3xl sm:text-lg opacity-80">Contributions, committees, candidates, independent expenditures and filings from the OpenFEC API, with a contributor-to-federal-contract cross-reference.</p>
+                </div>
                 <iframe
                     src="/projects/fec/index.html"
                     title="FEC Campaign Finance Explorer"

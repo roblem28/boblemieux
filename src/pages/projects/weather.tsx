@@ -16,6 +16,9 @@ export default function WeatherPage(props: any) {
                     render-blocking CSS on all 33 pages for a library used on this
                     one. public/vendor/maplibre-gl.css is copied from the installed
                     package by scripts/copy-vendor-css.mjs on the prebuild hook. */}
+                {/* eslint-disable-next-line @next/next/no-css-tags -- the pages
+                    router only permits node_modules CSS imports from _app, and
+                    importing it there made it global on all 33 pages. */}
                 <link rel="stylesheet" href="/vendor/maplibre-gl.css" />
             </Head>
             <StandalonePageHead
@@ -25,6 +28,12 @@ export default function WeatherPage(props: any) {
                 viewport="width=device-width, initial-scale=1, viewport-fit=cover"
             />
             <BaseLayout {...props}>
+                {/* These pages were bare iframes: no heading, no byline, and
+                    therefore zero headings in the document outline. */}
+                <div className="max-w-7xl mx-auto px-4 pt-8 pb-2">
+                    <h1 className="text-3xl sm:text-4xl">Weather Map</h1>
+                    <p className="mt-2 max-w-3xl sm:text-lg opacity-80">Live NOAA/NWS radar, precipitation type, and severe-weather alerts on an interactive MapLibre map.</p>
+                </div>
                 <div className="px-4 py-8">
                     <WeatherMap />
                 </div>

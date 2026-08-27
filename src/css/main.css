@@ -59,6 +59,25 @@
         color: initial;
     }
 
+    /* Visible keyboard focus.
+       Header's menu buttons used focus:outline-hidden with no replacement, the
+       skip link was sr-only with no focus:not-sr-only, and form inputs drew a
+       1px ring against an identical 1px border. currentColor is used so the
+       indicator inherits whichever palette the section is painted in and
+       therefore always contrasts with its own background. */
+    :where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+        outline: 2px solid currentColor;
+        outline-offset: 2px;
+        border-radius: 2px;
+    }
+
+    /* The checkbox itself is opacity-0; the visible box is the label's ::before,
+       so focus has to be forwarded to it or the control looks unfocused. */
+    .peer:focus-visible ~ label::before {
+        outline: 2px solid currentColor;
+        outline-offset: 2px;
+    }
+
     /* Color themes */
     :where([data-theme='colors-b']) {
         --background-color-main: var(--theme-light);

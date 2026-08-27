@@ -1,6 +1,6 @@
 import classNames from 'classnames';
 import { useRouter } from 'next/router';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import { Link, Social } from '@/components/atoms';
 import ImageBlock from '@/components/molecules/ImageBlock';
@@ -20,7 +20,10 @@ export default function Header(props) {
                     'w-full': headerWidth === 'full'
                 })}
             >
-                <Link href="#main" className="sr-only">
+                <Link
+                    href="#main"
+                    className="sr-only focus:not-sr-only focus:absolute focus:z-30 focus:top-2 focus:left-2 focus:px-4 focus:py-2 focus:bg-main focus:border focus:border-current"
+                >
                     Skip to main content
                 </Link>
                 <HeaderVariants {...rest} />
@@ -113,6 +116,26 @@ function MobileMenu(props) {
     const { primaryLinks = [], socialLinks = [], ...logoProps } = props;
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const router = useRouter();
+    const menuId = 'site-mobile-menu';
+    const openButtonRef = useRef<HTMLButtonElement>(null);
+    const closeButtonRef = useRef<HTMLButtonElement>(null);
+
+    // The panel had no dialog semantics, no state exposed to assistive tech, no
+    // Escape, and no focus handling: opening it left focus behind on the page
+    // underneath. Move focus in on open, restore it to the trigger on close, and
+    // let Escape dismiss.
+    useEffect(() => {
+        if (!isMenuOpen) return;
+        closeButtonRef.current?.focus();
+        const onKeyDown = (event: KeyboardEvent) => {
+            if (event.key === 'Escape') {
+                setIsMenuOpen(false);
+                openButtonRef.current?.focus();
+            }
+        };
+        document.addEventListener('keydown', onKeyDown);
+        return () => document.removeEventListener('keydown', onKeyDown);
+    }, [isMenuOpen]);
 
     useEffect(() => {
         const handleRouteChange = () => {
@@ -128,20 +151,31 @@ function MobileMenu(props) {
     return (
         <div className="ml-auto lg:hidden">
             <button
+                ref={openButtonRef}
                 aria-label="Open Menu"
-                className="h-10 min-h-full p-4 text-lg border-l border-current focus:outline-hidden"
+                aria-expanded={isMenuOpen}
+                aria-controls={menuId}
+                className="h-10 min-h-full p-4 text-lg border-l border-current"
                 onClick={() => setIsMenuOpen(true)}
             >
                 <MenuIcon className="fill-current w-icon h-icon" />
             </button>
-            <div className={classNames('fixed inset-0 z-20 overflow-y-auto bg-main', isMenuOpen ? 'block' : 'hidden')}>
+            <div
+                id={menuId}
+                role="dialog"
+                aria-modal="true"
+                aria-label="Site menu"
+                hidden={!isMenuOpen}
+                className={classNames('fixed inset-0 z-20 overflow-y-auto bg-main', isMenuOpen ? 'block' : 'hidden')}
+            >
                 <div className="flex flex-col min-h-full">
                     <div className="flex items-stretch justify-between border-b border-current">
                         <SiteLogoLink {...logoProps} />
                         <div className="border-l border-current">
                             <button
+                                ref={closeButtonRef}
                                 aria-label="Close Menu"
-                                className="h-10 min-h-full p-4 text-lg focus:outline-hidden"
+                                className="h-10 min-h-full p-4 text-lg"
                                 onClick={() => setIsMenuOpen(false)}
                             >
                                 <CloseIcon className="fill-current w-icon h-icon" />
