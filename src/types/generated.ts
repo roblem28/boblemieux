@@ -1,9 +1,7 @@
 import { BaseContentObject } from './base';
 
-export type DataModelType = Config | Person | ThemeStyle;
 export type PageModelType = PageLayout | PostFeedLayout | PostLayout | ProjectFeedLayout | ProjectLayout;
 
-export const DATA_MODEL_NAMES = ['Config', 'Person', 'ThemeStyle'];
 export const PAGE_MODEL_NAMES = ['PageLayout', 'PostFeedLayout', 'PostLayout', 'ProjectFeedLayout', 'ProjectLayout'];
 
 export type SectionModels =
