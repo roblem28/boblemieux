@@ -42,3 +42,6 @@ yarn-error.log*
 
 # generated at build time (scripts/copy-vendor-css.mjs)
 /public/vendor/
+
+# typescript incremental build cache
+tsconfig.tsbuildinfo
