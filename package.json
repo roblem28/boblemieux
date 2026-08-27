@@ -5,13 +5,15 @@
         "dev": "next dev",
         "build": "next build",
         "start": "next start",
-        "prebuild": "node scripts/generate-sitemap.mjs"
+        "prebuild": "node scripts/generate-sitemap.mjs",
+        "lint": "eslint ."
     },
     "dependencies": {
         "@tailwindcss/postcss": "^4.0.12",
         "classnames": "^2.5.1",
         "dayjs": "^1.11.11",
         "front-matter": "^4.0.2",
+        "glob": "7.2.3",
         "maplibre-gl": "4.7.1",
         "markdown-to-jsx": "^7.7.1",
         "next": "^15.5.12",
@@ -21,6 +23,7 @@
         "tailwindcss": "^4.0.12"
     },
     "devDependencies": {
+        "@eslint/eslintrc": "^3.3.0",
         "@stackbit/cms-git": "^1.0.30",
         "@stackbit/types": "^2.1.11",
         "@tailwindcss/typography": "^0.5.16",
