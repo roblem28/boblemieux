@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Solar Savers</title>
+<style>
+  :root {
+    --hud: #f5b642;          /* phosphor amber */
+    --hud-dim: rgba(245,182,66,.45);
+    --hud-warn: #ff5a3c;
+    --ink: #05070f;
+    --mono: "IBM Plex Mono", "JetBrains Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+  }
+  html, body { margin:0; height:100%; background:var(--ink); overflow:hidden; font-family:var(--mono); color:var(--hud); }
+  canvas { display:block; touch-action:none; }
+
+  /* ---- HUD ---- */
+  #hud { position:fixed; inset:0; pointer-events:none; text-transform:uppercase; letter-spacing:.12em; font-size:12px; }
+  #hud .corner { position:absolute; padding:18px 22px; line-height:1.6; }
+  #hud .bl { left:0; bottom:0; }
+  #hud .br { right:0; bottom:0; text-align:right; }
+  #hud .tc { top:18px; left:50%; transform:translateX(-50%); text-align:center; }
+  #hud .val { font-size:28px; letter-spacing:.04em; color:#fff2d6; }
+  #hud .lbl { color:var(--hud-dim); font-size:10px; }
+  #hud .bar { width:180px; height:4px; background:var(--hud-dim); margin-top:6px; }
+  #hud .bar > i { display:block; height:100%; background:var(--hud); width:100%; transition:width .12s; }
+  #hud .br .bar { margin-left:auto; }
+  #reticle { position:absolute; left:50%; top:50%; width:34px; height:34px; transform:translate(-50%,-50%); }
+  #reticle::before, #reticle::after { content:""; position:absolute; background:var(--hud); opacity:.85; }
+  #reticle::before { left:50%; top:0; width:1px; height:100%; transform:translateX(-50%); clip-path:polygon(0 0,100% 0,100% 30%,0 30%,0 70%,100% 70%,100% 100%,0 100%); }
+  #reticle::after  { top:50%; left:0; height:1px; width:100%; transform:translateY(-50%); clip-path:polygon(0 0,30% 0,30% 100%,0 100%,70% 0,100% 0,100% 100%,70% 100%); }
+  #warn { position:absolute; left:50%; top:58%; transform:translateX(-50%); color:var(--hud-warn); font-size:14px; display:none; }
+  #warn.on { display:block; animation:blink .8s steps(2,start) infinite; }
+  @keyframes blink { to { visibility:hidden; } }
+
+  /* ---- Overlay (pointer-lock gate) ---- */
+  #overlay { position:fixed; inset:0; display:grid; place-items:center; background:rgba(5,7,15,.82); cursor:pointer; z-index:4; }
+  #overlay.hidden { display:none; }
+  #overlay .card { border:1px solid var(--hud-dim); padding:28px 36px; max-width:520px; }
+  #overlay h1 { margin:0 0 4px; font-weight:500; font-size:22px; letter-spacing:.3em; }
+  #overlay p { margin:0 0 14px; color:var(--hud-dim); font-size:12px; letter-spacing:.1em; }
+  #overlay table { border-collapse:collapse; font-size:12px; }
+  #overlay td { padding:3px 14px 3px 0; color:#fff2d6; }
+  #overlay td:first-child { color:var(--hud); width:110px; }
+  #overlay .go { margin-top:18px; font-size:12px; letter-spacing:.2em; color:var(--hud); }
+  /* ---- Touch fallback (shown when pointer lock is unavailable) ---- */
+  #touch { position:fixed; inset:0; display:none; z-index:2; }
+  #touch.on { display:block; }
+  #touch button {
+    position:absolute; pointer-events:auto; -webkit-tap-highlight-color:transparent;
+    font:inherit; font-size:11px; letter-spacing:.14em; text-transform:uppercase;
+    color:var(--hud); background:rgba(5,7,15,.55); border:1px solid var(--hud-dim);
+    width:64px; height:48px; padding:0; touch-action:none; user-select:none; cursor:pointer;
+  }
+  #touch button.on { background:var(--hud); color:var(--ink); }
+  #touch .fire  { right:22px; bottom:104px; width:88px; height:64px; }
+  #touch .boost { left:22px;  bottom:104px; }
+  #touch .brake { left:22px;  bottom:48px; }
+  #touch .left  { left:94px;  bottom:48px; }
+  #touch .right { left:158px; bottom:48px; }
+
+  /* ---- Re-capture hint (Esc released the mouse; play continues) ---- */
+  #lockhint {
+    position:fixed; left:50%; bottom:18px; transform:translateX(-50%); z-index:3; display:none;
+    font-size:10px; letter-spacing:.18em; text-transform:uppercase; cursor:pointer;
+    color:var(--hud-dim); border:1px solid var(--hud-dim); padding:6px 12px; background:rgba(5,7,15,.6);
+  }
+  #lockhint.on { display:block; }
+
+  /* ---- Paused (tab hidden) ---- */
+  #paused { position:fixed; inset:0; display:none; place-items:center; background:rgba(5,7,15,.72); z-index:5; }
+  #paused.on { display:grid; }
+  #paused .p { border:1px solid var(--hud-dim); padding:22px 44px; text-align:center; }
+  #paused .p b { display:block; font-weight:500; font-size:26px; letter-spacing:.4em; color:#fff2d6; }
+  #paused .p span { font-size:10px; color:var(--hud-dim); letter-spacing:.18em; }
+
+  #dbg { position:fixed; top:10px; left:10px; font-size:11px; color:var(--hud-dim); white-space:pre; display:none; }
+  @media (prefers-reduced-motion: reduce) { #warn.on { animation:none; } }
+</style>
+<script type="importmap">
+{ "imports": { "three": "https://cdnjs.cloudflare.com/ajax/libs/three.js/0.160.0/three.module.min.js" } }
+</script>
+</head>
+<body>
+<div id="hud">
+  <div id="reticle"></div>
+  <div id="warn">Leaving combat zone — turn back</div>
+  <div class="corner tc"><div class="lbl">Planatron</div><div class="val" id="tgt">—</div></div>
+  <div class="corner bl"><div class="lbl">Velocity</div><div class="val" id="spd">0</div><div class="bar"><i id="spdbar"></i></div></div>
+  <div class="corner br"><div class="lbl">Hull</div><div class="val" id="hp">100</div><div class="bar"><i id="hpbar"></i></div></div>
+</div>
+<div id="dbg"></div>
+<div id="overlay">
+  <div class="card">
+    <h1>Solar Savers</h1>
+    <p>Rebel fighter — flight systems check</p>
+    <table>
+      <tr><td>Mouse</td><td>Pitch / yaw</td></tr>
+      <tr><td>W / S</td><td>Boost / brake (ship always cruises forward)</td></tr>
+      <tr><td>A / D</td><td>Strafe left / right</td></tr>
+      <tr><td>Q / E</td><td>Roll</td></tr>
+      <tr><td>Space / LMB</td><td>Fire (test lasers)</td></tr>
+      <tr><td>Esc</td><td>Release mouse</td></tr>
+    </table>
+    <div class="go">Click to launch</div>
+  </div>
+</div>
+<div id="touch" aria-hidden="true">
+  <button class="boost" data-action="boost">Boost</button>
+  <button class="brake" data-action="brake">Brake</button>
+  <button class="left"  data-action="left"  aria-label="Strafe left">&#9664;</button>
+  <button class="right" data-action="right" aria-label="Strafe right">&#9654;</button>
+  <button class="fire"  data-action="fire">Fire</button>
+</div>
+<div id="lockhint">Click to capture mouse</div>
+<div id="paused"><div class="p"><b>Paused</b><span>Click or press any key to resume</span></div></div>
+
+<script type="module">
+import * as THREE from 'three';
+
+/* =====================================================================
+   CONFIG — every tunable in one place
+   ===================================================================== */
+const CFG = {
+  fixedStep: 1/60,          // physics tick (s); render is variable-rate
+  maxSubSteps: 5,
+  worldRadius: 4000,        // combat zone radius (soft boundary)
+  ship: {
+    cruise: 80, boost: 200, brake: 25,   // units/s
+    accel: 90,                            // speed change rate (units/s^2)
+    strafe: 45, strafeAccel: 160,
+    lookSens: 0.0022,                     // rad per mouse px
+    touchSens: 1.5,                       // touch-drag px -> look px multiplier
+    rollRate: 1.8,                        // rad/s
+    radius: 2,                            // collision sphere
+    hp: 100,
+  },
+  camera: { fov: 72, boostFov: 84, near: 0.1, far: 12000, bank: 0.35 },
+  laser: { speed: 700, life: 2.2, cooldown: 0.13, damage: 1, pool: 64 },
+  stars: { far: 7000, count: 9000 },
+  dust: { count: 900, extent: 160 },
+  asteroids: { count: 60, spread: 1800, hp: 3 },
+};
+const DEBUG = new URLSearchParams(location.search).has('debug');
+
+/* =====================================================================
+   EVENT BUS — decoupled game events (HUD, audio, scoring hook here later)
+   ===================================================================== */
+class EventBus {
+  #l = new Map();
+  on(e, fn) { (this.#l.get(e) ?? this.#l.set(e, []).get(e)).push(fn); return () => this.off(e, fn); }
+  off(e, fn) { const a = this.#l.get(e); if (a) a.splice(a.indexOf(fn) >>> 0, 1); }
+  emit(e, p) { this.#l.get(e)?.forEach(fn => fn(p)); }
+}
+
+/* =====================================================================
+   INPUT — action-based; rebinding = edit one table
+   ===================================================================== */
+const BINDINGS = {
+  boost: ['KeyW'], brake: ['KeyS'], left: ['KeyA'], right: ['KeyD'],
+  rollL: ['KeyQ'], rollR: ['KeyE'], fire: ['Space', 'Mouse0'],
+};
+class Input {
+  constructor(el) {
+    this.el = el; this.keys = new Set(); this.virtual = new Set();
+    this.mouse = { dx: 0, dy: 0 }; this.locked = false;
+    addEventListener('keydown', e => { if (e.code === 'Space') e.preventDefault(); this.keys.add(e.code); });
+    addEventListener('keyup',   e => this.keys.delete(e.code));
+    addEventListener('mousedown', e => this.keys.add('Mouse' + e.button));
+    addEventListener('mouseup',   e => this.keys.delete('Mouse' + e.button));
+    addEventListener('mousemove', e => { if (this.locked) { this.mouse.dx += e.movementX; this.mouse.dy += e.movementY; } });
+    document.addEventListener('pointerlockchange', () => { this.locked = document.pointerLockElement === el; });
+    addEventListener('blur', () => { this.keys.clear(); this.virtual.clear(); });
+    // --- touch look: one-finger drag on the canvas = pitch/yaw ---
+    // Feeds the same accumulator as mouse look, so PlayerShip needs no branch.
+    this._touchId = null; this._tx = 0; this._ty = 0;
+    el.addEventListener('touchstart', e => {
+      if (this._touchId !== null) return;
+      const t = e.changedTouches[0];
+      this._touchId = t.identifier; this._tx = t.clientX; this._ty = t.clientY;
+    }, { passive: true });
+    el.addEventListener('touchmove', e => {
+      for (const t of e.changedTouches) {
+        if (t.identifier !== this._touchId) continue;
+        this.mouse.dx += (t.clientX - this._tx) * CFG.ship.touchSens;
+        this.mouse.dy += (t.clientY - this._ty) * CFG.ship.touchSens;
+        this._tx = t.clientX; this._ty = t.clientY;
+      }
+      e.preventDefault();                     // stop page scroll / pull-to-refresh
+    }, { passive: false });
+    const endTouch = e => { for (const t of e.changedTouches) if (t.identifier === this._touchId) this._touchId = null; };
+    el.addEventListener('touchend', endTouch, { passive: true });
+    el.addEventListener('touchcancel', endTouch, { passive: true });
+  }
+  requestLock() { this.el.requestPointerLock?.(); }
+  press(action, on) { on ? this.virtual.add(action) : this.virtual.delete(action); }
+  down(action) { return this.virtual.has(action) || BINDINGS[action].some(k => this.keys.has(k)); }
+  axis(neg, pos) { return (this.down(pos) ? 1 : 0) - (this.down(neg) ? 1 : 0); }
+  consumeMouse() { const m = { ...this.mouse }; this.mouse.dx = this.mouse.dy = 0; return m; }
+}
+
+/* =====================================================================
+   HEALTH — shared by player, enemies, bosses, asteroids
+   ===================================================================== */
+class Health {
+  constructor(max, onDeath) { this.max = max; this.cur = max; this.onDeath = onDeath; this.dead = false; }
+  damage(n) { if (this.dead) return; this.cur = Math.max(0, this.cur - n); if (this.cur === 0) { this.dead = true; this.onDeath?.(); } }
+  heal(n) { if (!this.dead) this.cur = Math.min(this.max, this.cur + n); }
+  get ratio() { return this.cur / this.max; }
+}
+
+/* =====================================================================
+   ENTITY + WORLD — every simulated thing is an Entity; World owns them.
+   Sphere collisions by tag pair. Removal is deferred to end of tick.
+   ===================================================================== */
+class Entity {
+  constructor(object3d, { tags = [], radius = 1 } = {}) {
+    this.object = object3d; this.tags = new Set(tags); this.radius = radius; this.alive = true; this.world = null;
+  }
+  get position() { return this.object.position; }
+  update(dt) {}
+  onCollide(other) {}
+  destroy() { this.alive = false; }       // world sweeps at end of tick
+  dispose() {}                            // free GPU resources / return to pool
+}
+class World {
+  constructor(scene, bus) { this.scene = scene; this.bus = bus; this.entities = []; this.byTag = new Map(); this.time = 0; }
+  add(e) {
+    e.world = this; this.entities.push(e); this.scene.add(e.object);
+    e.tags.forEach(t => (this.byTag.get(t) ?? this.byTag.set(t, new Set()).get(t)).add(e));
+    return e;
+  }
+  tagged(t) { return this.byTag.get(t) ?? new Set(); }
+  step(dt) {
+    this.time += dt;
+    for (const e of this.entities) if (e.alive) e.update(dt);
+    this.#sweep();
+  }
+  collide(tagA, tagB, cb) {
+    for (const a of this.tagged(tagA)) { if (!a.alive) continue;
+      for (const b of this.tagged(tagB)) { if (!b.alive || a === b) continue;
+        const r = a.radius + b.radius;
+        if (a.position.distanceToSquared(b.position) <= r * r) cb(a, b);
+      }
+    }
+  }
+  #sweep() {
+    for (let i = this.entities.length - 1; i >= 0; i--) {
+      const e = this.entities[i]; if (e.alive) continue;
+      this.entities.splice(i, 1); this.scene.remove(e.object);
+      e.tags.forEach(t => this.byTag.get(t)?.delete(e)); e.dispose();
+    }
+  }
+}
+
+/* =====================================================================
+   PLAYER SHIP — 6DOF, auto-cruise, first-person camera rig
+   ===================================================================== */
+class PlayerShip extends Entity {
+  constructor(input, camera, bus) {
+    const rig = new THREE.Group();
+    super(rig, { tags: ['player', 'damageable'], radius: CFG.ship.radius });
+    this.input = input; this.camera = camera; this.bus = bus;
+    this.speed = CFG.ship.cruise; this.strafeV = 0;
+    this.health = new Health(CFG.ship.hp, () => bus.emit('player:died'));
+    this.fireCd = 0;
+    // camera rig: rig -> cockpit (bank) -> camera
+    this.cockpit = new THREE.Group(); rig.add(this.cockpit); this.cockpit.add(camera);
+    camera.position.set(0, 0, 0);
+    this.cockpit.add(PlayerShip.buildCockpitGeometry());
+    this._fwd = new THREE.Vector3(); this._right = new THREE.Vector3(); this._tmp = new THREE.Vector3();
+  }
+  static buildCockpitGeometry() {
+    const g = new THREE.Group();
+    const mat = new THREE.MeshStandardMaterial({ color: 0x2b2f3a, roughness: .7, metalness: .4 });
+    const gun = new THREE.Mesh(new THREE.CylinderGeometry(.05, .07, 1.6, 8), mat); gun.rotation.x = Math.PI / 2;
+    for (const sx of [-1, 1]) { const m = gun.clone(); m.position.set(sx * .9, -.55, -1.6); g.add(m); }
+    const frame = new THREE.Mesh(new THREE.TorusGeometry(1.35, .04, 6, 40, Math.PI), new THREE.MeshStandardMaterial({ color: 0x1a1d26, roughness: .9 }));
+    frame.position.set(0, -.15, -1.2); g.add(frame);
+    return g;
+  }
+  get muzzles() { return [-0.9, 0.9].map(x => this._tmp.set(x, -.55, -2.4).applyMatrix4(this.object.matrixWorld).clone()); }
+  update(dt) {
+    const { ship, camera } = CFG, inp = this.input;
+    // --- rotation (local-space so it's true 6DOF) ---
+    const m = inp.consumeMouse();
+    this.object.rotateY(-m.dx * ship.lookSens);
+    this.object.rotateX(-m.dy * ship.lookSens);
+    this.object.rotateZ(-inp.axis('rollL', 'rollR') * ship.rollRate * dt);
+    // --- speed: always forward; W boost, S brake ---
+    const target = inp.down('boost') ? ship.boost : inp.down('brake') ? ship.brake : ship.cruise;
+    this.speed = THREE.MathUtils.damp(this.speed, target, ship.accel / 60, dt);
+    const strafeT = inp.axis('left', 'right') * ship.strafe;
+    this.strafeV = THREE.MathUtils.damp(this.strafeV, strafeT, ship.strafeAccel / 45, dt);
+    // --- integrate ---
+    this._fwd.set(0, 0, -1).applyQuaternion(this.object.quaternion);   // ship nose = -Z
+    this._right.set(1, 0, 0).applyQuaternion(this.object.quaternion);
+    this.position.addScaledVector(this._fwd, this.speed * dt).addScaledVector(this._right, this.strafeV * dt);
+    // --- soft boundary ---
+    const d = this.position.length();
+    if (d > CFG.worldRadius) this.position.addScaledVector(this.position, -(d - CFG.worldRadius) / d * 0.5 * dt);
+    this.bus.emit('player:boundary', d > CFG.worldRadius * 0.92);
+    // --- camera feel: bank into yaw/strafe, FOV with speed ---
+    const bank = THREE.MathUtils.clamp(-m.dx * 0.02 - this.strafeV / ship.strafe * 0.5, -1, 1) * camera.bank;
+    this.cockpit.rotation.z = THREE.MathUtils.damp(this.cockpit.rotation.z, bank, 6, dt);
+    const fovT = THREE.MathUtils.mapLinear(this.speed, ship.brake, ship.boost, camera.fov - 4, camera.boostFov);
+    this.camera.fov = THREE.MathUtils.damp(this.camera.fov, fovT, 4, dt); this.camera.updateProjectionMatrix();
+    // --- fire (test hook; weapon system will replace) ---
+    this.fireCd -= dt;
+    if (inp.down('fire') && this.fireCd <= 0) { this.fireCd = CFG.laser.cooldown; this.object.updateMatrixWorld(); this.bus.emit('player:fire', { muzzles: this.muzzles, dir: this._fwd.clone(), vel: this.speed }); }
+  }
+  onCollide(other) { this.health.damage(10); this.bus.emit('player:damaged', this.health); }
+}
+
+/* =====================================================================
+   POOL + LASER — zero-alloc projectiles (enemy weapons reuse this)
+   ===================================================================== */
+class Pool {
+  constructor(factory, n) { this.factory = factory; this.free = Array.from({ length: n }, () => factory(this)); }
+  get() { return this.free.pop() ?? this.factory(this); }
+  put(o) { this.free.push(o); }
+}
+class Laser extends Entity {
+  constructor(pool, mesh) { super(mesh, { tags: ['projectile'], radius: .6 }); this.pool = pool; this.vel = new THREE.Vector3(); this.life = 0; this.owner = 'player'; }
+  launch(pos, dir, inheritedSpeed) {
+    this.alive = true; this.life = CFG.laser.life; this.position.copy(pos);
+    this.vel.copy(dir).multiplyScalar(CFG.laser.speed + inheritedSpeed);
+    this.object.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, -1), dir); return this;
+  }
+  update(dt) { this.position.addScaledVector(this.vel, dt); if ((this.life -= dt) <= 0) this.destroy(); }
+  dispose() { this.pool.put(this); }
+}
+class LaserSystem {
+  constructor(world, bus) {
+    const geo = new THREE.BoxGeometry(.12, .12, 6);
+    const mat = new THREE.MeshBasicMaterial({ color: 0xff3b2f });
+    this.pool = new Pool(pool => new Laser(pool, new THREE.Mesh(geo, mat)), CFG.laser.pool);
+    bus.on('player:fire', ({ muzzles, dir, vel }) => muzzles.forEach(p => world.add(this.pool.get().launch(p, dir, vel))));
+  }
+}
+
+/* =====================================================================
+   ASTEROIDS — stand-in "damageable" targets; enemies/bosses follow the same pattern
+   ===================================================================== */
+class Asteroid extends Entity {
+  constructor(bus) {
+    const r = THREE.MathUtils.randFloat(6, 28);
+    const geo = new THREE.DodecahedronGeometry(r, 1);
+    const p = geo.attributes.position; const v = new THREE.Vector3();
+    for (let i = 0; i < p.count; i++) { v.fromBufferAttribute(p, i).multiplyScalar(THREE.MathUtils.randFloat(.8, 1.15)); p.setXYZ(i, v.x, v.y, v.z); }
+    geo.computeVertexNormals();
+    const mesh = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ color: 0x6b6258, roughness: .95, flatShading: true }));
+    super(mesh, { tags: ['asteroid', 'damageable'], radius: r });
+    this.spin = new THREE.Vector3().randomDirection().multiplyScalar(THREE.MathUtils.randFloat(.05, .3));
+    this.health = new Health(CFG.asteroids.hp, () => { this.destroy(); bus.emit('asteroid:destroyed', this); });
+  }
+  update(dt) { this.object.rotation.x += this.spin.x * dt; this.object.rotation.y += this.spin.y * dt; this.object.rotation.z += this.spin.z * dt; }
+  dispose() { this.object.geometry.dispose(); }
+}
+
+/* =====================================================================
+   ENVIRONMENT — infinite starfield, speed dust, landmarks, lighting
+   ===================================================================== */
+class Environment {
+  constructor(scene, player) {
+    this.player = player;
+    scene.background = new THREE.Color(0x03040a);
+    scene.fog = new THREE.Fog(0x03040a, 2500, 9000);
+    // lighting: one hard sun + faint fill
+    const sun = new THREE.DirectionalLight(0xfff1d6, 2.2); sun.position.set(-1, .35, -.6); scene.add(sun);
+    scene.add(new THREE.AmbientLight(0x1b2440, 1.2));
+    // sun disc (far, unlit)
+    const sunMesh = new THREE.Mesh(new THREE.SphereGeometry(180, 32, 32), new THREE.MeshBasicMaterial({ color: 0xffe9b0, fog: false }));
+    sunMesh.position.copy(sun.position).multiplyScalar(9000); scene.add(sunMesh);
+    // far stars: shell that follows the player => never reachable
+    this.stars = this.#makeStars(); scene.add(this.stars);
+    // near dust: wraps around player, sells velocity
+    this.dust = this.#makeDust(); scene.add(this.dust);
+    // Planatron target (placeholder boss body) + landmark planets
+    this.planatron = new THREE.Mesh(new THREE.SphereGeometry(140, 48, 48), new THREE.MeshStandardMaterial({ color: 0x3a3f4b, roughness: .6, metalness: .5 }));
+    this.planatron.position.set(0, 60, -2600); scene.add(this.planatron);
+    const trench = new THREE.Mesh(new THREE.TorusGeometry(141, 4, 8, 96), new THREE.MeshStandardMaterial({ color: 0x11131a }));
+    trench.rotation.x = Math.PI / 2; this.planatron.add(trench);
+    const planet = new THREE.Mesh(new THREE.SphereGeometry(900, 48, 48), new THREE.MeshStandardMaterial({ color: 0x9a5a3c, roughness: 1 }));
+    planet.position.set(4800, -1400, 2200); scene.add(planet);
+    const ice = new THREE.Mesh(new THREE.SphereGeometry(520, 40, 40), new THREE.MeshStandardMaterial({ color: 0xbcd8ea, roughness: .8 }));
+    ice.position.set(-5200, 900, -3800); scene.add(ice);
+  }
+  #makeStars() {
+    const { count, far } = CFG.stars; const pos = new Float32Array(count * 3); const col = new Float32Array(count * 3); const v = new THREE.Vector3(); const c = new THREE.Color();
+    for (let i = 0; i < count; i++) {
+      v.randomDirection().multiplyScalar(far); pos.set([v.x, v.y, v.z], i * 3);
+      c.setHSL(THREE.MathUtils.randFloat(.55, .65), THREE.MathUtils.randFloat(0, .4), THREE.MathUtils.randFloat(.6, 1)); col.set([c.r, c.g, c.b], i * 3);
+    }
+    const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(pos, 3)); g.setAttribute('color', new THREE.BufferAttribute(col, 3));
+    return new THREE.Points(g, new THREE.PointsMaterial({ size: 9, vertexColors: true, sizeAttenuation: true, fog: false, depthWrite: false }));
+  }
+  #makeDust() {
+    const { count, extent } = CFG.dust; const pos = new Float32Array(count * 3);
+    for (let i = 0; i < count * 3; i++) pos[i] = THREE.MathUtils.randFloatSpread(extent);
+    const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+    return new THREE.Points(g, new THREE.PointsMaterial({ color: 0x8fa3c4, size: .6, transparent: true, opacity: .55, depthWrite: false }));
+  }
+  update(dt) {
+    const p = this.player.position; this.stars.position.copy(p);
+    // wrap dust into the cube around the player
+    const a = this.dust.geometry.attributes.position, half = CFG.dust.extent / 2, ext = CFG.dust.extent;
+    for (let i = 0; i < a.count; i++) {
+      let x = a.getX(i), y = a.getY(i), z = a.getZ(i);
+      if (x - p.x > half) x -= ext; else if (x - p.x < -half) x += ext;
+      if (y - p.y > half) y -= ext; else if (y - p.y < -half) y += ext;
+      if (z - p.z > half) z -= ext; else if (z - p.z < -half) z += ext;
+      a.setXYZ(i, x, y, z);
+    }
+    a.needsUpdate = true;
+    this.planatron.rotation.y += .02 * dt;
+  }
+}
+
+/* =====================================================================
+   HUD — DOM only; subscribes to bus, reads player each frame
+   ===================================================================== */
+class HUD {
+  constructor(bus) {
+    this.$ = id => document.getElementById(id);
+    this.warn = this.$('warn');
+    bus.on('player:boundary', on => this.warn.classList.toggle('on', on));
+    bus.on('player:damaged', h => this.setHull(h));
+  }
+  setHull(h) { this.$('hp').textContent = Math.round(h.cur); this.$('hpbar').style.width = (h.ratio * 100) + '%'; }
+  update(player, env) {
+    this.$('spd').textContent = Math.round(player.speed);
+    this.$('spdbar').style.width = (player.speed / CFG.ship.boost * 100) + '%';
+    this.$('tgt').textContent = Math.round(player.position.distanceTo(env.planatron.position)) + ' m';
+  }
+}
+
+/* =====================================================================
+   GAME — fixed-step simulation, variable-rate render
+   ===================================================================== */
+class Game {
+  constructor() {
+    this.renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+    this.renderer.setPixelRatio(Math.min(devicePixelRatio, 2)); this.renderer.setSize(innerWidth, innerHeight);
+    this.renderer.toneMapping = THREE.ACESFilmicToneMapping; document.body.prepend(this.renderer.domElement);
+    this.scene = new THREE.Scene();
+    this.camera = new THREE.PerspectiveCamera(CFG.camera.fov, innerWidth / innerHeight, CFG.camera.near, CFG.camera.far);
+    this.bus = new EventBus(); this.input = new Input(this.renderer.domElement);
+    this.world = new World(this.scene, this.bus);
+    this.player = this.world.add(new PlayerShip(this.input, this.camera, this.bus));
+    this.env = new Environment(this.scene, this.player);
+    this.lasers = new LaserSystem(this.world, this.bus);
+    this.hud = new HUD(this.bus); this.hud.setHull(this.player.health);
+    for (let i = 0; i < CFG.asteroids.count; i++) {
+      const a = new Asteroid(this.bus);
+      a.position.randomDirection().multiplyScalar(THREE.MathUtils.randFloat(200, CFG.asteroids.spread));
+      this.world.add(a);
+    }
+    this.acc = 0; this.clock = new THREE.Clock(); this.frames = 0; this.fpsT = 0;
+    this.simMs = 0; this.renderMs = 0;   // EMA of sim vs raster cost (debug readout)
+    this.paused = false;
+    addEventListener('resize', () => { this.camera.aspect = innerWidth / innerHeight; this.camera.updateProjectionMatrix(); this.renderer.setSize(innerWidth, innerHeight); });
+    /* --- Overlay: gates MOUSE CAPTURE only. The sim never waits on pointer lock. --- */
+    const ov = document.getElementById('overlay');
+    const hint = document.getElementById('lockhint');
+    const pad = document.getElementById('touch');
+    // Coarse pointers (phones/tablets) can't pointer-lock at all; don't even try.
+    const coarse = matchMedia('(pointer: coarse)').matches || navigator.maxTouchPoints > 0;
+    let touchOn = false;
+    const enableTouch = () => {
+      if (touchOn) return;
+      touchOn = true; pad.classList.add('on'); pad.setAttribute('aria-hidden', 'false');
+    };
+    ov.addEventListener('click', () => {
+      ov.classList.add('hidden');                 // clear the gate regardless of lock outcome
+      if (coarse) { enableTouch(); return; }
+      this.input.requestLock();
+      // Sandboxed iframes can no-op the request without firing pointerlockerror.
+      setTimeout(() => { if (!this.input.locked) { enableTouch(); hint.classList.add('on'); } }, 700);
+    });
+    document.addEventListener('pointerlockchange', () => {
+      if (this.input.locked) hint.classList.remove('on');
+      else if (ov.classList.contains('hidden')) hint.classList.add('on');   // Esc: offer re-capture, keep playing
+    });
+    document.addEventListener('pointerlockerror', () => {
+      ov.classList.add('hidden'); enableTouch(); hint.classList.remove('on');
+    });
+    hint.addEventListener('click', () => this.input.requestLock());
+    // On-screen buttons -> virtual actions (pointer events cover mouse + touch alike).
+    for (const btn of pad.querySelectorAll('button')) {
+      const action = btn.dataset.action;
+      const set = on => { this.input.press(action, on); btn.classList.toggle('on', on); };
+      btn.addEventListener('pointerdown', e => { e.preventDefault(); btn.setPointerCapture?.(e.pointerId); set(true); });
+      btn.addEventListener('pointerup', e => { e.preventDefault(); set(false); });
+      btn.addEventListener('pointercancel', () => set(false));
+      btn.addEventListener('lostpointercapture', () => set(false));
+      btn.addEventListener('contextmenu', e => e.preventDefault());
+    }
+
+    /* --- Pause when the tab is hidden; stay paused until the player acts --- */
+    const pausedEl = document.getElementById('paused');
+    this.setPaused = on => { this.paused = on; pausedEl.classList.toggle('on', on); };
+    document.addEventListener('visibilitychange', () => { if (document.hidden) this.setPaused(true); });
+    const resume = () => {
+      if (!this.paused || document.hidden) return;
+      this.setPaused(false); this.clock.getDelta(); this.acc = 0;   // drop the elapsed-while-hidden gap
+    };
+    pausedEl.addEventListener('click', resume);
+    addEventListener('keydown', resume);
+    addEventListener('pointerdown', resume);
+    this.setPaused(document.hidden);
+
+    if (DEBUG) { document.getElementById('dbg').style.display = 'block'; window.__game = this; }
+    this.renderer.setAnimationLoop(() => this.frame());
+  }
+  tick(dt) {
+    this.world.step(dt);
+    // collision rules live here (one place to add enemy/boss rules)
+    this.world.collide('projectile', 'damageable', (l, t) => { if (t === this.player) return; l.destroy(); t.health?.damage(CFG.laser.damage); });
+    this.world.collide('player', 'asteroid', (p, a) => { if (!p._hitCd) { p.onCollide(a); p._hitCd = 1; } });
+    if (this.player._hitCd) this.player._hitCd = Math.max(0, this.player._hitCd - dt);
+    this.env.update(dt);
+  }
+  frame() {
+    const frameDt = Math.min(this.clock.getDelta(), .25);
+    const t0 = performance.now();
+    // The simulation runs whenever the tab is visible. Pointer lock only decides
+    // whether the mouse steers -- it must never decide whether time advances.
+    if (!this.paused) {
+      this.acc += frameDt; let n = 0;
+      while (this.acc >= CFG.fixedStep && n++ < CFG.maxSubSteps) { this.tick(CFG.fixedStep); this.acc -= CFG.fixedStep; }
+      if (n >= CFG.maxSubSteps) this.acc = 0;
+    } else this.input.consumeMouse();
+    const t1 = performance.now();
+    this.hud.update(this.player, this.env);
+    this.renderer.render(this.scene, this.camera);
+    const t2 = performance.now();
+    if (DEBUG) {
+      this.simMs += ((t1 - t0) - this.simMs) * .1;          // EMA so the readout is steady
+      this.renderMs += ((t2 - t1) - this.renderMs) * .1;
+      this.frames++; this.fpsT += frameDt;
+      if (this.fpsT >= .5) {
+        document.getElementById('dbg').textContent = `fps ${(this.frames / this.fpsT).toFixed(0)}\nsim ${this.simMs.toFixed(2)} ms\nrender ${this.renderMs.toFixed(2)} ms\nentities ${this.world.entities.length}\nasteroids ${this.world.tagged('asteroid').size}\nlasers ${this.world.tagged('projectile').size}\ndraw ${this.renderer.info.render.calls}`;
+        this.frames = 0; this.fpsT = 0;
+      }
+    }
+  }
+}
+new Game();
+</script>
+</body>
+</html>
