@@ -801,6 +801,219 @@ const HARNESS = () => {
 
   await ctxG.close();
 
+  /* ================= H. M3.3: resumeFlight re-acquires pointer lock (SPEC 10, real-input regression) =====
+   * Bug from a real play session: the win/dead overlays call document.exitPointerLock() so
+   * their buttons are clickable, but the relaunch path never re-requested it. Input.locked
+   * stayed false, so mousemove never accumulated -- steering was dead while the keyboard
+   * still worked (which is what made it read as half-broken, not frozen). Fix: every route
+   * back into flight -- #win-next, #win-again, #dead click, R, N -- now goes through a single
+   * Game.resumeFlight(next), which relaunches and then re-requests pointer lock.
+   *
+   * These checks use REAL input end-to-end (real page.click / page.mouse.move /
+   * page.keyboard, real document.pointerLockElement) rather than synthetic dispatch: synthetic
+   * input is exactly what let this bug ship, since writing to g.input.mouse.dx or dispatching
+   * a KeyboardEvent bypasses the pointer-lock-gated mousemove listener the bug lived in.
+   */
+  // Each route gets its OWN browser context (its own real launch, its own pointer-lock
+  // request budget). Chromium rate-limits requestPointerLock with "Too many pointer lock
+  // requests in a short window of time" if a tab chains several lock/unlock cycles within a
+  // few real seconds -- which four routes back-to-back in one tab does, purely because the
+  // deterministic campaign-clear loop below runs in near-zero wall-clock time. A real player
+  // does not click "Next difficulty" four times in two seconds, and the fix itself accounts
+  // for a failed re-capture (SPEC 10 / brief: "only shows the lock hint"); isolating routes
+  // avoids asserting on that browser-level rate limiter rather than on the bug.
+  const routeCtx = async () => {
+    const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+    const page = await ctx.newPage();
+    const errs = [];
+    page.on('console', m => { if (m.type() === 'error') errs.push(m.text()); });
+    page.on('pageerror', e => errs.push('pageerror: ' + e.message.split('\n')[0]));
+    await page.goto(URL, { waitUntil: 'load' });
+    await page.waitForTimeout(1500);
+    return { ctx, page, errs };
+  };
+
+  // Real launch click -- genuinely engages pointer lock (unlike the deterministic harness's
+  // programmatic paths elsewhere in this file). If this precondition is false, the route's
+  // remaining checks are not exercising the bug at all.
+  const realLaunch = async page => {
+    await page.click('#overlay', { force: true });
+    await page.waitForTimeout(500);
+    return page.evaluate(() => document.pointerLockElement !== null);
+  };
+
+  // Drive g.tick() directly to campaign:clear at `diffName`, killing each wave via e.hit(1),
+  // per the deterministic pattern used by G1 above. Leaves the render loop stopped -- the
+  // caller (realFlyCheck) restores it before doing any real input.
+  const driveToCampaignClear = (page, diffName) => page.evaluate(diffName => {
+    const g = window.__game;
+    g.renderer.setAnimationLoop(null);
+    window.__h.godMode();
+    g.diff.set(diffName);
+    g.relaunch();
+    let cleared = false;
+    const off = g.bus.on('campaign:clear', () => { cleared = true; });
+    let seconds = 0;
+    const CAP = 90;                           // generous vs. an observed ~25-30s clear (see G1)
+    while (!cleared && seconds < CAP) {
+      window.__h.sim(1); seconds++;
+      for (const e of window.__h.enemies()) { e.health.cur = 1; e.hit(1); }
+    }
+    off();
+    return { cleared, seconds, won: g.won,
+             winOn: document.getElementById('win').classList.contains('on') };
+  }, diffName);
+
+  // Drive to player death via a real health hit (still deterministic, via g.tick machinery,
+  // not a real enemy bolt). Leaves the render loop stopped, same contract as above.
+  const driveToDeath = page => page.evaluate(() => {
+    const g = window.__game;
+    g.renderer.setAnimationLoop(null);
+    g.spawner.pending = false; g.spawner.clear();
+    g.player.health.max = 100; g.player.health.cur = 1;
+    g.player.health.damage(1);                // -> player:died -> Game#playerDied()
+    return { dead: g.dead,
+             deadOn: document.getElementById('dead').classList.contains('on') };
+  });
+
+  // Restores the render loop, performs a REAL user gesture via `trigger()` (a page.click or
+  // page.keyboard press), then drives the ship with a REAL page.mouse.move and a REAL held W
+  // key and reads back observable state -- all within roughly a 1s wall-clock budget, per the
+  // user's report ("ship responds to mouse and W within 1 s").
+  const realFlyCheck = async (page, trigger) => {
+    await page.evaluate(() => window.__game.renderer.setAnimationLoop(() => window.__game.frame()));
+    const t0 = Date.now();
+    await trigger();
+    await page.waitForTimeout(120);           // let pointerlockchange land
+    const locked = await page.evaluate(() => document.pointerLockElement !== null);
+    const before = await page.evaluate(() => ({
+      yaw: window.__game.player.object.quaternion.y, speed: window.__game.player.speed,
+    }));
+    await page.mouse.move(640, 400);                                     // cursor origin
+    for (let i = 1; i <= 6; i++) await page.mouse.move(640 + i * 30, 400);  // real movementX deltas
+    await page.keyboard.down('w');
+    await page.waitForTimeout(450);
+    const after = await page.evaluate(() => ({
+      yaw: window.__game.player.object.quaternion.y, speed: window.__game.player.speed,
+    }));
+    await page.keyboard.up('w');
+    const elapsedMs = Date.now() - t0;
+    const diffHud = await page.evaluate(() => document.getElementById('diffhud').textContent);
+    const deadOn = await page.evaluate(() => document.getElementById('dead').classList.contains('on'));
+    return {
+      locked, elapsedMs, diffHud, deadOn, before, after,
+      yawMoved: Math.abs(after.yaw - before.yaw) > 1e-4,
+      accelerated: after.speed > before.speed + 5,
+    };
+  };
+
+  // --- H1: campaign clear -> real click #win-next ---
+  {
+    const { ctx, page, errs } = await routeCtx();
+    const locked = await realLaunch(page);
+    check(locked, 'H1-0 precondition: real launch click genuinely engages pointer lock',
+          `document.pointerLockElement !== null: ${locked}` +
+          (locked ? '' : '  -- NOT exercising the bug; H1 below would be meaningless'));
+    await page.evaluate(HARNESS);
+    const setup = await driveToCampaignClear(page, 'EASY');
+    check(setup.cleared && setup.won && setup.winOn,
+          'H1 setup: campaign cleared on EASY (precondition for H1)', JSON.stringify(setup));
+    const h1 = await realFlyCheck(page, () => page.click('#win-next'));
+    check(h1.locked, 'H1a real click #win-next re-acquires pointer lock',
+          `document.pointerLockElement !== null: ${h1.locked}`);
+    check(h1.yawMoved, 'H1b real click #win-next: ship yaws to a real mouse move within 1s',
+          `quaternion.y ${h1.before.yaw.toFixed(5)} -> ${h1.after.yaw.toFixed(5)}`);
+    check(h1.accelerated, 'H1c real click #win-next: ship accelerates to a real held W within 1s',
+          `speed ${h1.before.speed.toFixed(1)} -> ${h1.after.speed.toFixed(1)}`);
+    check(h1.elapsedMs < 1000, 'H1d real click #win-next: response measured inside a 1s budget',
+          `elapsed ${h1.elapsedMs}ms`);
+    check(h1.diffHud === 'Medium', 'H1e real click #win-next: #diffhud shows the NEXT tier (EASY -> MEDIUM)',
+          `#diffhud = "${h1.diffHud}"`);
+    check(errs.length === 0, 'H1f no console errors on the #win-next route', errs.slice(0, 3).join(' | ') || 'clean');
+    await ctx.close();
+  }
+
+  // --- H2: campaign clear -> real click #win-again (difficulty must stay put) ---
+  {
+    const { ctx, page, errs } = await routeCtx();
+    const locked = await realLaunch(page);
+    check(locked, 'H2-0 precondition: real launch click genuinely engages pointer lock',
+          `document.pointerLockElement !== null: ${locked}` +
+          (locked ? '' : '  -- NOT exercising the bug; H2 below would be meaningless'));
+    await page.evaluate(HARNESS);
+    const setup = await driveToCampaignClear(page, 'MEDIUM');
+    check(setup.cleared && setup.won && setup.winOn,
+          'H2 setup: campaign cleared on MEDIUM (precondition for H2)', JSON.stringify(setup));
+    const h2 = await realFlyCheck(page, () => page.click('#win-again'));
+    check(h2.locked, 'H2a real click #win-again re-acquires pointer lock',
+          `document.pointerLockElement !== null: ${h2.locked}`);
+    check(h2.yawMoved, 'H2b real click #win-again: ship yaws to a real mouse move within 1s',
+          `quaternion.y ${h2.before.yaw.toFixed(5)} -> ${h2.after.yaw.toFixed(5)}`);
+    check(h2.accelerated, 'H2c real click #win-again: ship accelerates to a real held W within 1s',
+          `speed ${h2.before.speed.toFixed(1)} -> ${h2.after.speed.toFixed(1)}`);
+    check(h2.elapsedMs < 1000, 'H2d real click #win-again: response measured inside a 1s budget',
+          `elapsed ${h2.elapsedMs}ms`);
+    check(h2.diffHud === 'Medium', 'H2e real click #win-again: difficulty UNCHANGED (stays MEDIUM)',
+          `#diffhud = "${h2.diffHud}"`);
+    check(errs.length === 0, 'H2f no console errors on the #win-again route', errs.slice(0, 3).join(' | ') || 'clean');
+    await ctx.close();
+  }
+
+  // --- H3: campaign clear -> real N keypress (difficulty steps again) ---
+  {
+    const { ctx, page, errs } = await routeCtx();
+    const locked = await realLaunch(page);
+    check(locked, 'H3-0 precondition: real launch click genuinely engages pointer lock',
+          `document.pointerLockElement !== null: ${locked}` +
+          (locked ? '' : '  -- NOT exercising the bug; H3 below would be meaningless'));
+    await page.evaluate(HARNESS);
+    const setup = await driveToCampaignClear(page, 'MEDIUM');
+    check(setup.cleared && setup.won && setup.winOn,
+          'H3 setup: campaign cleared on MEDIUM (precondition for H3)', JSON.stringify(setup));
+    const h3 = await realFlyCheck(page, () => page.keyboard.press('n'));
+    check(h3.locked, 'H3a real N keypress re-acquires pointer lock',
+          `document.pointerLockElement !== null: ${h3.locked}`);
+    check(h3.yawMoved, 'H3b real N keypress: ship yaws to a real mouse move within 1s',
+          `quaternion.y ${h3.before.yaw.toFixed(5)} -> ${h3.after.yaw.toFixed(5)}`);
+    check(h3.accelerated, 'H3c real N keypress: ship accelerates to a real held W within 1s',
+          `speed ${h3.before.speed.toFixed(1)} -> ${h3.after.speed.toFixed(1)}`);
+    check(h3.elapsedMs < 1000, 'H3d real N keypress: response measured inside a 1s budget',
+          `elapsed ${h3.elapsedMs}ms`);
+    check(h3.diffHud === 'Hard', 'H3e real N keypress: #diffhud shows the NEXT tier (MEDIUM -> HARD)',
+          `#diffhud = "${h3.diffHud}"`);
+    check(errs.length === 0, 'H3f no console errors on the N-key route', errs.slice(0, 3).join(' | ') || 'clean');
+    await ctx.close();
+  }
+
+  // --- H4: player death -> real R keypress (difficulty must stay put, #dead must clear) ---
+  {
+    const { ctx, page, errs } = await routeCtx();
+    const locked = await realLaunch(page);
+    check(locked, 'H4-0 precondition: real launch click genuinely engages pointer lock',
+          `document.pointerLockElement !== null: ${locked}` +
+          (locked ? '' : '  -- NOT exercising the bug; H4 below would be meaningless'));
+    await page.evaluate(HARNESS);
+    // Set HARD before death so the "difficulty unchanged" assertion isn't just reading the default.
+    await page.evaluate(() => window.__game.diff.set('HARD'));
+    const setup = await driveToDeath(page);
+    check(setup.dead && setup.deadOn, 'H4 setup: player death shows the #dead overlay (precondition for H4)',
+          JSON.stringify(setup));
+    const h4 = await realFlyCheck(page, () => page.keyboard.press('r'));
+    check(h4.locked, 'H4a real R keypress re-acquires pointer lock',
+          `document.pointerLockElement !== null: ${h4.locked}`);
+    check(h4.yawMoved, 'H4b real R keypress: ship yaws to a real mouse move within 1s',
+          `quaternion.y ${h4.before.yaw.toFixed(5)} -> ${h4.after.yaw.toFixed(5)}`);
+    check(h4.accelerated, 'H4c real R keypress: ship accelerates to a real held W within 1s',
+          `speed ${h4.before.speed.toFixed(1)} -> ${h4.after.speed.toFixed(1)}`);
+    check(h4.elapsedMs < 1000, 'H4d real R keypress: response measured inside a 1s budget',
+          `elapsed ${h4.elapsedMs}ms`);
+    check(!h4.deadOn, 'H4e real R keypress: #dead overlay is gone', `#dead.on: ${h4.deadOn}`);
+    check(h4.diffHud === 'Hard', 'H4f real R keypress: difficulty UNCHANGED (stays HARD)',
+          `#diffhud = "${h4.diffHud}"`);
+    check(errs.length === 0, 'H4g no console errors on the R-key (death) route', errs.slice(0, 3).join(' | ') || 'clean');
+    await ctx.close();
+  }
+
   /* ================= F. M3.1: HUD layout editor (SPEC 16, SPEC 3 keep-out) ================= */
 
   // --- F1 no widget intrudes the firing keep-out zone, at three viewports (SPEC 3, 16) ---

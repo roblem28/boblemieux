@@ -2272,6 +2272,7 @@ class Game {
     const pad = document.getElementById('touch');
     // Coarse pointers (phones/tablets) can't pointer-lock at all; don't even try.
     const coarse = matchMedia('(pointer: coarse)').matches || navigator.maxTouchPoints > 0;
+    this.coarse = coarse; this._recapture = false;
     let touchOn = false;
     const enableTouch = () => {
       if (touchOn) return;
@@ -2292,10 +2293,13 @@ class Game {
       }, 700);
     });
     document.addEventListener('pointerlockchange', () => {
-      if (this.input.locked) { clearTimeout(this._lockProbe); hint.classList.remove('on'); }
+      if (this.input.locked) { clearTimeout(this._lockProbe); this._recapture = false; hint.classList.remove('on'); }
       else if (ov.classList.contains('hidden')) hint.classList.add('on');   // Esc: offer re-capture, keep playing
     });
     document.addEventListener('pointerlockerror', () => {
+      if (this._recapture) {          // a re-capture after an overlay, not a capability failure
+        this._recapture = false; hint.classList.add('on'); return;
+      }
       ov.classList.add('hidden'); enableTouch(); hint.classList.remove('on');
     });
     hint.addEventListener('click', () => this.input.requestLock());
@@ -2349,8 +2353,8 @@ class Game {
     addEventListener('keydown', bootAudio, { once: true });
     addEventListener('keydown', e => {
       if (e.code === 'KeyM') { this.audio.init(); this.audio.toggleMute(); }
-      else if (e.code === 'KeyR' && (this.dead || this.won)) this.relaunch();
-      else if (e.code === 'KeyN' && this.won) this.nextDifficulty();
+      else if (e.code === 'KeyR' && (this.dead || this.won)) this.resumeFlight(false);
+      else if (e.code === 'KeyN' && this.won) this.resumeFlight(true);
       else if (e.code === 'Tab') { e.preventDefault(); this.tracker.cycle(this.world); }
       else if (e.code === 'KeyH') { e.preventDefault(); this.layout.toggle(); }
       else if (e.code === 'BracketLeft') this.radar.cycleRange(-1);
@@ -2369,11 +2373,9 @@ class Game {
     });
     this.bus.on('difficulty:changed', paintPick);
     paintPick();
-    document.getElementById('dead').addEventListener('click', () => { if (this.dead) this.relaunch(); });
-    document.getElementById('win-again').addEventListener('click', e => { e.stopPropagation(); this.relaunch(); });
-    document.getElementById('win-next').addEventListener('click', e => {
-      e.stopPropagation(); this.nextDifficulty();
-    });
+    document.getElementById('dead').addEventListener('click', () => { if (this.dead) this.resumeFlight(false); });
+    document.getElementById('win-again').addEventListener('click', e => { e.stopPropagation(); this.resumeFlight(false); });
+    document.getElementById('win-next').addEventListener('click', e => { e.stopPropagation(); this.resumeFlight(true); });
 
     this.prewarm();
 
@@ -2424,6 +2426,17 @@ class Game {
       `Score ${this.score}  ·  ${this.runTime.toFixed(1)}s  ·  ${shots} shots  ·  ${pct}% hits  ·  ${this.diff.name}`;
     document.getElementById('win').classList.add('on');
     this.tracker.hideAll();
+  }
+  // Every route back into flight goes through here. The overlays release pointer lock so
+  // their buttons are clickable; without re-capturing it the player flies with dead
+  // steering (keyboard still works, which is what makes it read as half-broken).
+  // Must be called from a real user gesture -- click or keydown -- or the request is refused.
+  resumeFlight(next) {
+    if (next) this.nextDifficulty(); else this.relaunch();
+    if (!this.coarse && this.launched && !document.pointerLockElement) {
+      this._recapture = true;
+      this.input.requestLock();
+    }
   }
   nextDifficulty() {
     const order = CFG.difficulty.order, i = order.indexOf(this.diff.name);
