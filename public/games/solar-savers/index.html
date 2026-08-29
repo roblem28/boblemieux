@@ -44,6 +44,43 @@
   #overlay td { padding:3px 14px 3px 0; color:#fff2d6; }
   #overlay td:first-child { color:var(--hud); width:110px; }
   #overlay .go { margin-top:18px; font-size:12px; letter-spacing:.2em; color:var(--hud); }
+  #hud .tr { right:0; top:0; text-align:right; }
+  #hud .sub { font-size:10px; color:var(--hud-dim); margin-top:3px; letter-spacing:.14em; }
+  #hud .val.small { font-size:20px; }
+
+  /* ---- Target tracking: brackets, lead dot, off-screen arrows ---- */
+  #track { position:fixed; inset:0; pointer-events:none; z-index:1; }
+  .mk { position:absolute; left:0; top:0; will-change:transform; }
+  .bracket { width:60px; height:60px; margin:-30px 0 0 -30px; }
+  .bracket i { position:absolute; width:11px; height:11px; border:1px solid var(--hud); }
+  .bracket i:nth-child(1) { left:0;  top:0;    border-right:0; border-bottom:0; }
+  .bracket i:nth-child(2) { right:0; top:0;    border-left:0;  border-bottom:0; }
+  .bracket i:nth-child(3) { left:0;  bottom:0; border-right:0; border-top:0; }
+  .bracket i:nth-child(4) { right:0; bottom:0; border-left:0;  border-top:0; }
+  .bracket .hp { position:absolute; left:50%; bottom:-9px; transform:translateX(-50%); display:flex; gap:2px; }
+  .bracket .hp b { width:9px; height:3px; background:var(--hud); }
+  .bracket .hp b.off { background:var(--hud); opacity:.22; }
+  .lead { width:11px; height:11px; margin:-5.5px 0 0 -5.5px; border:1px solid var(--hud-warn); border-radius:50%; }
+  .arrow { width:0; height:0; margin:-8px 0 0 -8px;
+           border-left:8px solid transparent; border-right:8px solid transparent; border-bottom:13px solid var(--hud-dim); }
+
+  /* ---- Damage feedback ---- */
+  #vig { position:fixed; inset:0; pointer-events:none; z-index:3; opacity:0;
+         background:radial-gradient(ellipse at center, rgba(255,60,40,0) 42%, rgba(255,60,40,.6) 100%);
+         transition:opacity .15s ease-out; }
+  #vig.on { opacity:1; transition:none; }
+  #hp.pulse { animation:hppulse .16s ease-out; }
+  @keyframes hppulse { from { color:var(--hud-warn); transform:scale(1.3); } to { color:#fff2d6; transform:none; } }
+
+  /* ---- Hull breached ---- */
+  #dead { position:fixed; inset:0; display:none; place-items:center; background:rgba(22,4,3,.74); z-index:5; }
+  #dead.on { display:grid; }
+  #dead .d { border:1px solid var(--hud-warn); padding:24px 46px; text-align:center; }
+  #dead b { display:block; font-weight:500; font-size:23px; letter-spacing:.3em; color:var(--hud-warn); }
+  #dead span { font-size:11px; color:var(--hud-dim); letter-spacing:.18em; }
+  #dead em { display:block; margin-top:10px; font-style:normal; font-size:11px; color:#fff2d6; letter-spacing:.16em; }
+  @media (prefers-reduced-motion: reduce) { #hp.pulse { animation:none; } }
+
   /* ---- Touch fallback (shown when pointer lock is unavailable) ---- */
   #touch { position:fixed; inset:0; display:none; z-index:2; }
   #touch.on { display:block; }
@@ -55,6 +92,7 @@
   }
   #touch button.on { background:var(--hud); color:var(--ink); }
   #touch .fire  { right:22px; bottom:104px; width:88px; height:64px; }
+  #touch .mute  { right:22px; bottom:48px; width:42px; height:40px; font-size:10px; }
   #touch .boost { left:22px;  bottom:104px; }
   #touch .brake { left:22px;  bottom:48px; }
   #touch .left  { left:94px;  bottom:48px; }
@@ -86,11 +124,19 @@
 <div id="hud">
   <div id="reticle"></div>
   <div id="warn">Leaving combat zone — turn back</div>
-  <div class="corner tc"><div class="lbl">Planatron</div><div class="val" id="tgt">—</div></div>
+  <div class="corner tc">
+    <div class="lbl">Wave</div><div class="val small" id="wave">—</div>
+    <div class="sub" id="wavemsg"></div>
+    <div class="sub">Planatron <span id="tgt">—</span></div>
+  </div>
+  <div class="corner tr"><div class="lbl">Score</div><div class="val" id="score">0</div></div>
   <div class="corner bl"><div class="lbl">Velocity</div><div class="val" id="spd">0</div><div class="bar"><i id="spdbar"></i></div></div>
   <div class="corner br"><div class="lbl">Hull</div><div class="val" id="hp">100</div><div class="bar"><i id="hpbar"></i></div></div>
 </div>
+<div id="track"></div>
+<div id="vig"></div>
 <div id="dbg"></div>
+<div id="dead"><div class="d"><b>Hull breached</b><span>Press R to relaunch</span><em id="deadscore"></em></div></div>
 <div id="overlay">
   <div class="card">
     <h1>Solar Savers</h1>
@@ -101,6 +147,8 @@
       <tr><td>A / D</td><td>Strafe left / right</td></tr>
       <tr><td>Q / E</td><td>Roll</td></tr>
       <tr><td>Space / LMB</td><td>Fire (test lasers)</td></tr>
+      <tr><td>M</td><td>Mute audio</td></tr>
+      <tr><td>R</td><td>Relaunch after hull breach</td></tr>
       <tr><td>Esc</td><td>Release mouse</td></tr>
     </table>
     <div class="go">Click to launch</div>
@@ -112,6 +160,7 @@
   <button class="left"  data-action="left"  aria-label="Strafe left">&#9664;</button>
   <button class="right" data-action="right" aria-label="Strafe right">&#9654;</button>
   <button class="fire"  data-action="fire">Fire</button>
+  <button class="mute" data-action="mute" aria-label="Mute audio">Mute</button>
 </div>
 <div id="lockhint">Click to capture mouse</div>
 <div id="paused"><div class="p"><b>Paused</b><span>Click or press any key to resume</span></div></div>
@@ -141,6 +190,54 @@ const CFG = {
   stars: { far: 7000, count: 9000 },
   dust: { count: 900, extent: 160 },
   asteroids: { count: 60, spread: 1800, hp: 3 },
+
+  // ---- Enemy fighters -------------------------------------------------
+  enemies: {
+    radius: 3, hp: 3, pool: 16,
+    maxSpeed: 110, accel: 60, maxTurn: 2.2,   // u/s, u/s^2, rad/s
+    bank: 0.62,          // roll amplitude when turning at full rate (rad)
+    bankDamp: 5,
+    flash: 0.08,         // white emissive hit flash (s)
+    ram: 25,             // damage dealt BOTH ways on a hull collision
+    ai: {
+      approachRange: 450,                 // APPROACH  -> ATTACK_RUN
+      fireConeDeg: 30, fireRange: 350,    // ATTACK_RUN firing envelope
+      breakOffRange: 60,                  // anti-ram bail-out distance
+      breakOffDeg: [90, 140],             // randomized evasive turn
+      breakOffTime: [1.5, 2.5],
+      evadeTime: 1.0,                     // jink after being hit
+      orbitRadius: 250,                   // ORBIT stand-off
+      orbitTrigger: 3.0,                  // player slower than brake+10 for this long
+      orbitPotShot: 1.6,                  // cooldown multiplier while orbiting
+      leadMaxTime: 4.0,                   // reject silly intercept solutions
+    },
+    separation: { radius: 25, force: 300 },        // wingmen don't stack
+    avoid: { range: 120, margin: 16, force: 520 }, // ray-ahead asteroid dodge
+    laser: { speed: 450, life: 3.0, cooldown: 0.9, jitter: 0.3, burst: 3, burstGap: 0.11,
+             damage: 8, pool: 96, color: 0x5dff9d },
+  },
+  waves: [
+    { count: 3, formation: 'line',    spawnDistance: 900,  delayAfterClear: 3 },
+    { count: 4, formation: 'vee',     spawnDistance: 980,  delayAfterClear: 3 },
+    { count: 5, formation: 'echelon', spawnDistance: 1060, delayAfterClear: 3 },
+    { count: 6, formation: 'vee',     spawnDistance: 1130, delayAfterClear: 3 },
+    { count: 8, formation: 'line',    spawnDistance: 1200, delayAfterClear: 3,
+      enemyOverrides: { hp: 4, cooldown: 0.7 } },
+  ],
+  spawn: { offForwardDeg: 60, spacing: 46 },       // never spawn inside the player's view
+
+  // ---- Feedback -------------------------------------------------------
+  fx: {
+    spark:     { particles: 12, life: 0.30, speed: 26, size: 1.2, pool: 32 },
+    explosion: { particles: 40, life: 1.10, speed: 64, size: 2.8, pool: 8,
+                 debris: [3, 5], debrisLife: 1.5, debrisSpin: 4, debrisSpeed: 22 },
+    shake:     { max: 0.15, nearDist: 40, decay: 6 },
+    playerKick: 0.09,
+    vignette: 0.15,
+  },
+  score: { perKill: 100, waveBonus: 250 },
+  audio: { master: 0.35, rolloff: 300 },
+  hash: { cell: 64 },                              // uniform spatial hash cell size
 };
 const DEBUG = new URLSearchParams(location.search).has('debug');
 
@@ -224,8 +321,59 @@ class Entity {
   destroy() { this.alive = false; }       // world sweeps at end of tick
   dispose() {}                            // free GPU resources / return to pool
 }
+/* =====================================================================
+   SPATIAL HASH — uniform grid rebuilt each tick, replacing the O(n*m)
+   tag-pair scan. Integer cell keys and recycled bucket arrays mean a
+   rebuild allocates nothing once the grid has been warmed up.
+   ===================================================================== */
+class SpatialHash {
+  constructor(cell) {
+    this.inv = 1 / cell;
+    this.buckets = new Map();     // int key -> Entity[] (arrays are reused, never freed)
+    this.maxRadius = new Map();   // tag -> largest radius present, so queries know their reach
+    this.stamp = 0;               // per-query visit marker; avoids allocating a Set
+  }
+  #key(ix, iy, iz) { return (ix * 73856093) ^ (iy * 19349663) ^ (iz * 83492791); }
+  clear() { for (const b of this.buckets.values()) b.length = 0; this.maxRadius.clear(); }
+  insert(e) {
+    for (const t of e.tags) {
+      const m = this.maxRadius.get(t);
+      if (m === undefined || e.radius > m) this.maxRadius.set(t, e.radius);
+    }
+    const p = e.position, r = e.radius, inv = this.inv;
+    const x0 = Math.floor((p.x - r) * inv), x1 = Math.floor((p.x + r) * inv);
+    const y0 = Math.floor((p.y - r) * inv), y1 = Math.floor((p.y + r) * inv);
+    const z0 = Math.floor((p.z - r) * inv), z1 = Math.floor((p.z + r) * inv);
+    for (let x = x0; x <= x1; x++) for (let y = y0; y <= y1; y++) for (let z = z0; z <= z1; z++) {
+      const k = this.#key(x, y, z);
+      let b = this.buckets.get(k);
+      if (b === undefined) this.buckets.set(k, b = []);
+      b.push(e);
+    }
+  }
+  // Visits every entity in cells overlapping the sphere. Over-reports by design;
+  // callers do the exact distance test. Not re-entrant (one stamp).
+  query(pos, r, visit) {
+    const s = ++this.stamp, inv = this.inv;
+    const x0 = Math.floor((pos.x - r) * inv), x1 = Math.floor((pos.x + r) * inv);
+    const y0 = Math.floor((pos.y - r) * inv), y1 = Math.floor((pos.y + r) * inv);
+    const z0 = Math.floor((pos.z - r) * inv), z1 = Math.floor((pos.z + r) * inv);
+    for (let x = x0; x <= x1; x++) for (let y = y0; y <= y1; y++) for (let z = z0; z <= z1; z++) {
+      const b = this.buckets.get(this.#key(x, y, z));
+      if (b === undefined) continue;
+      for (let i = 0; i < b.length; i++) { const e = b[i]; if (e._stamp !== s) { e._stamp = s; visit(e); } }
+    }
+  }
+}
+
 class World {
-  constructor(scene, bus) { this.scene = scene; this.bus = bus; this.entities = []; this.byTag = new Map(); this.time = 0; }
+  constructor(scene, bus) {
+    this.scene = scene; this.bus = bus; this.entities = []; this.byTag = new Map(); this.time = 0;
+    this.hash = new SpatialHash(CFG.hash.cell);
+    // One closure, built once, so collide() allocates nothing per call.
+    this._visit = b => this.#candidate(b);
+    this._a = null; this._tagB = ''; this._cb = null;
+  }
   add(e) {
     e.world = this; this.entities.push(e); this.scene.add(e.object);
     e.tags.forEach(t => (this.byTag.get(t) ?? this.byTag.set(t, new Set()).get(t)).add(e));
@@ -236,14 +384,29 @@ class World {
     this.time += dt;
     for (const e of this.entities) if (e.alive) e.update(dt);
     this.#sweep();
+    this.rebuildHash();     // fresh for the collide() rules that run right after
   }
+  rebuildHash() {
+    this.hash.clear();
+    for (const e of this.entities) if (e.alive) this.hash.insert(e);
+  }
+  #candidate(b) {
+    const a = this._a;
+    if (b === a || !b.alive || !a.alive || !b.tags.has(this._tagB)) return;
+    const r = a.radius + b.radius;
+    if (a.position.distanceToSquared(b.position) <= r * r) this._cb(a, b);
+  }
+  // Same signature as the old brute-force version; now grid-accelerated.
   collide(tagA, tagB, cb) {
-    for (const a of this.tagged(tagA)) { if (!a.alive) continue;
-      for (const b of this.tagged(tagB)) { if (!b.alive || a === b) continue;
-        const r = a.radius + b.radius;
-        if (a.position.distanceToSquared(b.position) <= r * r) cb(a, b);
-      }
+    const as = this.tagged(tagA); if (as.size === 0) return;
+    const maxB = this.hash.maxRadius.get(tagB); if (maxB === undefined) return;
+    this._tagB = tagB; this._cb = cb;
+    for (const a of as) {
+      if (!a.alive) continue;
+      this._a = a;
+      this.hash.query(a.position, a.radius + maxB, this._visit);
     }
+    this._a = null; this._cb = null;
   }
   #sweep() {
     for (let i = this.entities.length - 1; i >= 0; i--) {
@@ -270,6 +433,9 @@ class PlayerShip extends Entity {
     camera.position.set(0, 0, 0);
     this.cockpit.add(PlayerShip.buildCockpitGeometry());
     this._fwd = new THREE.Vector3(); this._right = new THREE.Vector3(); this._tmp = new THREE.Vector3();
+    this.vel = new THREE.Vector3();                       // read by enemy lead-aim + HUD lead dot
+    this._muzzles = [new THREE.Vector3(), new THREE.Vector3()];
+    this._fireEvt = { muzzles: this._muzzles, dir: this._fwd, vel: 0 };   // reused: firing allocates nothing
   }
   static buildCockpitGeometry() {
     const g = new THREE.Group();
@@ -280,7 +446,11 @@ class PlayerShip extends Entity {
     frame.position.set(0, -.15, -1.2); g.add(frame);
     return g;
   }
-  get muzzles() { return [-0.9, 0.9].map(x => this._tmp.set(x, -.55, -2.4).applyMatrix4(this.object.matrixWorld).clone()); }
+  get muzzles() {
+    this._muzzles[0].set(-0.9, -.55, -2.4).applyMatrix4(this.object.matrixWorld);
+    this._muzzles[1].set( 0.9, -.55, -2.4).applyMatrix4(this.object.matrixWorld);
+    return this._muzzles;
+  }
   update(dt) {
     const { ship, camera } = CFG, inp = this.input;
     // --- rotation (local-space so it's true 6DOF) ---
@@ -297,6 +467,7 @@ class PlayerShip extends Entity {
     this._fwd.set(0, 0, -1).applyQuaternion(this.object.quaternion);   // ship nose = -Z
     this._right.set(1, 0, 0).applyQuaternion(this.object.quaternion);
     this.position.addScaledVector(this._fwd, this.speed * dt).addScaledVector(this._right, this.strafeV * dt);
+    this.vel.copy(this._fwd).multiplyScalar(this.speed).addScaledVector(this._right, this.strafeV);
     // --- soft boundary ---
     const d = this.position.length();
     if (d > CFG.worldRadius) this.position.addScaledVector(this.position, -(d - CFG.worldRadius) / d * 0.5 * dt);
@@ -308,7 +479,11 @@ class PlayerShip extends Entity {
     this.camera.fov = THREE.MathUtils.damp(this.camera.fov, fovT, 4, dt); this.camera.updateProjectionMatrix();
     // --- fire (test hook; weapon system will replace) ---
     this.fireCd -= dt;
-    if (inp.down('fire') && this.fireCd <= 0) { this.fireCd = CFG.laser.cooldown; this.object.updateMatrixWorld(); this.bus.emit('player:fire', { muzzles: this.muzzles, dir: this._fwd.clone(), vel: this.speed }); }
+    if (inp.down('fire') && this.fireCd <= 0) {
+      this.fireCd = CFG.laser.cooldown; this.object.updateMatrixWorld();
+      this._fireEvt.muzzles = this.muzzles; this._fireEvt.dir = this._fwd; this._fireEvt.vel = this.speed;
+      this.bus.emit('player:fire', this._fireEvt);
+    }
   }
   onCollide(other) { this.health.damage(10); this.bus.emit('player:damaged', this.health); }
 }
@@ -317,26 +492,435 @@ class PlayerShip extends Entity {
    POOL + LASER — zero-alloc projectiles (enemy weapons reuse this)
    ===================================================================== */
 class Pool {
-  constructor(factory, n) { this.factory = factory; this.free = Array.from({ length: n }, () => factory(this)); }
-  get() { return this.free.pop() ?? this.factory(this); }
+  constructor(factory, n) {
+    this.factory = factory; this.capacity = n; this.overflow = 0;
+    this.free = Array.from({ length: n }, () => factory(this));
+  }
+  // overflow counts times we had to build outside the pool -- a sizing bug, and
+  // an assertion target for the tests.
+  get() { const o = this.free.pop(); if (o !== undefined) return o; this.overflow++; return this.factory(this); }
   put(o) { this.free.push(o); }
 }
 class Laser extends Entity {
-  constructor(pool, mesh) { super(mesh, { tags: ['projectile'], radius: .6 }); this.pool = pool; this.vel = new THREE.Vector3(); this.life = 0; this.owner = 'player'; }
+  constructor(pool, tag, cfg) {
+    // Transform-only node: the visible bolt is one instance of a shared
+    // InstancedMesh, so this never becomes a draw call of its own.
+    const node = new THREE.Object3D();
+    node.matrixAutoUpdate = false;              // nothing reads its world matrix
+    super(node, { tags: [tag], radius: .6 });
+    this.pool = pool; this.cfg = cfg; this.vel = new THREE.Vector3(); this.life = 0;
+    this.owner = tag === 'enemyProjectile' ? 'enemy' : 'player';
+    this._axis = new THREE.Vector3(0, 0, -1);   // reused: launch() must not allocate
+  }
   launch(pos, dir, inheritedSpeed) {
-    this.alive = true; this.life = CFG.laser.life; this.position.copy(pos);
-    this.vel.copy(dir).multiplyScalar(CFG.laser.speed + inheritedSpeed);
-    this.object.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, -1), dir); return this;
+    this.alive = true; this.life = this.cfg.life; this.position.copy(pos);
+    this.vel.copy(dir).multiplyScalar(this.cfg.speed + inheritedSpeed);
+    this.object.quaternion.setFromUnitVectors(this._axis, dir); return this;
   }
   update(dt) { this.position.addScaledVector(this.vel, dt); if ((this.life -= dt) <= 0) this.destroy(); }
   dispose() { this.pool.put(this); }
 }
 class LaserSystem {
   constructor(world, bus) {
+    this.world = world; this.bus = bus;
     const geo = new THREE.BoxGeometry(.12, .12, 6);
-    const mat = new THREE.MeshBasicMaterial({ color: 0xff3b2f });
-    this.pool = new Pool(pool => new Laser(pool, new THREE.Mesh(geo, mat)), CFG.laser.pool);
-    bus.on('player:fire', ({ muzzles, dir, vel }) => muzzles.forEach(p => world.add(this.pool.get().launch(p, dir, vel))));
+    const pMat = new THREE.MeshBasicMaterial({ color: 0xff3b2f });
+    const eMat = new THREE.MeshBasicMaterial({ color: CFG.enemies.laser.color });
+    this.pool = new Pool(pool => new Laser(pool, 'projectile', CFG.laser), CFG.laser.pool);
+    this.enemyPool = new Pool(pool => new Laser(pool, 'enemyProjectile', CFG.enemies.laser), CFG.enemies.laser.pool);
+    // Two draw calls for every bolt in the world, regardless of count.
+    this.playerMesh = new THREE.InstancedMesh(geo, pMat, CFG.laser.pool);
+    this.enemyMesh = new THREE.InstancedMesh(geo, eMat, CFG.enemies.laser.pool);
+    for (const m of [this.playerMesh, this.enemyMesh]) {
+      m.count = 0; m.frustumCulled = false;      // bounds change every frame
+      m.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+      world.scene.add(m);
+    }
+    this._m4 = new THREE.Matrix4(); this._one = new THREE.Vector3(1, 1, 1);
+    bus.on('player:fire', e => { for (const p of e.muzzles) world.add(this.pool.get().launch(p, e.dir, e.vel)); });
+  }
+  fireEnemy(pos, dir) { this.world.add(this.enemyPool.get().launch(pos, dir, 0)); this.bus.emit('enemy:fire', pos); }
+  #fill(mesh, set, cap) {
+    let i = 0;
+    for (const l of set) {
+      if (!l.alive || i >= cap) continue;
+      this._m4.compose(l.position, l.object.quaternion, this._one);
+      mesh.setMatrixAt(i++, this._m4);
+    }
+    mesh.count = i;
+    if (i > 0) mesh.instanceMatrix.needsUpdate = true;
+  }
+  // Called once per rendered frame, not per tick.
+  sync(world) {
+    this.#fill(this.playerMesh, world.tagged('projectile'), CFG.laser.pool);
+    this.#fill(this.enemyMesh, world.tagged('enemyProjectile'), CFG.enemies.laser.pool);
+  }
+}
+
+/* =====================================================================
+   INTERCEPT — where to aim so a projectile of finite speed meets a mover.
+   Solves |targetPos + targetVel*t - shooter| = projSpeed*t for the
+   smallest positive t; returns null when no solution exists (target
+   outrunning the shot), letting the caller fall back to direct aim.
+   ===================================================================== */
+function interceptTime(shooter, targetPos, targetVel, projSpeed, scratch) {
+  const rel = scratch.subVectors(targetPos, shooter);
+  const a = targetVel.lengthSq() - projSpeed * projSpeed;
+  const b = 2 * rel.dot(targetVel);
+  const c = rel.lengthSq();
+  if (Math.abs(a) < 1e-5) { const t = -c / b; return (b !== 0 && t > 0) ? t : null; }
+  const disc = b * b - 4 * a * c;
+  if (disc < 0) return null;
+  const sq = Math.sqrt(disc), t1 = (-b - sq) / (2 * a), t2 = (-b + sq) / (2 * a);
+  const lo = Math.min(t1, t2), hi = Math.max(t1, t2);
+  const t = lo > 0 ? lo : hi;
+  return t > 0 ? t : null;
+}
+
+/* =====================================================================
+   ENEMY FIGHTER — steering state machine + lead-aimed guns.
+   Shared assets: one hull geometry, one nozzle geometry, three materials.
+   Per instance we build only Meshes; the hit flash swaps the material
+   REFERENCE rather than mutating a shared material (which would flash the
+   whole squadron at once).
+   ===================================================================== */
+const UP = Object.freeze(new THREE.Vector3(0, 1, 0));
+const E_STATE = Object.freeze({
+  APPROACH: 'APPROACH', ATTACK_RUN: 'ATTACK_RUN', BREAK_OFF: 'BREAK_OFF',
+  EVADE: 'EVADE', ORBIT: 'ORBIT',
+});
+
+let _assets = null;
+function enemyAssets() {
+  if (_assets) return _assets;
+  // --- original angular hull: a faceted dart with twin canted fins ---
+  const V = [], I = [];
+  const put = (x, y, z) => { V.push(x, y, z); return V.length / 3 - 1; };
+  const tri = (a, b, c) => I.push(a, b, c);
+  const nose = put(0, 0, -4.4);
+  const f = [put(0, 0.95, -1.1), put(1.35, 0, -0.9), put(0, -0.72, -1.1), put(-1.35, 0, -0.9)];
+  const t = [put(0, 0.52, 2.25), put(0.92, 0.02, 2.05), put(0, -0.46, 2.25), put(-0.92, 0.02, 2.05)];
+  const tail = put(0, 0.02, 2.62);
+  for (let i = 0; i < 4; i++) {
+    const j = (i + 1) % 4;
+    tri(nose, f[i], f[j]);                          // nose facets
+    tri(f[i], t[i], t[j]); tri(f[i], t[j], f[j]);   // fuselage band
+    tri(t[i], tail, t[j]);                          // tail cap
+  }
+  for (const sx of [-1, 1]) {                       // canted fins (double-sided, one quad each)
+    const a = put(sx * 0.75, 0.10, 0.55), b = put(sx * 0.88, 0.10, 2.05);
+    const c = put(sx * 2.55, 1.45, 2.30), d = put(sx * 2.30, 1.32, 0.95);
+    tri(a, b, c); tri(a, c, d);
+  }
+  const hull = new THREE.BufferGeometry();
+  hull.setAttribute('position', new THREE.Float32BufferAttribute(V, 3));
+  hull.setIndex(I); hull.computeVertexNormals();
+
+  _assets = {
+    hull,
+    nozzle: new THREE.CylinderGeometry(0.34, 0.52, 0.5, 8),
+    hullMat: new THREE.MeshStandardMaterial({ color: 0xa8505f, roughness: .5, metalness: .35,
+                                              emissive: 0x2e1017, emissiveIntensity: 1,
+                                              flatShading: true, side: THREE.DoubleSide }),
+    flashMat: new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xffffff, emissiveIntensity: 1.6,
+                                               flatShading: true, side: THREE.DoubleSide }),
+    nozzleMat: new THREE.MeshStandardMaterial({ color: 0x120a10, emissive: 0x62e8ff, emissiveIntensity: 3.2 }),
+    // debris shards: the same faceted vocabulary as the hull, chunk sized
+    shards: [new THREE.TetrahedronGeometry(0.95), new THREE.BoxGeometry(1.5, 0.32, 0.95),
+             new THREE.ConeGeometry(0.62, 1.7, 4)],
+  };
+  return _assets;
+}
+
+class Enemy extends Entity {
+  static _next = 1;
+  constructor(pool) {
+    const A = enemyAssets();
+    const rig = new THREE.Group(), body = new THREE.Group();
+    const hullMesh = new THREE.Mesh(A.hull, A.hullMat);
+    const nozzle = new THREE.Mesh(A.nozzle, A.nozzleMat);
+    nozzle.rotation.x = Math.PI / 2; nozzle.position.set(0, 0.02, 2.55);
+    body.add(hullMesh); body.add(nozzle); rig.add(body);
+    super(rig, { tags: ['enemy', 'damageable'], radius: CFG.enemies.radius });
+    this.id = Enemy._next++; this.pool = pool; this.body = body; this.hullMesh = hullMesh;
+    this.vel = new THREE.Vector3(); this.ctx = null;
+    this.state = ''; this.stateT = 0; this.breakT = 0;
+    this.speed = 0; this.fireCd = 0; this.burstLeft = 0; this.burstCd = 0;
+    this.flashT = 0; this.bank = 0; this.leader = null; this.slot = 0;
+    this.cooldown = CFG.enemies.laser.cooldown;
+    this.health = new Health(CFG.enemies.hp, () => this.#onDeath());
+    // --- per-instance scratch: nothing below this line allocates per tick ---
+    this._toP = new THREE.Vector3(); this._aim = new THREE.Vector3(); this._tmpA = new THREE.Vector3();
+    this._steer = new THREE.Vector3(); this._sepTmp = new THREE.Vector3();
+    this._avRel = new THREE.Vector3(); this._avPerp = new THREE.Vector3();
+    this._icept = new THREE.Vector3(); this._shotDir = new THREE.Vector3();
+    this._muzzle = new THREE.Vector3(); this._axisTmp = new THREE.Vector3();
+    this._fwd = new THREE.Vector3(); this._desired = new THREE.Vector3(); this._breakDir = new THREE.Vector3();
+    this._q = new THREE.Quaternion(); this._qi = new THREE.Quaternion(); this._m = new THREE.Matrix4();
+    // pre-bound hash visitors, so steering queries allocate no closures
+    this._sepVisit = e => {
+      if (e === this || !e.alive || !e.tags.has('enemy')) return;
+      const R = CFG.enemies.separation.radius;
+      const d = this._sepTmp.subVectors(this.position, e.position), l = d.length();
+      if (l > 1e-4 && l < R) this._steer.addScaledVector(d, (1 / l) * (1 - l / R) * 1.4);
+    };
+    this._avVisit = a => {
+      if (!a.alive || !a.tags.has('asteroid')) return;
+      const AV = CFG.enemies.avoid;
+      const rel = this._avRel.subVectors(a.position, this.position);
+      const along = rel.dot(this._fwd);
+      if (along <= 0 || along > AV.range) return;                    // behind us, or out of range
+      const perp = this._avPerp.copy(rel).addScaledVector(this._fwd, -along);
+      const clear = a.radius + this.radius + AV.margin, pd = perp.length();
+      if (pd > clear) return;                                        // our forward ray misses it
+      if (pd < 1e-3) perp.copy(UP).cross(this._fwd);                 // dead centre: break either way
+      const urgency = (1 - along / AV.range) * (1 - pd / clear);
+      this._steer.addScaledVector(perp.normalize(), -urgency * 3.0);
+    };
+  }
+
+  reset(ctx, hp, cooldown, leader, slot) {
+    this.ctx = ctx; this.alive = true;
+    this.health.max = hp; this.health.cur = hp; this.health.dead = false;
+    this.leader = leader; this.slot = slot; this.cooldown = cooldown;
+    this.speed = CFG.enemies.maxSpeed * 0.7;
+    this.fireCd = Math.random() * 0.7; this.burstLeft = 0; this.burstCd = 0;
+    this.flashT = 0; this.bank = 0; this.body.rotation.z = 0;
+    this.hullMesh.material = enemyAssets().hullMat;
+    this.vel.set(0, 0, 0); this.state = ''; this.setState(E_STATE.APPROACH);
+    return this;
+  }
+
+  setState(s) {
+    if (this.state === s) return;
+    if (DEBUG) console.debug(`[enemy ${this.id}] ${this.state || 'spawn'} -> ${s}`);
+    this.state = s; this.stateT = 0;
+    this.ctx?.bus.emit('enemy:state', this);
+  }
+
+  hit(n) {
+    this.hullMesh.material = enemyAssets().flashMat; this.flashT = CFG.enemies.flash;
+    this.ctx?.bus.emit('enemy:hit', this);
+    this.health.damage(n);
+    // Being shot while lining someone else up is what makes a fighter break pattern.
+    if (this.alive && this.state !== E_STATE.ATTACK_RUN) this.#beginEvade();
+  }
+
+  #onDeath() { this.destroy(); this.ctx?.bus.emit('enemy:died', this); }
+
+  #beginEvade() {
+    const p = this.ctx.player;
+    this._breakDir.crossVectors(p._fwd, UP);
+    if (this._breakDir.lengthSq() < 1e-6) this._breakDir.set(1, 0, 0);
+    this._breakDir.normalize().multiplyScalar(Math.random() < .5 ? 1 : -1);
+    this.setState(E_STATE.EVADE);
+  }
+
+  #beginBreakOff() {
+    const AI = CFG.enemies.ai;
+    const deg = THREE.MathUtils.randFloat(AI.breakOffDeg[0], AI.breakOffDeg[1]);
+    this.breakT = THREE.MathUtils.randFloat(AI.breakOffTime[0], AI.breakOffTime[1]);
+    this._axisTmp.copy(this._tmpA.randomDirection()).cross(this._fwd);
+    if (this._axisTmp.lengthSq() < 1e-6) this._axisTmp.copy(UP);
+    this._breakDir.copy(this._fwd).applyAxisAngle(this._axisTmp.normalize(), THREE.MathUtils.degToRad(deg));
+    this.setState(E_STATE.BREAK_OFF);
+  }
+
+  #aimPoint(out, target) {
+    const speed = CFG.enemies.laser.speed + this.speed;
+    const t = interceptTime(this.position, target.position, target.vel, speed, this._icept);
+    if (t === null || t > CFG.enemies.ai.leadMaxTime) out.copy(target.position);   // direct-aim fallback
+    else out.copy(target.position).addScaledVector(target.vel, t);
+  }
+
+  #shoot(target) {
+    this.#aimPoint(this._aim, target);
+    this._shotDir.subVectors(this._aim, this.position).normalize();
+    this.object.updateMatrixWorld();
+    this._muzzle.set(0, 0, -3.6).applyMatrix4(this.object.matrixWorld);
+    this.ctx.lasers.fireEnemy(this._muzzle, this._shotDir);
+  }
+
+  #weapon(dt, target, canFire, cdMul) {
+    const L = CFG.enemies.laser;
+    if (this.burstLeft > 0) {
+      if ((this.burstCd -= dt) <= 0) { this.#shoot(target); this.burstLeft--; this.burstCd = L.burstGap; }
+      return;
+    }
+    this.fireCd -= dt;
+    if (canFire && this.fireCd <= 0) {
+      this.burstLeft = L.burst; this.burstCd = 0;
+      this.fireCd = (this.cooldown + THREE.MathUtils.randFloatSpread(2 * L.jitter)) * cdMul;
+    }
+  }
+
+  #formationHeading(out, player) {
+    out.subVectors(player.position, this.position).normalize();
+    const lead = this.leader;
+    if (lead && lead !== this && lead.alive) {   // hold loose formation on the way in
+      const d = this._tmpA.subVectors(lead.position, this.position).length();
+      if (d > CFG.spawn.spacing * 2) out.addScaledVector(this._tmpA.normalize(), 0.55).normalize();
+    }
+  }
+
+  update(dt) {
+    if (!this.ctx) return;
+    const E = CFG.enemies, AI = E.ai, p = this.ctx.player;
+    this.stateT += dt;
+    if (this.flashT > 0 && (this.flashT -= dt) <= 0) this.hullMesh.material = enemyAssets().hullMat;
+
+    this._fwd.set(0, 0, -1).applyQuaternion(this.object.quaternion);
+    const toP = this._toP.subVectors(p.position, this.position);
+    const dist = toP.length();
+    const desired = this._desired;
+    const cosCone = Math.cos(THREE.MathUtils.degToRad(AI.fireConeDeg));
+    let canFire = false, cdMul = 1;
+
+    switch (this.state) {
+      case E_STATE.APPROACH: {
+        this.#formationHeading(desired, p);
+        if (dist < AI.approachRange) this.setState(E_STATE.ATTACK_RUN);
+        else if (this.ctx.slowT > AI.orbitTrigger) this.setState(E_STATE.ORBIT);
+        break;
+      }
+      case E_STATE.ATTACK_RUN: {
+        this.#aimPoint(this._aim, p);
+        desired.subVectors(this._aim, this.position).normalize();
+        const facing = this._tmpA.copy(toP).divideScalar(dist || 1).dot(this._fwd);
+        canFire = facing > cosCone && dist < AI.fireRange;
+        // Bail before ramming, and bail once the target is behind us (pass complete).
+        if (dist < AI.breakOffRange || facing < 0) this.#beginBreakOff();
+        else if (this.ctx.slowT > AI.orbitTrigger && dist > AI.orbitRadius) this.setState(E_STATE.ORBIT);
+        break;
+      }
+      case E_STATE.BREAK_OFF:
+      case E_STATE.EVADE: {
+        desired.copy(this._breakDir);
+        const limit = this.state === E_STATE.EVADE ? AI.evadeTime : this.breakT;
+        if (this.stateT >= limit) this.setState(E_STATE.APPROACH);
+        break;
+      }
+      case E_STATE.ORBIT: {
+        const radial = this._tmpA.copy(toP).divideScalar(dist || 1);
+        const tangent = this._aim.crossVectors(radial, UP);
+        if (tangent.lengthSq() < 1e-6) tangent.set(1, 0, 0);
+        tangent.normalize();
+        const err = THREE.MathUtils.clamp((dist - AI.orbitRadius) / AI.orbitRadius, -1, 1);
+        desired.copy(tangent).addScaledVector(radial, err).normalize();
+        canFire = radial.dot(this._fwd) > cosCone && dist < AI.fireRange;
+        cdMul = AI.orbitPotShot;
+        if (this.ctx.slowT === 0) this.setState(E_STATE.APPROACH);
+        break;
+      }
+    }
+
+    this.#weapon(dt, p, canFire, cdMul);
+
+    // ---- steering overlays: wingman separation + rock avoidance ----------
+    this._steer.set(0, 0, 0);
+    this.world.hash.query(this.position, E.separation.radius, this._sepVisit);
+    this.world.hash.query(this.position, E.avoid.range, this._avVisit);
+    desired.add(this._steer);
+    const home = this.position.length();
+    if (home > CFG.worldRadius) desired.addScaledVector(this.position, -1.5 / home);   // stay in the zone
+    if (desired.lengthSq() < 1e-8) desired.copy(this._fwd); else desired.normalize();
+
+    // ---- orient: slerp toward the desired heading, clamped by turn rate ---
+    this._m.lookAt(ORIGIN_V, desired, UP);
+    this._q.setFromRotationMatrix(this._m);
+    this.object.quaternion.rotateTowards(this._q, E.maxTurn * dt);
+
+    // ---- bank into the turn (local-space X of the target heading) --------
+    this._tmpA.copy(desired).applyQuaternion(this._qi.copy(this.object.quaternion).invert());
+    const wantBank = THREE.MathUtils.clamp(-this._tmpA.x * 2.4, -1, 1) * E.bank;
+    this.bank = THREE.MathUtils.damp(this.bank, wantBank, E.bankDamp, dt);
+    this.body.rotation.z = this.bank;
+
+    // ---- integrate -------------------------------------------------------
+    this.speed = THREE.MathUtils.damp(this.speed, E.maxSpeed, E.accel / 60, dt);
+    this._fwd.set(0, 0, -1).applyQuaternion(this.object.quaternion);
+    this.vel.copy(this._fwd).multiplyScalar(this.speed);
+    this.position.addScaledVector(this.vel, dt);
+  }
+
+  breakOff() { this.#beginBreakOff(); }
+  dispose() { this.ctx = null; this.pool.put(this); }
+}
+const ORIGIN_V = Object.freeze(new THREE.Vector3());
+
+/* =====================================================================
+   SPAWNER — wave table, formations, spawn-outside-the-view rule.
+   ===================================================================== */
+class Spawner {
+  constructor(world, ctx) {
+    this.world = world; this.ctx = ctx; this.bus = ctx.bus;
+    this.pool = new Pool(pool => new Enemy(pool), CFG.enemies.pool);
+    this.waveIndex = -1; this.alive = 0; this.timer = 0; this.pending = false; this.done = false;
+    this._pos = new THREE.Vector3(); this._dir = new THREE.Vector3();
+    this._right = new THREE.Vector3(); this._up = new THREE.Vector3();
+    this._slot = new THREE.Vector3(); this._m = new THREE.Matrix4();
+    this.bus.on('enemy:died', () => {
+      this.alive = Math.max(0, this.alive - 1);
+      if (this.alive === 0 && !this.pending) this.#waveCleared();
+    });
+  }
+  reset() { this.waveIndex = -1; this.alive = 0; this.done = false; this.pending = true; this.timer = 1.5; }
+  get remaining() { return this.alive; }
+  update(dt) {
+    if (!this.pending) return;
+    if ((this.timer -= dt) <= 0) { this.pending = false; this.#spawnWave(); }
+  }
+  #waveCleared() {
+    const w = CFG.waves[this.waveIndex];
+    this.bus.emit('wave:clear', { index: this.waveIndex, bonus: CFG.score.waveBonus });
+    if (this.waveIndex + 1 < CFG.waves.length) { this.pending = true; this.timer = w.delayAfterClear; }
+    else this.done = true;
+  }
+  // Spawn behind the player, or at least offForwardDeg off their nose, so
+  // fighters never pop into existence in front of the camera.
+  #pickBasis(distance) {
+    const p = this.ctx.player, cone = Math.cos(THREE.MathUtils.degToRad(CFG.spawn.offForwardDeg));
+    for (let i = 0; i < 32; i++) { this._dir.randomDirection(); if (this._dir.dot(p._fwd) < cone) break; }
+    this._pos.copy(p.position).addScaledVector(this._dir, distance);
+    const home = this._pos.length();
+    if (home > CFG.worldRadius * 0.95) this._pos.multiplyScalar(CFG.worldRadius * 0.95 / home);
+    this._right.crossVectors(this._dir, UP);
+    if (this._right.lengthSq() < 1e-6) this._right.set(1, 0, 0);
+    this._right.normalize();
+    this._up.crossVectors(this._right, this._dir).normalize();
+  }
+  #formationSlot(out, formation, k, n) {
+    const s = CFG.spawn.spacing, mid = (n - 1) / 2, off = k - mid;
+    if (formation === 'vee') out.set(off * s, 0, -Math.abs(off) * s * 0.8);
+    else if (formation === 'echelon') out.set(off * s * 0.85, off * s * 0.35, -k * s * 0.6);
+    else out.set(off * s, 0, 0);                       // 'line'
+  }
+  #spawnWave() {
+    const i = ++this.waveIndex, w = CFG.waves[i];
+    if (!w) return;
+    const o = w.enemyOverrides || {};
+    const hp = o.hp ?? CFG.enemies.hp, cd = o.cooldown ?? CFG.enemies.laser.cooldown;
+    this.#pickBasis(w.spawnDistance);
+    let leader = null;
+    for (let k = 0; k < w.count; k++) {
+      const e = this.pool.get();
+      this.#formationSlot(this._slot, w.formation, k, w.count);
+      e.position.copy(this._pos)
+        .addScaledVector(this._right, this._slot.x)
+        .addScaledVector(this._up, this._slot.y)
+        .addScaledVector(this._dir, this._slot.z);
+      e.object.quaternion.setFromRotationMatrix(this._m.lookAt(e.position, this.ctx.player.position, UP));
+      e.reset(this.ctx, hp, cd, leader, k);
+      if (!leader) leader = e;
+      e.leader = leader;
+      this.world.add(e);
+    }
+    this.alive = w.count;
+    this.bus.emit('wave:start', { index: i, count: w.count });
+  }
+  clear() {
+    for (const e of [...this.world.tagged('enemy')]) e.destroy();
+    this.alive = 0; this.pending = false;
   }
 }
 
@@ -419,20 +1003,325 @@ class Environment {
 }
 
 /* =====================================================================
+   FX — pooled particle bursts, debris and camera shake.
+   One Points object per live burst (its own material so it can fade
+   independently); debris reuses the shard geometries from the hull kit.
+   ===================================================================== */
+let _ptex = null;
+function particleTexture() {
+  if (_ptex) return _ptex;
+  const c = document.createElement('canvas'); c.width = c.height = 64;
+  const x = c.getContext('2d');
+  const grd = x.createRadialGradient(32, 32, 0, 32, 32, 32);
+  grd.addColorStop(0.0, 'rgba(255,255,255,1)');
+  grd.addColorStop(0.3, 'rgba(255,255,255,0.6)');
+  grd.addColorStop(1.0, 'rgba(255,255,255,0)');
+  x.fillStyle = grd; x.fillRect(0, 0, 64, 64);
+  _ptex = new THREE.CanvasTexture(c);
+  return _ptex;
+}
+class Burst {
+  constructor(pool, count, color, size, additive) {
+    this.pool = pool; this.count = count;
+    this.pos = new Float32Array(count * 3); this.vel = new Float32Array(count * 3);
+    this.attr = new THREE.BufferAttribute(this.pos, 3);
+    const g = new THREE.BufferGeometry(); g.setAttribute('position', this.attr);
+    this.mat = new THREE.PointsMaterial({ color, size, map: particleTexture(), transparent: true,
+      opacity: 1, depthWrite: false, sizeAttenuation: true,
+      blending: additive ? THREE.AdditiveBlending : THREE.NormalBlending });
+    this.points = new THREE.Points(g, this.mat);
+    this.points.frustumCulled = false;          // bounds change every frame; culling would thrash
+    this.life = 0; this.maxLife = 1;
+  }
+  fire(origin, speed, life) {
+    this.life = this.maxLife = life; this.mat.opacity = 1;
+    for (let i = 0; i < this.count; i++) {
+      const i3 = i * 3;
+      this.pos[i3] = origin.x; this.pos[i3 + 1] = origin.y; this.pos[i3 + 2] = origin.z;
+      const x = Math.random() * 2 - 1, y = Math.random() * 2 - 1, z = Math.random() * 2 - 1;
+      const l = Math.hypot(x, y, z) || 1, sp = speed * (0.35 + Math.random() * 0.65);
+      this.vel[i3] = x / l * sp; this.vel[i3 + 1] = y / l * sp; this.vel[i3 + 2] = z / l * sp;
+    }
+    this.attr.needsUpdate = true;
+    return this;
+  }
+  update(dt) {
+    this.life -= dt;
+    const damp = Math.max(0, 1 - dt * 1.6), n = this.count * 3;
+    for (let i = 0; i < n; i++) { this.pos[i] += this.vel[i] * dt; this.vel[i] *= damp; }
+    this.attr.needsUpdate = true;
+    this.mat.opacity = Math.max(0, this.life / this.maxLife);
+    return this.life > 0;
+  }
+}
+class Debris {
+  constructor(pool) {
+    const A = enemyAssets();
+    this.pool = pool;
+    this.mat = A.hullMat.clone(); this.mat.transparent = true;   // cloned once, at pool build
+    this.mesh = new THREE.Mesh(A.shards[0], this.mat);
+    this.vel = new THREE.Vector3(); this.spin = new THREE.Vector3();
+    this.life = 0; this.maxLife = 1;
+  }
+  fire(origin, geo, speed, life, spin) {
+    this.mesh.geometry = geo; this.mesh.position.copy(origin);
+    this.mesh.rotation.set(Math.random() * 6.283, Math.random() * 6.283, Math.random() * 6.283);
+    this.vel.randomDirection().multiplyScalar(speed * (0.4 + Math.random() * 0.6));
+    this.spin.randomDirection().multiplyScalar(spin);
+    this.life = this.maxLife = life; this.mat.opacity = 1; this.mesh.scale.setScalar(1);
+    return this;
+  }
+  update(dt) {
+    this.life -= dt;
+    this.mesh.position.addScaledVector(this.vel, dt);
+    this.vel.multiplyScalar(Math.max(0, 1 - dt * 0.8));
+    this.mesh.rotation.x += this.spin.x * dt;
+    this.mesh.rotation.y += this.spin.y * dt;
+    this.mesh.rotation.z += this.spin.z * dt;
+    const k = Math.max(0, this.life / this.maxLife);
+    this.mat.opacity = k; this.mesh.scale.setScalar(0.45 + k * 0.55);
+    return this.life > 0;
+  }
+}
+class FX {
+  constructor(scene, bus, camera) {
+    this.scene = scene; this.camera = camera; this.shake = 0;
+    const S = CFG.fx.spark, X = CFG.fx.explosion;
+    this.sparkPool = new Pool(p => new Burst(p, S.particles, 0xbfe3ff, S.size, true), S.pool);
+    this.boomPool = new Pool(p => new Burst(p, X.particles, 0xffc46b, X.size, true), X.pool);
+    this.debrisPool = new Pool(p => new Debris(p), X.pool * X.debris[1]);
+    this.bursts = []; this.debris = []; this._wp = new THREE.Vector3();
+    bus.on('enemy:hit', e => this.spark(e.position));
+    bus.on('enemy:died', e => this.explode(e.position));
+    bus.on('player:damaged', () => { this.shake = Math.max(this.shake, CFG.fx.playerKick); });
+  }
+  spark(pos) {
+    const S = CFG.fx.spark, b = this.sparkPool.get().fire(pos, S.speed, S.life);
+    this.scene.add(b.points); this.bursts.push(b);
+  }
+  explode(pos) {
+    const X = CFG.fx.explosion, A = enemyAssets();
+    const b = this.boomPool.get().fire(pos, X.speed, X.life);
+    this.scene.add(b.points); this.bursts.push(b);
+    const n = THREE.MathUtils.randInt(X.debris[0], X.debris[1]);
+    for (let i = 0; i < n; i++) {
+      const d = this.debrisPool.get().fire(pos, A.shards[i % A.shards.length], X.debrisSpeed, X.debrisLife, X.debrisSpin);
+      this.scene.add(d.mesh); this.debris.push(d);
+    }
+    // shake falls off as 1/distance, capped at fx.shake.max inside nearDist
+    const s = CFG.fx.shake;
+    const dist = this.camera.getWorldPosition(this._wp).distanceTo(pos);
+    this.shake = Math.min(s.max, Math.max(this.shake, s.max * s.nearDist / Math.max(s.nearDist, dist)));
+  }
+  update(dt) {
+    for (let i = this.bursts.length - 1; i >= 0; i--) {
+      const b = this.bursts[i];
+      if (!b.update(dt)) { this.scene.remove(b.points); b.pool.put(b); this.bursts.splice(i, 1); }
+    }
+    for (let i = this.debris.length - 1; i >= 0; i--) {
+      const d = this.debris[i];
+      if (!d.update(dt)) { this.scene.remove(d.mesh); d.pool.put(d); this.debris.splice(i, 1); }
+    }
+    this.shake *= Math.exp(-CFG.fx.shake.decay * dt);
+    if (this.shake < 1e-4) this.shake = 0;
+  }
+  applyShake(camera) {
+    if (this.shake === 0) { camera.position.set(0, 0, 0); return; }
+    const a = this.shake;
+    camera.position.set(THREE.MathUtils.randFloatSpread(a * 2), THREE.MathUtils.randFloatSpread(a * 2),
+                        THREE.MathUtils.randFloatSpread(a));
+  }
+  clear() {
+    for (const b of this.bursts) { this.scene.remove(b.points); b.pool.put(b); }
+    for (const d of this.debris) { this.scene.remove(d.mesh); d.pool.put(d); }
+    this.bursts.length = 0; this.debris.length = 0; this.shake = 0;
+  }
+}
+
+/* =====================================================================
+   AUDIO — WebAudio synthesis only, no assets. Context is created on the
+   first user gesture (autoplay policy); every voice is built per shot and
+   torn down by its own envelope.
+   ===================================================================== */
+class AudioFX {
+  constructor(bus, camera) {
+    this.ctx = null; this.muted = false; this.camera = camera; this._wp = new THREE.Vector3();
+    bus.on('player:fire', () => this.play('playerLaser', null));
+    bus.on('enemy:fire', pos => this.play('enemyLaser', pos));
+    bus.on('enemy:hit', e => this.play('tick', e.position));
+    bus.on('enemy:died', e => this.play('boom', e.position));
+    bus.on('player:damaged', () => this.play('tick', null));
+  }
+  init() {
+    if (this.ctx) return;
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return;
+    this.ctx = new AC();
+    this.master = this.ctx.createGain();
+    this.master.gain.value = this.muted ? 0 : CFG.audio.master;
+    this.master.connect(this.ctx.destination);
+    const n = Math.floor(this.ctx.sampleRate * 0.6);
+    this.noise = this.ctx.createBuffer(1, n, this.ctx.sampleRate);
+    const d = this.noise.getChannelData(0);
+    for (let i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / n);
+  }
+  #gain(pos) {
+    if (!pos) return 1;
+    const d = this.camera.getWorldPosition(this._wp).distanceTo(pos);
+    return 1 / (1 + d / CFG.audio.rolloff);
+  }
+  play(kind, pos) {
+    if (!this.ctx || this.muted || this.ctx.state !== 'running') return;
+    const t = this.ctx.currentTime, vol = this.#gain(pos);
+    const env = (peak, dur) => {
+      const g = this.ctx.createGain(); g.connect(this.master);
+      g.gain.setValueAtTime(Math.max(1e-4, peak * vol), t);
+      g.gain.exponentialRampToValueAtTime(1e-4, t + dur);
+      return g;
+    };
+    if (kind === 'playerLaser' || kind === 'enemyLaser') {
+      const f0 = kind === 'playerLaser' ? 920 : 430;      // enemy guns sit an octave lower
+      const o = this.ctx.createOscillator(); o.type = 'square';
+      o.frequency.setValueAtTime(f0, t);
+      o.frequency.exponentialRampToValueAtTime(f0 * 0.28, t + 0.12);
+      const g = env(0.18, 0.14); o.connect(g); o.start(t); o.stop(t + 0.16);
+    } else if (kind === 'tick') {
+      const o = this.ctx.createOscillator(); o.type = 'triangle';
+      o.frequency.setValueAtTime(1500, t);
+      o.frequency.exponentialRampToValueAtTime(600, t + 0.05);
+      const g = env(0.16, 0.07); o.connect(g); o.start(t); o.stop(t + 0.09);
+    } else if (kind === 'boom') {
+      const src = this.ctx.createBufferSource(); src.buffer = this.noise;
+      const f = this.ctx.createBiquadFilter(); f.type = 'lowpass';
+      f.frequency.setValueAtTime(1900, t);
+      f.frequency.exponentialRampToValueAtTime(160, t + 0.5);
+      const g = env(0.5, 0.6); src.connect(f); f.connect(g); src.start(t); src.stop(t + 0.62);
+      const o = this.ctx.createOscillator(); o.type = 'sine';
+      o.frequency.setValueAtTime(92, t);
+      o.frequency.exponentialRampToValueAtTime(32, t + 0.5);
+      const g2 = env(0.45, 0.55); o.connect(g2); o.start(t); o.stop(t + 0.57);
+    }
+  }
+  toggleMute() {
+    this.muted = !this.muted;
+    if (this.master) this.master.gain.value = this.muted ? 0 : CFG.audio.master;
+    return this.muted;
+  }
+}
+
+/* =====================================================================
+   TRACKER — screen-projected target bracket, lead dot and edge arrows.
+   DOM markers, positioned by transform; no per-frame allocation.
+   ===================================================================== */
+class Tracker {
+  constructor(camera, player) {
+    this.camera = camera; this.player = player;
+    this.root = document.getElementById('track');
+    this.bracket = this.#mk('mk bracket',
+      '<i></i><i></i><i></i><i></i><div class="hp"><b></b><b></b><b></b><b></b></div>');
+    this.segs = [...this.bracket.querySelectorAll('.hp b')];
+    this.lead = this.#mk('mk lead', '');
+    this.arrows = Array.from({ length: 6 }, () => this.#mk('mk arrow', ''));
+    this._v = new THREE.Vector3(); this._w = new THREE.Vector3(); this._ic = new THREE.Vector3();
+    this.target = null;
+    this.hideAll();
+  }
+  #mk(cls, html) {
+    const el = document.createElement('div');
+    el.className = cls; el.innerHTML = html; el.style.display = 'none';
+    this.root.appendChild(el); return el;
+  }
+  hideAll() {
+    this.bracket.style.display = 'none'; this.lead.style.display = 'none';
+    for (const a of this.arrows) a.style.display = 'none';
+  }
+  // world -> NDC, with the behind-camera case folded out (project() mirrors it)
+  #ndc(pos, cam) {
+    this._w.copy(pos).applyMatrix4(cam.matrixWorldInverse);
+    const behind = this._w.z > 0;
+    this._v.copy(pos).project(cam);
+    if (behind) { this._v.x = -this._v.x; this._v.y = -this._v.y; }
+    return behind;
+  }
+  update(world, cam) {
+    const W = innerWidth, H = innerHeight;
+    let best = null, bestD = Infinity, nArrow = 0;
+    for (const e of world.tagged('enemy')) {
+      if (!e.alive) continue;
+      const behind = this.#ndc(e.position, cam);
+      const on = !behind && Math.abs(this._v.x) <= 1 && Math.abs(this._v.y) <= 1;
+      if (on) {
+        const d = e.position.distanceToSquared(this.player.position);
+        if (d < bestD) { bestD = d; best = e; }
+      } else if (nArrow < this.arrows.length) {
+        const a = this.arrows[nArrow++];
+        // clamp the (possibly wild) off-screen NDC to the viewport edge
+        const len = Math.hypot(this._v.x, this._v.y) || 1;
+        const k = 0.86 / len;
+        const sx = (this._v.x * k * 0.5 + 0.5) * W, sy = (-this._v.y * k * 0.5 + 0.5) * H;
+        const ang = Math.atan2(-this._v.y, this._v.x) + Math.PI / 2;
+        a.style.display = 'block';
+        a.style.transform = `translate(${sx.toFixed(1)}px,${sy.toFixed(1)}px) rotate(${ang.toFixed(3)}rad)`;
+      }
+    }
+    for (let i = nArrow; i < this.arrows.length; i++) this.arrows[i].style.display = 'none';
+
+    this.target = best;
+    if (!best) { this.bracket.style.display = 'none'; this.lead.style.display = 'none'; return; }
+
+    this.#ndc(best.position, cam);
+    const bx = (this._v.x * 0.5 + 0.5) * W, by = (-this._v.y * 0.5 + 0.5) * H;
+    const scale = THREE.MathUtils.clamp(220 / Math.max(30, Math.sqrt(bestD)), 0.45, 1.8);
+    this.bracket.style.display = 'block';
+    this.bracket.style.transform = `translate(${bx.toFixed(1)}px,${by.toFixed(1)}px) scale(${scale.toFixed(2)})`;
+    for (let i = 0; i < this.segs.length; i++) {
+      const used = i < best.health.max;
+      this.segs[i].style.display = used ? 'block' : 'none';
+      this.segs[i].classList.toggle('off', i >= best.health.cur);
+    }
+    // lead dot: where the player's shot and this fighter would actually meet
+    const speed = CFG.laser.speed + this.player.speed;
+    const t = interceptTime(this.player.position, best.position, best.vel, speed, this._ic);
+    this._ic.copy(best.position);
+    if (t !== null && t < CFG.enemies.ai.leadMaxTime) this._ic.addScaledVector(best.vel, t);
+    const lb = this.#ndc(this._ic, cam);
+    if (lb || Math.abs(this._v.x) > 1 || Math.abs(this._v.y) > 1) { this.lead.style.display = 'none'; return; }
+    const lx = (this._v.x * 0.5 + 0.5) * W, ly = (-this._v.y * 0.5 + 0.5) * H;
+    this.lead.style.display = 'block';
+    this.lead.style.transform = `translate(${lx.toFixed(1)}px,${ly.toFixed(1)}px)`;
+  }
+}
+
+/* =====================================================================
    HUD — DOM only; subscribes to bus, reads player each frame
    ===================================================================== */
 class HUD {
   constructor(bus) {
     this.$ = id => document.getElementById(id);
-    this.warn = this.$('warn');
+    this.warn = this.$('warn'); this.vig = this.$('vig'); this.hpEl = this.$('hp');
+    this.waveEl = this.$('wave'); this.msgEl = this.$('wavemsg'); this.scoreEl = this.$('score');
+    this.msgT = 0;
     bus.on('player:boundary', on => this.warn.classList.toggle('on', on));
-    bus.on('player:damaged', h => this.setHull(h));
+    bus.on('player:damaged', h => { this.setHull(h); this.#damageFlash(); });
+    bus.on('score:changed', v => { this.scoreEl.textContent = v; });
+    bus.on('wave:start', w => this.message(`Wave ${w.index + 1} — ${w.count} inbound`, 2));
+    bus.on('wave:clear', w => this.message(`Wave ${w.index + 1} clear   +${w.bonus}`, 2));
   }
-  setHull(h) { this.$('hp').textContent = Math.round(h.cur); this.$('hpbar').style.width = (h.ratio * 100) + '%'; }
-  update(player, env) {
+  #damageFlash() {
+    this.vig.classList.add('on');
+    this.hpEl.classList.remove('pulse'); void this.hpEl.offsetWidth; this.hpEl.classList.add('pulse');
+    clearTimeout(this._vt);
+    this._vt = setTimeout(() => this.vig.classList.remove('on'), CFG.fx.vignette * 1000);
+  }
+  message(text, secs) { this.msgEl.textContent = text; this.msgT = secs; }
+  setHull(h) { this.hpEl.textContent = Math.round(h.cur); this.$('hpbar').style.width = (h.ratio * 100) + '%'; }
+  update(player, env, spawner, dt) {
     this.$('spd').textContent = Math.round(player.speed);
     this.$('spdbar').style.width = (player.speed / CFG.ship.boost * 100) + '%';
     this.$('tgt').textContent = Math.round(player.position.distanceTo(env.planatron.position)) + ' m';
+    this.waveEl.textContent = spawner.waveIndex >= 0
+      ? `${spawner.waveIndex + 1} — ${spawner.remaining} remaining` : '—';
+    if (this.msgT > 0 && (this.msgT -= dt) <= 0) this.msgEl.textContent = '';
   }
 }
 
@@ -452,11 +1341,18 @@ class Game {
     this.env = new Environment(this.scene, this.player);
     this.lasers = new LaserSystem(this.world, this.bus);
     this.hud = new HUD(this.bus); this.hud.setHull(this.player.health);
-    for (let i = 0; i < CFG.asteroids.count; i++) {
-      const a = new Asteroid(this.bus);
-      a.position.randomDirection().multiplyScalar(THREE.MathUtils.randFloat(200, CFG.asteroids.spread));
-      this.world.add(a);
-    }
+    this.fx = new FX(this.scene, this.bus, this.camera);
+    this.audio = new AudioFX(this.bus, this.camera);
+    this.tracker = new Tracker(this.camera, this.player);
+    // One shared context handed to every fighter: no globals, no per-tick lookups.
+    this.ctx = { player: this.player, bus: this.bus, lasers: this.lasers, slowT: 0 };
+    this.spawner = new Spawner(this.world, this.ctx);
+    this.score = 0; this.dead = false;
+    this.bus.on('enemy:died', () => { this.score += CFG.score.perKill; this.bus.emit('score:changed', this.score); });
+    this.bus.on('wave:clear', w => { this.score += w.bonus; this.bus.emit('score:changed', this.score); });
+    this.bus.on('player:died', () => this.#playerDied());
+    this.spawnAsteroids();
+    this.spawner.reset();
     this.acc = 0; this.clock = new THREE.Clock(); this.frames = 0; this.fpsT = 0;
     this.simMs = 0; this.renderMs = 0;   // EMA of sim vs raster cost (debug readout)
     this.paused = false;
@@ -490,6 +1386,13 @@ class Game {
     // On-screen buttons -> virtual actions (pointer events cover mouse + touch alike).
     for (const btn of pad.querySelectorAll('button')) {
       const action = btn.dataset.action;
+      if (action === 'mute') {
+        btn.addEventListener('pointerdown', e => {
+          e.preventDefault(); this.audio.init();
+          btn.classList.toggle('on', this.audio.toggleMute());
+        });
+        continue;
+      }
       const set = on => { this.input.press(action, on); btn.classList.toggle('on', on); };
       btn.addEventListener('pointerdown', e => { e.preventDefault(); btn.setPointerCapture?.(e.pointerId); set(true); });
       btn.addEventListener('pointerup', e => { e.preventDefault(); set(false); });
@@ -511,37 +1414,117 @@ class Game {
     addEventListener('pointerdown', resume);
     this.setPaused(document.hidden);
 
+    // WebAudio needs a user gesture before it will start.
+    const bootAudio = () => this.audio.init();
+    addEventListener('pointerdown', bootAudio, { once: true });
+    addEventListener('keydown', bootAudio, { once: true });
+    addEventListener('keydown', e => {
+      if (e.code === 'KeyM') { this.audio.init(); this.audio.toggleMute(); }
+      else if (e.code === 'KeyR' && this.dead) this.relaunch();
+    });
+    document.getElementById('dead').addEventListener('click', () => { if (this.dead) this.relaunch(); });
+
     if (DEBUG) { document.getElementById('dbg').style.display = 'block'; window.__game = this; }
     this.renderer.setAnimationLoop(() => this.frame());
   }
+  spawnAsteroids() {
+    for (let i = 0; i < CFG.asteroids.count; i++) {
+      const a = new Asteroid(this.bus);
+      a.position.randomDirection().multiplyScalar(THREE.MathUtils.randFloat(200, CFG.asteroids.spread));
+      this.world.add(a);
+    }
+  }
+  #playerDied() {
+    this.dead = true;
+    document.getElementById('deadscore').textContent = `Final score ${this.score}`;
+    document.getElementById('dead').classList.add('on');
+    this.tracker.hideAll();
+  }
+  // Full reset: every entity except the player is destroyed and swept, the
+  // asteroid field is rebuilt, and the wave table restarts from the top.
+  relaunch() {
+    this.spawner.clear();
+    for (const e of this.world.entities) if (e !== this.player) e.destroy();
+    this.world.step(0);                 // sweep + rebuild the grid
+    this.fx.clear();
+    this.spawnAsteroids();
+    const p = this.player;
+    p.position.set(0, 0, 0); p.object.quaternion.identity(); p.cockpit.rotation.z = 0;
+    p.speed = CFG.ship.cruise; p.strafeV = 0; p.vel.set(0, 0, 0); p._hitCd = 0;
+    p.health.cur = p.health.max; p.health.dead = false;
+    this.hud.setHull(p.health);
+    this.score = 0; this.bus.emit('score:changed', 0);
+    this.ctx.slowT = 0;
+    this.spawner.reset();
+    this.tracker.hideAll();
+    this.dead = false;
+    document.getElementById('dead').classList.remove('on');
+    this.acc = 0; this.clock.getDelta();
+  }
   tick(dt) {
+    // How long the player has been loitering -- this is what flips fighters to ORBIT.
+    this.ctx.slowT = this.player.speed < CFG.ship.brake + 10 ? this.ctx.slowT + dt : 0;
+    this.spawner.update(dt);
     this.world.step(dt);
-    // collision rules live here (one place to add enemy/boss rules)
-    this.world.collide('projectile', 'damageable', (l, t) => { if (t === this.player) return; l.destroy(); t.health?.damage(CFG.laser.damage); });
+
+    // ---- every collision rule lives here, in one place ----
+    this.world.collide('projectile', 'damageable', (l, t) => {
+      if (t === this.player) return;
+      l.destroy();
+      if (t.tags.has('enemy')) t.hit(CFG.laser.damage);      // hit() adds flash + evade
+      else t.health?.damage(CFG.laser.damage);
+    });
+    this.world.collide('enemyProjectile', 'player', (l, p) => {
+      l.destroy();
+      p.health.damage(CFG.enemies.laser.damage);
+      this.bus.emit('player:damaged', p.health);
+    });
+    this.world.collide('enemy', 'player', (e, p) => {
+      if (e._ramCd > 0) return;
+      e._ramCd = 1;
+      p.health.damage(CFG.enemies.ram); this.bus.emit('player:damaged', p.health);
+      e.hit(CFG.enemies.ram);
+      if (e.alive) e.breakOff();
+    });
     this.world.collide('player', 'asteroid', (p, a) => { if (!p._hitCd) { p.onCollide(a); p._hitCd = 1; } });
+
     if (this.player._hitCd) this.player._hitCd = Math.max(0, this.player._hitCd - dt);
+    for (const e of this.world.tagged('enemy')) if (e._ramCd > 0) e._ramCd -= dt;
     this.env.update(dt);
+    this.fx.update(dt);
   }
   frame() {
     const frameDt = Math.min(this.clock.getDelta(), .25);
     const t0 = performance.now();
     // The simulation runs whenever the tab is visible. Pointer lock only decides
     // whether the mouse steers -- it must never decide whether time advances.
-    if (!this.paused) {
+    if (!this.paused && !this.dead) {
       this.acc += frameDt; let n = 0;
       while (this.acc >= CFG.fixedStep && n++ < CFG.maxSubSteps) { this.tick(CFG.fixedStep); this.acc -= CFG.fixedStep; }
       if (n >= CFG.maxSubSteps) this.acc = 0;
     } else this.input.consumeMouse();
     const t1 = performance.now();
-    this.hud.update(this.player, this.env);
+    this.hud.update(this.player, this.env, this.spawner, frameDt);
+    this.lasers.sync(this.world);
+    this.fx.applyShake(this.camera);
     this.renderer.render(this.scene, this.camera);
     const t2 = performance.now();
+    if (!this.dead) this.tracker.update(this.world, this.camera);   // camera matrices are fresh post-render
     if (DEBUG) {
       this.simMs += ((t1 - t0) - this.simMs) * .1;          // EMA so the readout is steady
       this.renderMs += ((t2 - t1) - this.renderMs) * .1;
       this.frames++; this.fpsT += frameDt;
       if (this.fpsT >= .5) {
-        document.getElementById('dbg').textContent = `fps ${(this.frames / this.fpsT).toFixed(0)}\nsim ${this.simMs.toFixed(2)} ms\nrender ${this.renderMs.toFixed(2)} ms\nentities ${this.world.entities.length}\nasteroids ${this.world.tagged('asteroid').size}\nlasers ${this.world.tagged('projectile').size}\ndraw ${this.renderer.info.render.calls}`;
+        const over = this.spawner.pool.overflow + this.lasers.pool.overflow + this.lasers.enemyPool.overflow
+                   + this.fx.sparkPool.overflow + this.fx.boomPool.overflow + this.fx.debrisPool.overflow;
+        document.getElementById('dbg').textContent =
+          `fps ${(this.frames / this.fpsT).toFixed(0)}\nsim ${this.simMs.toFixed(2)} ms\nrender ${this.renderMs.toFixed(2)} ms\n` +
+          `entities ${this.world.entities.length}\nasteroids ${this.world.tagged('asteroid').size}\n` +
+          `enemies ${this.world.tagged('enemy').size}\n` +
+          `lasers ${this.world.tagged('projectile').size} + ${this.world.tagged('enemyProjectile').size}\n` +
+          `fx ${this.fx.bursts.length} burst / ${this.fx.debris.length} debris\n` +
+          `wave ${this.spawner.waveIndex + 1}\npool overflow ${over}\n` +
+          `draw ${this.renderer.info.render.calls}`;
         this.frames = 0; this.fpsT = 0;
       }
     }
