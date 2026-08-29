@@ -44,15 +44,64 @@
   #overlay td { padding:3px 14px 3px 0; color:#fff2d6; }
   #overlay td:first-child { color:var(--hud); width:110px; }
   #overlay .go { margin-top:18px; font-size:12px; letter-spacing:.2em; color:var(--hud); }
+  /* ---- Widget system (SPEC 16): every readout is a positioned, scalable widget ---- */
+  #hud .w { position:fixed; transform:translate(-50%,-50%) scale(var(--s,1)); transform-origin:50% 50%;
+            padding:2px 4px; white-space:nowrap; }
+  #hud .w.hidden { display:none !important; }
+  .wtools { display:none; position:absolute; left:50%; top:-20px; transform:translateX(-50%);
+            gap:5px; align-items:center; pointer-events:auto; }
+  .wtools button { font:inherit; font-size:9px; line-height:1; padding:3px 5px; cursor:pointer;
+                   color:var(--hud); background:rgba(5,7,15,.85); border:1px solid var(--hud-dim); }
+  .wtools button.off { color:var(--hud-dim); }
+  .wtools input[type=range] { width:52px; height:10px; }
+  body.layout #hud { pointer-events:auto; }
+  body.layout #hud .w { outline:1px dashed var(--hud-dim); cursor:grab; touch-action:none; }
+  body.layout #hud .w.drag { cursor:grabbing; outline:1px solid var(--hud); }
+  body.layout #hud .w.bad { outline:2px solid var(--hud-warn); }
+  body.layout .wtools { display:flex; }
+  body.layout #reticle { opacity:.35; }
+  #keepout { position:fixed; left:50%; top:50%; transform:translate(-50%,-50%); border-radius:50%;
+             border:1px dashed var(--hud-warn); opacity:.5; display:none; pointer-events:none; z-index:4; }
+  body.layout #keepout { display:block; }
+  #layoutbar { position:fixed; left:50%; bottom:14px; transform:translateX(-50%); z-index:6;
+               display:none; gap:8px; align-items:center; }
+  body.layout #layoutbar { display:flex; }
+  #layoutbar button { font:inherit; font-size:11px; letter-spacing:.16em; text-transform:uppercase;
+    color:var(--hud); background:rgba(5,7,15,.9); border:1px solid var(--hud-dim); padding:7px 14px; cursor:pointer; }
+  #layoutbar span { font-size:10px; letter-spacing:.14em; color:var(--hud-dim); }
+  #data .row { display:flex; justify-content:space-between; gap:12px; font-size:11px; }
+  #data .row b { font-weight:400; color:#fff2d6; }
+  #data .row.off { display:none; }
+  #heat { width:100%; height:3px; background:var(--hud-dim); margin-top:3px; }
+  #heat > i { display:block; height:100%; width:0%; background:var(--hud-warn); }
+
   #hud .tr { right:0; top:0; text-align:right; }
+  #hud .bar.shield { margin-bottom:9px; }
+  #hud .bar.shield > i { background:#69d2ff; }
+  #hud .br .lbl span { color:#cfe9ff; }
+
+  #diffhud { font-size:10px; letter-spacing:.22em; text-transform:uppercase; color:var(--hud-dim); }
+  #radar { display:block; width:160px; height:160px; opacity:.94; }
+  @media (max-width: 560px), (max-height: 620px) { #radar { width:118px; height:118px; } }
+
+  /* ---- Difficulty picker on the launch overlay ---- */
+  #diffpick { margin:16px 0 2px; display:flex; gap:8px; flex-wrap:wrap; }
+  #diffpick button { font:inherit; font-size:11px; letter-spacing:.16em; text-transform:uppercase;
+    color:var(--hud-dim); background:transparent; border:1px solid var(--hud-dim);
+    padding:7px 15px; cursor:pointer; }
+  #diffpick button.on { color:var(--ink); background:var(--hud); border-color:var(--hud); }
+
+  /* ---- Directional edge flash: which side the bolt came from ---- */
+  #edge { position:fixed; inset:0; pointer-events:none; z-index:3; opacity:0; transition:opacity .3s ease-out; }
+  #edge.on { opacity:1; transition:none; }
   #hud .sub { font-size:10px; color:var(--hud-dim); margin-top:3px; letter-spacing:.14em; }
   #hud .val.small { font-size:20px; }
 
   /* ---- Target tracking: brackets, lead dot, off-screen arrows ---- */
   #track { position:fixed; inset:0; pointer-events:none; z-index:1; }
   .mk { position:absolute; left:0; top:0; will-change:transform; }
-  .bracket { width:60px; height:60px; margin:-30px 0 0 -30px; }
-  .bracket i { position:absolute; width:11px; height:11px; border:1px solid var(--hud); }
+  .bracket { width:76px; height:76px; margin:-38px 0 0 -38px; }
+  .bracket i { position:absolute; width:28px; height:28px; border:2px solid var(--hud); }
   .bracket i:nth-child(1) { left:0;  top:0;    border-right:0; border-bottom:0; }
   .bracket i:nth-child(2) { right:0; top:0;    border-left:0;  border-bottom:0; }
   .bracket i:nth-child(3) { left:0;  bottom:0; border-right:0; border-top:0; }
@@ -60,9 +109,16 @@
   .bracket .hp { position:absolute; left:50%; bottom:-9px; transform:translateX(-50%); display:flex; gap:2px; }
   .bracket .hp b { width:9px; height:3px; background:var(--hud); }
   .bracket .hp b.off { background:var(--hud); opacity:.22; }
-  .lead { width:11px; height:11px; margin:-5.5px 0 0 -5.5px; border:1px solid var(--hud-warn); border-radius:50%; }
-  .arrow { width:0; height:0; margin:-8px 0 0 -8px;
-           border-left:8px solid transparent; border-right:8px solid transparent; border-bottom:13px solid var(--hud-dim); }
+  .lead { width:18px; height:18px; margin:-9px 0 0 -9px; border:8px solid var(--hud-warn);
+          border-radius:50%; box-sizing:border-box; }
+  .arrow i { display:block; width:0; height:0; margin:-8px 0 0 -8px;
+             border-left:8px solid transparent; border-right:8px solid transparent;
+             border-bottom:13px solid var(--hud-dim); }
+  .arrow b { position:absolute; left:11px; top:-5px; font-size:9px; font-weight:400;
+             letter-spacing:.08em; color:var(--hud-dim); white-space:nowrap; }
+  .tie { height:1px; background:var(--hud-dim); opacity:.65; transform-origin:0 50%; }
+  .arrow.tgt i { border-bottom-color:var(--hud); }
+  .arrow.tgt b { color:var(--hud); }
 
   /* ---- Damage feedback ---- */
   #vig { position:fixed; inset:0; pointer-events:none; z-index:3; opacity:0;
@@ -71,6 +127,18 @@
   #vig.on { opacity:1; transition:none; }
   #hp.pulse { animation:hppulse .16s ease-out; }
   @keyframes hppulse { from { color:var(--hud-warn); transform:scale(1.3); } to { color:#fff2d6; transform:none; } }
+
+  /* ---- Sector cleared ---- */
+  #win { position:fixed; inset:0; display:none; place-items:center; background:rgba(4,12,18,.78); z-index:5; }
+  #win.on { display:grid; }
+  #win .c { border:1px solid var(--hud); padding:26px 46px; text-align:center; max-width:520px; }
+  #win b { display:block; font-weight:500; font-size:21px; letter-spacing:.26em; color:#fff2d6; }
+  #win .sub2 { margin-top:6px; font-size:11px; letter-spacing:.18em; color:var(--hud); }
+  #win em { display:block; margin-top:12px; font-style:normal; font-size:12px; letter-spacing:.1em; color:var(--hud-dim); }
+  #win .btns { margin-top:18px; display:flex; gap:10px; justify-content:center; }
+  #win button { font:inherit; font-size:11px; letter-spacing:.16em; text-transform:uppercase; cursor:pointer;
+                color:var(--hud); background:transparent; border:1px solid var(--hud-dim); padding:8px 16px; }
+  #win button:hover { color:var(--ink); background:var(--hud); border-color:var(--hud); }
 
   /* ---- Hull breached ---- */
   #dead { position:fixed; inset:0; display:none; place-items:center; background:rgba(22,4,3,.74); z-index:5; }
@@ -82,7 +150,7 @@
   @media (prefers-reduced-motion: reduce) { #hp.pulse { animation:none; } }
 
   /* ---- Touch fallback (shown when pointer lock is unavailable) ---- */
-  #touch { position:fixed; inset:0; display:none; z-index:2; }
+  #touch { position:fixed; inset:0; display:none; z-index:2; pointer-events:none; }
   #touch.on { display:block; }
   #touch button {
     position:absolute; pointer-events:auto; -webkit-tap-highlight-color:transparent;
@@ -113,7 +181,7 @@
   #paused .p b { display:block; font-weight:500; font-size:26px; letter-spacing:.4em; color:#fff2d6; }
   #paused .p span { font-size:10px; color:var(--hud-dim); letter-spacing:.18em; }
 
-  #dbg { position:fixed; top:10px; left:10px; font-size:11px; color:var(--hud-dim); white-space:pre; display:none; }
+  #dbg { font-size:11px; color:var(--hud-dim); white-space:pre; }
   @media (prefers-reduced-motion: reduce) { #warn.on { animation:none; } }
 </style>
 <script type="importmap">
@@ -121,22 +189,62 @@
 </script>
 </head>
 <body>
+<!-- SS-M1 --><!-- SS-M2 --><!-- SS-M3 -->
 <div id="hud">
   <div id="reticle"></div>
   <div id="warn">Leaving combat zone — turn back</div>
-  <div class="corner tc">
+
+  <div class="w" data-w="wave" style="text-align:center">
     <div class="lbl">Wave</div><div class="val small" id="wave">—</div>
     <div class="sub" id="wavemsg"></div>
+  </div>
+  <div class="w" data-w="target" style="text-align:center">
     <div class="sub">Planatron <span id="tgt">—</span></div>
   </div>
-  <div class="corner tr"><div class="lbl">Score</div><div class="val" id="score">0</div></div>
-  <div class="corner bl"><div class="lbl">Velocity</div><div class="val" id="spd">0</div><div class="bar"><i id="spdbar"></i></div></div>
-  <div class="corner br"><div class="lbl">Hull</div><div class="val" id="hp">100</div><div class="bar"><i id="hpbar"></i></div></div>
+  <div class="w" data-w="score" style="text-align:right">
+    <div class="lbl">Score</div><div class="val" id="score">0</div>
+  </div>
+  <div class="w" data-w="velocity">
+    <div class="lbl">Velocity</div><div class="val" id="spd">0</div><div class="bar"><i id="spdbar"></i></div>
+  </div>
+  <div class="w" data-w="vitals" style="text-align:right">
+    <div class="lbl">Shield <span id="sh">50</span></div><div class="bar shield"><i id="shbar"></i></div>
+    <div class="lbl">Hull</div><div class="val" id="hp">100</div><div class="bar"><i id="hpbar"></i></div>
+  </div>
+  <div class="w" data-w="radar">
+    <canvas id="radar" width="160" height="160" aria-label="Tactical radar"></canvas>
+  </div>
+  <div class="w" data-w="difficulty"><div id="diffhud">Medium</div></div>
+  <div class="w" data-w="data" id="data">
+    <div class="lbl">Data</div>
+    <div class="row" data-row="enemies"><span>Enemies</span><b id="d-enemies">0</b></div>
+    <div class="row" data-row="nearest"><span>Nearest</span><b id="d-nearest">—</b></div>
+    <div class="row" data-row="closure"><span>Closure</span><b id="d-closure">—</b></div>
+    <div class="row" data-row="hits"><span>Shots / hit%</span><b id="d-hits">0 / 0%</b></div>
+    <div class="row" data-row="wavetime"><span>Wave time</span><b id="d-wavetime">0.0s</b></div>
+    <div class="row" data-row="heat"><span>Boost heat</span><b id="d-heat">0%</b></div>
+    <div id="heat"><i></i></div>
+  </div>
+  <div class="w" data-w="debug" id="dbg"><span id="dbgtext"></span></div>
+</div>
+<div id="keepout"></div>
+<div id="layoutbar">
+  <span>Layout mode — mouse released · drag widgets · H to exit</span>
+  <button id="lb-save">Save</button><button id="lb-reset">Reset</button><button id="lb-done">Done</button>
 </div>
 <div id="track"></div>
+<div id="edge"></div>
+
 <div id="vig"></div>
-<div id="dbg"></div>
 <div id="dead"><div class="d"><b>Hull breached</b><span>Press R to relaunch</span><em id="deadscore"></em></div></div>
+<div id="win"><div class="c">
+  <b>Sector cleared</b>
+  <div class="sub2">Planatron approach unlocked</div>
+  <em id="winstats"></em>
+  <div class="btns">
+    <button id="win-again">Play again (R)</button><button id="win-next">Next difficulty (N)</button>
+  </div>
+</div></div>
 <div id="overlay">
   <div class="card">
     <h1>Solar Savers</h1>
@@ -147,10 +255,16 @@
       <tr><td>A / D</td><td>Strafe left / right</td></tr>
       <tr><td>Q / E</td><td>Roll</td></tr>
       <tr><td>Space / LMB</td><td>Fire (test lasers)</td></tr>
+      <tr><td>Tab</td><td>Cycle target</td></tr>
+      <tr><td>H</td><td>HUD layout mode</td></tr>
+      <tr><td>[ ]</td><td>Radar range</td></tr>
       <tr><td>M</td><td>Mute audio</td></tr>
       <tr><td>R</td><td>Relaunch after hull breach</td></tr>
       <tr><td>Esc</td><td>Release mouse</td></tr>
     </table>
+    <div id="diffpick">
+      <button data-diff="EASY">Easy</button><button data-diff="MEDIUM">Medium</button><button data-diff="HARD">Hard</button><button data-diff="ACE">Ace</button>
+    </div>
     <div class="go">Click to launch</div>
   </div>
 </div>
@@ -174,35 +288,58 @@ import * as THREE from 'three';
 const CFG = {
   fixedStep: 1/60,          // physics tick (s); render is variable-rate
   maxSubSteps: 5,
+  pauseDelay: 0.5,          // ignore hides shorter than this (alt-tab bounce)
   worldRadius: 4000,        // combat zone radius (soft boundary)
   ship: {
-    cruise: 80, boost: 200, brake: 25,   // units/s
+    cruise: 55, boost: 140, brake: 18,   // units/s  (v1.2: everything ran too fast)
     accel: 90,                            // speed change rate (units/s^2)
     strafe: 45, strafeAccel: 160,
+    shield: 50, shieldRegen: 8, shieldDelay: 4,   // absorbs first; regens after 4s clean
+    restoreHullOnWave: true,                      // SPEC 4: wave:start restores shield (and hull)
+    ramDamage: 10,                                // asteroid collision
     lookSens: 0.0022,                     // rad per mouse px
     touchSens: 1.5,                       // touch-drag px -> look px multiplier
     rollRate: 1.8,                        // rad/s
     radius: 2,                            // collision sphere
     hp: 100,
   },
-  camera: { fov: 72, boostFov: 84, near: 0.1, far: 12000, bank: 0.35 },
-  laser: { speed: 700, life: 2.2, cooldown: 0.13, damage: 1, pool: 64 },
-  stars: { far: 7000, count: 9000 },
-  dust: { count: 900, extent: 160 },
+  camera: { fov: 72, boostFov: 84, near: 0.1, far: 12000, bank: 0.35, bankDamp: 6 },
+  laser: { speed: 700, life: 2.2, cooldown: 0.13, damage: 1, pool: 64,
+           thickness: .24, length: 6, color: 0xff3b2f },   // v1.2: x2 thickness
+  stars: { far: 7000, count: 9000, brightness: 0.7 },   // v1.2: -30%
+  dust: { count: 900, extent: 160, minVisible: 0.34, opacity: 0.35 },   // density rises with speed (SPEC 3)
   asteroids: { count: 60, spread: 1800, hp: 3 },
 
   // ---- Enemy fighters -------------------------------------------------
   enemies: {
     radius: 3, hp: 3, pool: 16,
-    maxSpeed: 110, accel: 60, maxTurn: 2.2,   // u/s, u/s^2, rad/s
+    modelScale: 1.5,                          // v1.2 contrast pass: fighters read too small
+    glowSize: 26, glowNear: 120, glowFar: 900, // billboard glow behind each fighter
+    glowMaxPx: 6,                             // cap on-screen size so a group stays countable
+    glowHue: [0.055, 0.125],                  // per-fighter orange->amber jitter
+    hullEmissive: 2.2,                        // silhouette must read at 400u
+    hullColor: 0xc9c2b5, engineColor: 0xff7a1a, outlineColor: 0x14100e,
+    maxSpeed: 80, accel: 60, maxTurn: 1.6,    // u/s, u/s^2, rad/s  (v1.2 retune)
+    // Closing speed near player cruise is unstable: a tier multiplier that puts a
+    // fighter within a few u/s of the player turns time-to-contact into a dice roll
+    // on spawn geometry (EASY measured 0.7*80=56 u/s vs 55 cruise -> 84s to first
+    // shot). APPROACH therefore ignores the tier multiplier and uses this floor;
+    // every other state still scales with difficulty, so EASY combat stays easy.
+    approachMargin: 40,                       // u/s the floor must beat player cruise by
+    approachSpeedFloor: 95,                   // recomputed below as cruise + approachMargin
     bank: 0.62,          // roll amplitude when turning at full rate (rad)
     bankDamp: 5,
     flash: 0.08,         // white emissive hit flash (s)
     ram: 25,             // damage dealt BOTH ways on a hull collision
     ai: {
-      approachRange: 450,                 // APPROACH  -> ATTACK_RUN
-      fireConeDeg: 30, fireRange: 350,    // ATTACK_RUN firing envelope
-      breakOffRange: 60,                  // anti-ram bail-out distance
+      approachRange: 380,                 // APPROACH  -> ATTACK_RUN  (v1.2)
+      fireConeDeg: 30, fireRange: 300,    // ATTACK_RUN firing envelope  (v1.2)
+      breakOffRange: 110,                 // anti-ram bail-out: a TRIGGER distance, not a
+                                          // floor -- momentum plus the 90-140 deg turn
+                                          // carries a fighter well inside it. Swept against
+                                          // the SPEC 9 40u bound, 25 passive trials x 4 tiers:
+                                          // 60 -> 3/5/14/18 breaches, 85 -> 1/1/3/8,
+                                          // 110 -> 0/0/0/0 (min approach 46-59u).
       breakOffDeg: [90, 140],             // randomized evasive turn
       breakOffTime: [1.5, 2.5],
       evadeTime: 1.0,                     // jink after being hit
@@ -211,20 +348,28 @@ const CFG = {
       orbitPotShot: 1.6,                  // cooldown multiplier while orbiting
       leadMaxTime: 4.0,                   // reject silly intercept solutions
     },
-    separation: { radius: 25, force: 300 },        // wingmen don't stack
+    separation: { radius: 25, approachRadius: 40, force: 300 },   // wider while closing, so they arrive spread
     avoid: { range: 120, margin: 16, force: 520 }, // ray-ahead asteroid dodge
     laser: { speed: 450, life: 3.0, cooldown: 0.9, jitter: 0.3, burst: 3, burstGap: 0.11,
-             damage: 8, pool: 96, color: 0x5dff9d },
+             damage: 8, pool: 96, color: 0x3dff87, thickness: .24, length: 6 },
   },
   waves: [
-    { count: 3, formation: 'line',    spawnDistance: 900,  delayAfterClear: 3 },
+    // v1.6: base 3 -> 4, and the second bearing held back 8s so wave 1 is a running
+    // fight rather than one volley (3 fighters still cleared in 7.5s median without it).
+    { count: 4, formation: 'line',    spawnDistance: 900,  delayAfterClear: 3, groupDelay: 8 },
     { count: 4, formation: 'vee',     spawnDistance: 980,  delayAfterClear: 3 },
     { count: 5, formation: 'echelon', spawnDistance: 1060, delayAfterClear: 3 },
     { count: 6, formation: 'vee',     spawnDistance: 1130, delayAfterClear: 3 },
     { count: 8, formation: 'line',    spawnDistance: 1200, delayAfterClear: 3,
       enemyOverrides: { hp: 4, cooldown: 0.7 } },
   ],
-  spawn: { offForwardDeg: 60, spacing: 46 },       // never spawn inside the player's view
+  spawn: {
+    offForwardDeg: 60,        // never spawn inside the player's view
+    spacing: 138,             // 3x: at 900u a tight formation read as a single point
+    jitter: [0, 2],           // per-fighter arrival stagger (s) -- a stream, not a lump
+    groupMinDeg: 45,          // minimum angle between simultaneous spawn bearings
+    groupsEarly: 2, groupsLate: 3, lateWaveIndex: 2,
+  },
 
   // ---- Feedback -------------------------------------------------------
   fx: {
@@ -237,8 +382,43 @@ const CFG = {
   },
   score: { perKill: 100, waveBonus: 250 },
   audio: { master: 0.35, rolloff: 300 },
-  hash: { cell: 64 },                              // uniform spatial hash cell size
+  hash: { cell: 64, maxCells: 2048 },              // uniform spatial hash; drop the map past maxCells
+
+  // ---- Difficulty (SPEC 7) --------------------------------------------
+  difficulty: {
+    // v1.3: the whole curve moved one notch easier after a live session on MEDIUM.
+    // Old EASY -> MEDIUM, old MEDIUM -> HARD, old HARD -> ACE, new gentler EASY at the bottom.
+    default: 'MEDIUM', order: ['EASY', 'MEDIUM', 'HARD', 'ACE'], minWave: 2,
+    assistTurn: 2.6,          // rad/s cap on in-flight bolt steering
+    //        aim cone    hit radius x    enemy spd/turn x   enemy cd x    enemy dmg   wave delta   shield regen
+    EASY:   { assistDeg: 9, hitRadius: 2.00, enemySpeed: 0.70, enemyCooldown: 1.8,  enemyDamage: 4, waveDelta: -1, shieldRegen: 12 },
+    MEDIUM: { assistDeg: 6, hitRadius: 1.60, enemySpeed: 0.80, enemyCooldown: 1.4,  enemyDamage: 5, waveDelta: -1 },
+    HARD:   { assistDeg: 3, hitRadius: 1.25, enemySpeed: 1.00, enemyCooldown: 1.15, enemyDamage: 8, waveDelta: 0 },
+    ACE:    { assistDeg: 0, hitRadius: 1.00, enemySpeed: 1.15, enemyCooldown: 1.0,  enemyDamage: 9, waveDelta: 2 },
+  },
+
+  // ---- Radar (SPEC 8) --------------------------------------------------
+  radar: {
+    size: 160, hz: 20, ranges: [500, 1000, 2000], defaultRange: 1000,
+    ringFractions: [0.25, 0.5, 1.0],   // at range 1000 -> 250/500/1000
+    sweepPeriod: 2, stemMax: 18, blip: 4.5,
+  },
+
+  // ---- HUD tracking constants ------------------------------------------
+  hud: {
+    bracketRef: 220, bracketMinDist: 30, bracketMin: 0.45, bracketMax: 1.8, edgeFlash: 0.3,
+    keepOutPct: 0.22,       // SPEC 3: no widget inside this fraction of min(vw,vh) from centre
+    snapPx: 8,              // layout editor grid
+    scaleMin: 0.75, scaleMax: 1.5,
+    storeKey: 'ss.hud.v1',
+  },
 };
+// Kept in step with the ship so a future cruise change cannot silently break closure.
+// The margin sets the WORST-CASE arrival time: a fighter spawning directly behind a
+// fleeing player closes at exactly this margin, so time-to-contact from the 900u
+// wave-1 spawn is 900/margin. +20 gave 45s (measured max 30.9s) and missed the SPEC 12
+// 25s bound on rear spawns; +40 gives 22.5s worst case.
+CFG.enemies.approachSpeedFloor = CFG.ship.cruise + CFG.enemies.approachMargin;
 const DEBUG = new URLSearchParams(location.search).has('debug');
 
 /* =====================================================================
@@ -249,6 +429,28 @@ class EventBus {
   on(e, fn) { (this.#l.get(e) ?? this.#l.set(e, []).get(e)).push(fn); return () => this.off(e, fn); }
   off(e, fn) { const a = this.#l.get(e); if (a) a.splice(a.indexOf(fn) >>> 0, 1); }
   emit(e, p) { this.#l.get(e)?.forEach(fn => fn(p)); }
+}
+
+/* =====================================================================
+   DIFFICULTY — a single preset object that every scaling system reads.
+   Persisted, so a returning player keeps their setting (SPEC 7).
+   ===================================================================== */
+class Difficulty {
+  constructor(bus) { this.bus = bus; this.name = Difficulty.load(); }
+  static load() {
+    try {
+      const v = localStorage.getItem('ss.difficulty');
+      if (v && CFG.difficulty.order.includes(v)) return v;
+    } catch { /* private mode / storage disabled */ }
+    return CFG.difficulty.default;
+  }
+  get p() { return CFG.difficulty[this.name]; }
+  set(name) {
+    if (!CFG.difficulty.order.includes(name) || name === this.name) return;
+    this.name = name;
+    try { localStorage.setItem('ss.difficulty', name); } catch { /* ignore */ }
+    this.bus.emit('difficulty:changed', name);
+  }
 }
 
 /* =====================================================================
@@ -329,12 +531,23 @@ class Entity {
 class SpatialHash {
   constructor(cell) {
     this.inv = 1 / cell;
-    this.buckets = new Map();     // int key -> Entity[] (arrays are reused, never freed)
+    this.buckets = new Map();     // int key -> Entity[] (arrays are reused between ticks)
+    this.used = [];               // only the buckets that took an entry this rebuild
     this.maxRadius = new Map();   // tag -> largest radius present, so queries know their reach
     this.stamp = 0;               // per-query visit marker; avoids allocating a Set
   }
   #key(ix, iy, iz) { return (ix * 73856093) ^ (iy * 19349663) ^ (iz * 83492791); }
-  clear() { for (const b of this.buckets.values()) b.length = 0; this.maxRadius.clear(); }
+  clear() {
+    // Only ~300 cells hold anything on a given tick, but the map keeps a bucket for
+    // every cell ever visited and the player flies continuously — so clearing all of
+    // them made the rebuild cost grow forever (measured 1320 -> 3558 buckets and
+    // +21% tick cost over five minutes). Clear just what we filled, and drop the map
+    // once it has outgrown its working set.
+    for (let i = 0; i < this.used.length; i++) this.used[i].length = 0;
+    this.used.length = 0;
+    this.maxRadius.clear();
+    if (this.buckets.size > CFG.hash.maxCells) this.buckets.clear();
+  }
   insert(e) {
     for (const t of e.tags) {
       const m = this.maxRadius.get(t);
@@ -348,6 +561,7 @@ class SpatialHash {
       const k = this.#key(x, y, z);
       let b = this.buckets.get(k);
       if (b === undefined) this.buckets.set(k, b = []);
+      if (b.length === 0) this.used.push(b);
       b.push(e);
     }
   }
@@ -427,12 +641,17 @@ class PlayerShip extends Entity {
     this.input = input; this.camera = camera; this.bus = bus;
     this.speed = CFG.ship.cruise; this.strafeV = 0;
     this.health = new Health(CFG.ship.hp, () => bus.emit('player:died'));
+    // Shield soaks damage before hull and regenerates after a quiet spell (SPEC 4).
+    this.shieldMax = CFG.ship.shield; this.shield = this.shieldMax; this.sinceHit = 0;
+    this.damageTaken = 0;                  // gross damage, for the balance auditor
+    this._dmgEvt = { player: this, from: null };   // reused: taking a hit allocates nothing
     this.fireCd = 0;
     // camera rig: rig -> cockpit (bank) -> camera
     this.cockpit = new THREE.Group(); rig.add(this.cockpit); this.cockpit.add(camera);
     camera.position.set(0, 0, 0);
     this.cockpit.add(PlayerShip.buildCockpitGeometry());
     this._fwd = new THREE.Vector3(); this._right = new THREE.Vector3(); this._tmp = new THREE.Vector3();
+    this.diff = null;                                     // bound by Game; drives shield regen rate
     this.vel = new THREE.Vector3();                       // read by enemy lead-aim + HUD lead dot
     this._muzzles = [new THREE.Vector3(), new THREE.Vector3()];
     this._fireEvt = { muzzles: this._muzzles, dir: this._fwd, vel: 0 };   // reused: firing allocates nothing
@@ -474,9 +693,15 @@ class PlayerShip extends Entity {
     this.bus.emit('player:boundary', d > CFG.worldRadius * 0.92);
     // --- camera feel: bank into yaw/strafe, FOV with speed ---
     const bank = THREE.MathUtils.clamp(-m.dx * 0.02 - this.strafeV / ship.strafe * 0.5, -1, 1) * camera.bank;
-    this.cockpit.rotation.z = THREE.MathUtils.damp(this.cockpit.rotation.z, bank, 6, dt);
+    this.cockpit.rotation.z = THREE.MathUtils.damp(this.cockpit.rotation.z, bank, CFG.camera.bankDamp, dt);
     const fovT = THREE.MathUtils.mapLinear(this.speed, ship.brake, ship.boost, camera.fov - 4, camera.boostFov);
     this.camera.fov = THREE.MathUtils.damp(this.camera.fov, fovT, 4, dt); this.camera.updateProjectionMatrix();
+    // --- shield regen after a clean spell ---
+    this.sinceHit += dt;
+    if (this.sinceHit >= ship.shieldDelay && this.shield < this.shieldMax) {
+      const rate = (this.diff && this.diff.p.shieldRegen) || ship.shieldRegen;
+      this.shield = Math.min(this.shieldMax, this.shield + rate * dt);
+    }
     // --- fire (test hook; weapon system will replace) ---
     this.fireCd -= dt;
     if (inp.down('fire') && this.fireCd <= 0) {
@@ -485,7 +710,25 @@ class PlayerShip extends Entity {
       this.bus.emit('player:fire', this._fireEvt);
     }
   }
-  onCollide(other) { this.health.damage(10); this.bus.emit('player:damaged', this.health); }
+  // Single entry point for every source of damage, so shield-first is never bypassed.
+  takeDamage(n, fromPos) {
+    if (n <= 0 || this.health.dead) return;
+    this.damageTaken += n;
+    this.sinceHit = 0;
+    const absorbed = Math.min(this.shield, n);
+    this.shield -= absorbed;
+    const through = n - absorbed;
+    this._dmgEvt.from = fromPos || null;
+    if (through > 0) this.health.damage(through);
+    this.bus.emit('player:damaged', this._dmgEvt);
+  }
+  restore() {
+    this.shield = this.shieldMax;
+    if (CFG.ship.restoreHullOnWave) { this.health.cur = this.health.max; this.health.dead = false; }
+    this._dmgEvt.from = null;
+    this.bus.emit('player:restored', this._dmgEvt);
+  }
+  onCollide(other) { this.takeDamage(CFG.ship.ramDamage, other?.position); }
 }
 
 /* =====================================================================
@@ -510,22 +753,57 @@ class Laser extends Entity {
     super(node, { tags: [tag], radius: .6 });
     this.pool = pool; this.cfg = cfg; this.vel = new THREE.Vector3(); this.life = 0;
     this.owner = tag === 'enemyProjectile' ? 'enemy' : 'player';
+    this.baseRadius = .6;
+    this.assistLeft = 0; this.assistTarget = null;   // set by LaserSystem for player bolts
     this._axis = new THREE.Vector3(0, 0, -1);   // reused: launch() must not allocate
+    this._cur = new THREE.Vector3(); this._want = new THREE.Vector3();
+    this._ax = new THREE.Vector3(); this._sc = new THREE.Vector3();
   }
   launch(pos, dir, inheritedSpeed) {
     this.alive = true; this.life = this.cfg.life; this.position.copy(pos);
+    this.radius = this.baseRadius; this.assistLeft = 0; this.assistTarget = null;
     this.vel.copy(dir).multiplyScalar(this.cfg.speed + inheritedSpeed);
     this.object.quaternion.setFromUnitVectors(this._axis, dir); return this;
   }
-  update(dt) { this.position.addScaledVector(this.vel, dt); if ((this.life -= dt) <= 0) this.destroy(); }
+  // Aim assist (SPEC 7): steer toward the bracketed target, capped BOTH by a
+  // turn rate and by a total cone budget, so a bolt can never boomerang.
+  #assist(dt) {
+    const t = this.assistTarget;
+    if (!t || !t.alive) { this.assistLeft = 0; return; }
+    const spd = this.vel.length();
+    if (spd < 1e-3) return;
+    this._cur.copy(this.vel).divideScalar(spd);
+    const lead = interceptTime(this.position, t.position, t.vel, spd, this._sc);
+    this._want.copy(t.position);
+    if (lead !== null && lead < CFG.enemies.ai.leadMaxTime) this._want.addScaledVector(t.vel, lead);
+    this._want.sub(this.position);
+    const wl = this._want.length();
+    if (wl < 1e-3) return;
+    this._want.divideScalar(wl);
+    const ang = Math.acos(THREE.MathUtils.clamp(this._cur.dot(this._want), -1, 1));
+    const step = Math.min(ang, CFG.difficulty.assistTurn * dt, this.assistLeft);
+    if (step < 1e-5) return;
+    this._ax.crossVectors(this._cur, this._want);
+    if (this._ax.lengthSq() < 1e-10) return;
+    this.vel.applyAxisAngle(this._ax.normalize(), step);
+    this.assistLeft -= step;
+    this._cur.copy(this.vel).divideScalar(spd);
+    this.object.quaternion.setFromUnitVectors(this._axis, this._cur);
+  }
+  update(dt) {
+    if (this.assistLeft > 0) this.#assist(dt);
+    this.position.addScaledVector(this.vel, dt);
+    if ((this.life -= dt) <= 0) this.destroy();
+  }
   dispose() { this.pool.put(this); }
 }
 class LaserSystem {
   constructor(world, bus) {
     this.world = world; this.bus = bus;
-    const geo = new THREE.BoxGeometry(.12, .12, 6);
-    const pMat = new THREE.MeshBasicMaterial({ color: 0xff3b2f });
-    const eMat = new THREE.MeshBasicMaterial({ color: CFG.enemies.laser.color });
+    const L = CFG.laser, E = CFG.enemies.laser;
+    const geo = new THREE.BoxGeometry(L.thickness, L.thickness, L.length);
+    const pMat = new THREE.MeshBasicMaterial({ color: L.color });
+    const eMat = new THREE.MeshBasicMaterial({ color: E.color });
     this.pool = new Pool(pool => new Laser(pool, 'projectile', CFG.laser), CFG.laser.pool);
     this.enemyPool = new Pool(pool => new Laser(pool, 'enemyProjectile', CFG.enemies.laser), CFG.enemies.laser.pool);
     // Two draw calls for every bolt in the world, regardless of count.
@@ -537,8 +815,21 @@ class LaserSystem {
       world.scene.add(m);
     }
     this._m4 = new THREE.Matrix4(); this._one = new THREE.Vector3(1, 1, 1);
-    bus.on('player:fire', e => { for (const p of e.muzzles) world.add(this.pool.get().launch(p, e.dir, e.vel)); });
+    this.baseR = .6;
+    this.diff = null; this.tracker = null;    // bound by Game once both exist
+    bus.on('player:fire', e => {
+      const d = this.diff ? this.diff.p : CFG.difficulty[CFG.difficulty.default];
+      const tgt = this.tracker && this.tracker.target;
+      const cone = (d.assistDeg > 0 && tgt && tgt.alive) ? THREE.MathUtils.degToRad(d.assistDeg) : 0;
+      for (const p of e.muzzles) {
+        const l = this.pool.get().launch(p, e.dir, e.vel);
+        l.radius = this.baseR * d.hitRadius;
+        if (cone > 0) { l.assistLeft = cone; l.assistTarget = tgt; }
+        world.add(l);
+      }
+    });
   }
+  bind(diff, tracker) { this.diff = diff; this.tracker = tracker; }
   fireEnemy(pos, dir) { this.world.add(this.enemyPool.get().launch(pos, dir, 0)); this.bus.emit('enemy:fire', pos); }
   #fill(mesh, set, cap) {
     let i = 0;
@@ -619,12 +910,15 @@ function enemyAssets() {
   _assets = {
     hull,
     nozzle: new THREE.CylinderGeometry(0.34, 0.52, 0.5, 8),
-    hullMat: new THREE.MeshStandardMaterial({ color: 0xa8505f, roughness: .5, metalness: .35,
-                                              emissive: 0x2e1017, emissiveIntensity: 1,
+    hullMat: new THREE.MeshStandardMaterial({ color: CFG.enemies.hullColor, roughness: .58, metalness: .18,
+                                              emissive: 0x6b6055, emissiveIntensity: CFG.enemies.hullEmissive,
                                               flatShading: true, side: THREE.DoubleSide }),
+    // Back-face shell, scaled out slightly: reads as a thin dark outline against space.
+    outlineMat: new THREE.MeshBasicMaterial({ color: CFG.enemies.outlineColor, side: THREE.BackSide }),
     flashMat: new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xffffff, emissiveIntensity: 1.6,
                                                flatShading: true, side: THREE.DoubleSide }),
-    nozzleMat: new THREE.MeshStandardMaterial({ color: 0x120a10, emissive: 0x62e8ff, emissiveIntensity: 3.2 }),
+    nozzleMat: new THREE.MeshStandardMaterial({ color: 0x1a0d05, emissive: CFG.enemies.engineColor,
+                                                emissiveIntensity: 4.2 }),
     // debris shards: the same faceted vocabulary as the hull, chunk sized
     shards: [new THREE.TetrahedronGeometry(0.95), new THREE.BoxGeometry(1.5, 0.32, 0.95),
              new THREE.ConeGeometry(0.62, 1.7, 4)],
@@ -638,15 +932,20 @@ class Enemy extends Entity {
     const A = enemyAssets();
     const rig = new THREE.Group(), body = new THREE.Group();
     const hullMesh = new THREE.Mesh(A.hull, A.hullMat);
+    const outline = new THREE.Mesh(A.hull, A.outlineMat);
+    outline.scale.setScalar(1.06);                    // thin dark rim, back faces only
     const nozzle = new THREE.Mesh(A.nozzle, A.nozzleMat);
     nozzle.rotation.x = Math.PI / 2; nozzle.position.set(0, 0.02, 2.55);
-    body.add(hullMesh); body.add(nozzle); rig.add(body);
+    body.add(outline); body.add(hullMesh); body.add(nozzle);
+    body.scale.setScalar(CFG.enemies.modelScale);
+    rig.add(body);
     super(rig, { tags: ['enemy', 'damageable'], radius: CFG.enemies.radius });
     this.id = Enemy._next++; this.pool = pool; this.body = body; this.hullMesh = hullMesh;
     this.vel = new THREE.Vector3(); this.ctx = null;
     this.state = ''; this.stateT = 0; this.breakT = 0;
     this.speed = 0; this.fireCd = 0; this.burstLeft = 0; this.burstCd = 0;
     this.flashT = 0; this.bank = 0; this.leader = null; this.slot = 0;
+    this.glowHue = THREE.MathUtils.randFloat(CFG.enemies.glowHue[0], CFG.enemies.glowHue[1]);
     this.cooldown = CFG.enemies.laser.cooldown;
     this.health = new Health(CFG.enemies.hp, () => this.#onDeath());
     // --- per-instance scratch: nothing below this line allocates per tick ---
@@ -660,7 +959,10 @@ class Enemy extends Entity {
     // pre-bound hash visitors, so steering queries allocate no closures
     this._sepVisit = e => {
       if (e === this || !e.alive || !e.tags.has('enemy')) return;
-      const R = CFG.enemies.separation.radius;
+      // Wider while closing so the wing spreads out before it reaches the player,
+      // instead of arriving as one shootable point.
+      const S = CFG.enemies.separation;
+      const R = this.state === E_STATE.APPROACH ? S.approachRadius : S.radius;
       const d = this._sepTmp.subVectors(this.position, e.position), l = d.length();
       if (l > 1e-4 && l < R) this._steer.addScaledVector(d, (1 / l) * (1 - l / R) * 1.4);
     };
@@ -683,9 +985,11 @@ class Enemy extends Entity {
     this.ctx = ctx; this.alive = true;
     this.health.max = hp; this.health.cur = hp; this.health.dead = false;
     this.leader = leader; this.slot = slot; this.cooldown = cooldown;
-    this.speed = CFG.enemies.maxSpeed * 0.7;
+    this.speed = Math.max(CFG.enemies.maxSpeed * 0.7 * (ctx.diff?.p.enemySpeed ?? 1),
+                          CFG.enemies.approachSpeedFloor);   // spawn already closing
     this.fireCd = Math.random() * 0.7; this.burstLeft = 0; this.burstCd = 0;
     this.flashT = 0; this.bank = 0; this.body.rotation.z = 0;
+    this.glowHue = THREE.MathUtils.randFloat(CFG.enemies.glowHue[0], CFG.enemies.glowHue[1]);
     this.hullMesh.material = enemyAssets().hullMat;
     this.vel.set(0, 0, 0); this.state = ''; this.setState(E_STATE.APPROACH);
     return this;
@@ -765,7 +1069,7 @@ class Enemy extends Entity {
 
   update(dt) {
     if (!this.ctx) return;
-    const E = CFG.enemies, AI = E.ai, p = this.ctx.player;
+    const E = CFG.enemies, AI = E.ai, p = this.ctx.player, dp = this.ctx.diff.p;
     this.stateT += dt;
     if (this.flashT > 0 && (this.flashT -= dt) <= 0) this.hullMesh.material = enemyAssets().hullMat;
 
@@ -818,7 +1122,9 @@ class Enemy extends Entity {
 
     // ---- steering overlays: wingman separation + rock avoidance ----------
     this._steer.set(0, 0, 0);
-    this.world.hash.query(this.position, E.separation.radius, this._sepVisit);
+    this.world.hash.query(this.position,
+      this.state === E_STATE.APPROACH ? E.separation.approachRadius : E.separation.radius,
+      this._sepVisit);
     this.world.hash.query(this.position, E.avoid.range, this._avVisit);
     desired.add(this._steer);
     const home = this.position.length();
@@ -828,7 +1134,7 @@ class Enemy extends Entity {
     // ---- orient: slerp toward the desired heading, clamped by turn rate ---
     this._m.lookAt(ORIGIN_V, desired, UP);
     this._q.setFromRotationMatrix(this._m);
-    this.object.quaternion.rotateTowards(this._q, E.maxTurn * dt);
+    this.object.quaternion.rotateTowards(this._q, E.maxTurn * dp.enemySpeed * dt);
 
     // ---- bank into the turn (local-space X of the target heading) --------
     this._tmpA.copy(desired).applyQuaternion(this._qi.copy(this.object.quaternion).invert());
@@ -837,7 +1143,17 @@ class Enemy extends Entity {
     this.body.rotation.z = this.bank;
 
     // ---- integrate -------------------------------------------------------
-    this.speed = THREE.MathUtils.damp(this.speed, E.maxSpeed, E.accel / 60, dt);
+    // The floor applies while a fighter is still CLOSING to firing position -- in
+    // APPROACH, and in ATTACK_RUN until it is inside fire range. Flooring APPROACH
+    // alone was not enough: the hand-off happens at approachRange (380u) but firing
+    // needs fireRange (300u), and at tier speed EASY covers that last 80u at ~1 u/s
+    // against a fleeing player (measured: ATTACK_RUN at 25.6s, first shot at 73.8s).
+    // Once inside fire range the dogfight runs at tier speed, so EASY stays easy.
+    const cruiseTarget = E.maxSpeed * dp.enemySpeed;
+    const closingIn = this.state === E_STATE.APPROACH
+                   || (this.state === E_STATE.ATTACK_RUN && dist > AI.fireRange);
+    const target = closingIn ? Math.max(cruiseTarget, E.approachSpeedFloor) : cruiseTarget;
+    this.speed = THREE.MathUtils.damp(this.speed, target, E.accel / 60, dt);
     this._fwd.set(0, 0, -1).applyQuaternion(this.object.quaternion);
     this.vel.copy(this._fwd).multiplyScalar(this.speed);
     this.position.addScaledVector(this.vel, dt);
@@ -859,14 +1175,27 @@ class Spawner {
     this._pos = new THREE.Vector3(); this._dir = new THREE.Vector3();
     this._right = new THREE.Vector3(); this._up = new THREE.Vector3();
     this._slot = new THREE.Vector3(); this._m = new THREE.Matrix4();
+    this.bases = [];      // one spawn bearing per group
+    this.queue = [];      // fighters waiting out their arrival jitter
     this.bus.on('enemy:died', () => {
       this.alive = Math.max(0, this.alive - 1);
       if (this.alive === 0 && !this.pending) this.#waveCleared();
     });
   }
-  reset() { this.waveIndex = -1; this.alive = 0; this.done = false; this.pending = true; this.timer = 1.5; }
+  reset() {
+    this.waveIndex = -1; this.alive = 0; this.done = false;
+    this.pending = true; this.timer = 1.5;
+    this.queue.length = 0; this.bases.length = 0;
+  }
   get remaining() { return this.alive; }
   update(dt) {
+    // fighters trickle in over their jitter window
+    for (let n = this.queue.length - 1; n >= 0; n--) {
+      const q = this.queue[n];
+      if ((q.delay -= dt) > 0) continue;
+      this.#materialise(q);
+      this.queue.splice(n, 1);
+    }
     if (!this.pending) return;
     if ((this.timer -= dt) <= 0) { this.pending = false; this.#spawnWave(); }
   }
@@ -874,20 +1203,54 @@ class Spawner {
     const w = CFG.waves[this.waveIndex];
     this.bus.emit('wave:clear', { index: this.waveIndex, bonus: CFG.score.waveBonus });
     if (this.waveIndex + 1 < CFG.waves.length) { this.pending = true; this.timer = w.delayAfterClear; }
-    else this.done = true;
+    else {
+      this.done = true;
+      // Until the Planatron lands (M4) the campaign ends here rather than nowhere.
+      this.bus.emit('campaign:clear', { waves: CFG.waves.length });
+    }
   }
-  // Spawn behind the player, or at least offForwardDeg off their nose, so
-  // fighters never pop into existence in front of the camera.
-  #pickBasis(distance) {
-    const p = this.ctx.player, cone = Math.cos(THREE.MathUtils.degToRad(CFG.spawn.offForwardDeg));
-    for (let i = 0; i < 32; i++) { this._dir.randomDirection(); if (this._dir.dot(p._fwd) < cone) break; }
-    this._pos.copy(p.position).addScaledVector(this._dir, distance);
-    const home = this._pos.length();
-    if (home > CFG.worldRadius * 0.95) this._pos.multiplyScalar(CFG.worldRadius * 0.95 / home);
-    this._right.crossVectors(this._dir, UP);
-    if (this._right.lengthSq() < 1e-6) this._right.set(1, 0, 0);
-    this._right.normalize();
-    this._up.crossVectors(this._right, this._dir).normalize();
+  // Pick n spawn bearings: each at least offForwardDeg off the player's nose (so
+  // nothing pops into view) AND at least groupMinDeg from every other bearing, so a
+  // wave arrives from two or three directions instead of one.
+  #pickBases(distance, n) {
+    const p = this.ctx.player;
+    const cone = Math.cos(THREE.MathUtils.degToRad(CFG.spawn.offForwardDeg));
+    const sep = Math.cos(THREE.MathUtils.degToRad(CFG.spawn.groupMinDeg));
+    this.bases.length = 0;
+    for (let g = 0; g < n; g++) {
+      let dir = null;
+      for (let t = 0; t < 96 && !dir; t++) {
+        this._dir.randomDirection();
+        if (this._dir.dot(p._fwd) >= cone) continue;
+        let ok = true;
+        for (const b of this.bases) if (this._dir.dot(b.dir) > sep) { ok = false; break; }
+        if (ok) dir = this._dir.clone();
+      }
+      if (!dir) dir = this._dir.clone();      // give up gracefully rather than spin
+      const pos = p.position.clone().addScaledVector(dir, distance);
+      const home = pos.length();
+      if (home > CFG.worldRadius * 0.95) pos.multiplyScalar(CFG.worldRadius * 0.95 / home);
+      const right = new THREE.Vector3().crossVectors(dir, UP);
+      if (right.lengthSq() < 1e-6) right.set(1, 0, 0);
+      right.normalize();
+      const up = new THREE.Vector3().crossVectors(right, dir).normalize();
+      this.bases.push({ dir, pos, right, up, leader: null });
+    }
+  }
+  #materialise(q) {
+    const b = this.bases[q.g] || this.bases[0];
+    if (!b) return;
+    const e = this.pool.get();
+    this.#formationSlot(this._slot, q.formation, q.slotIdx, q.groupSize);
+    e.position.copy(b.pos)
+      .addScaledVector(b.right, this._slot.x)
+      .addScaledVector(b.up, this._slot.y)
+      .addScaledVector(b.dir, this._slot.z);
+    e.object.quaternion.setFromRotationMatrix(this._m.lookAt(e.position, this.ctx.player.position, UP));
+    e.reset(this.ctx, q.hp, q.cd, b.leader, q.slotIdx);
+    if (!b.leader) b.leader = e;
+    e.leader = b.leader;
+    this.world.add(e);
   }
   #formationSlot(out, formation, k, n) {
     const s = CFG.spawn.spacing, mid = (n - 1) / 2, off = k - mid;
@@ -898,29 +1261,31 @@ class Spawner {
   #spawnWave() {
     const i = ++this.waveIndex, w = CFG.waves[i];
     if (!w) return;
-    const o = w.enemyOverrides || {};
-    const hp = o.hp ?? CFG.enemies.hp, cd = o.cooldown ?? CFG.enemies.laser.cooldown;
-    this.#pickBasis(w.spawnDistance);
-    let leader = null;
-    for (let k = 0; k < w.count; k++) {
-      const e = this.pool.get();
-      this.#formationSlot(this._slot, w.formation, k, w.count);
-      e.position.copy(this._pos)
-        .addScaledVector(this._right, this._slot.x)
-        .addScaledVector(this._up, this._slot.y)
-        .addScaledVector(this._dir, this._slot.z);
-      e.object.quaternion.setFromRotationMatrix(this._m.lookAt(e.position, this.ctx.player.position, UP));
-      e.reset(this.ctx, hp, cd, leader, k);
-      if (!leader) leader = e;
-      e.leader = leader;
-      this.world.add(e);
+    const o = w.enemyOverrides || {}, d = this.ctx.diff.p;
+    const hp = o.hp ?? CFG.enemies.hp;
+    const cd = (o.cooldown ?? CFG.enemies.laser.cooldown) * d.enemyCooldown;
+    const count = Math.max(CFG.difficulty.minWave, w.count + d.waveDelta);
+    const nGroups = Math.min(count,
+      i >= CFG.spawn.lateWaveIndex ? CFG.spawn.groupsLate : CFG.spawn.groupsEarly);
+    this.#pickBases(w.spawnDistance, nGroups);
+    this.queue.length = 0;
+    for (let k = 0; k < count; k++) {
+      const g = k % nGroups;
+      this.queue.push({
+        g, slotIdx: (k / nGroups) | 0, groupSize: Math.ceil((count - g) / nGroups),
+        formation: w.formation, hp, cd,
+        // per-fighter jitter, plus an optional per-bearing hold so a wave can arrive
+        // in distinct pushes instead of one simultaneous volley
+        delay: THREE.MathUtils.randFloat(CFG.spawn.jitter[0], CFG.spawn.jitter[1])
+             + g * (w.groupDelay || 0),
+      });
     }
-    this.alive = w.count;
-    this.bus.emit('wave:start', { index: i, count: w.count });
+    this.alive = count;      // counts queued fighters too, so the wave cannot clear early
+    this.bus.emit('wave:start', { index: i, count, groups: nGroups });
   }
   clear() {
     for (const e of [...this.world.tagged('enemy')]) e.destroy();
-    this.alive = 0; this.pending = false;
+    this.alive = 0; this.pending = false; this.queue.length = 0;
   }
 }
 
@@ -975,7 +1340,8 @@ class Environment {
     const { count, far } = CFG.stars; const pos = new Float32Array(count * 3); const col = new Float32Array(count * 3); const v = new THREE.Vector3(); const c = new THREE.Color();
     for (let i = 0; i < count; i++) {
       v.randomDirection().multiplyScalar(far); pos.set([v.x, v.y, v.z], i * 3);
-      c.setHSL(THREE.MathUtils.randFloat(.55, .65), THREE.MathUtils.randFloat(0, .4), THREE.MathUtils.randFloat(.6, 1)); col.set([c.r, c.g, c.b], i * 3);
+      c.setHSL(THREE.MathUtils.randFloat(.55, .65), THREE.MathUtils.randFloat(0, .4),
+               THREE.MathUtils.randFloat(.6, 1) * CFG.stars.brightness); col.set([c.r, c.g, c.b], i * 3);
     }
     const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(pos, 3)); g.setAttribute('color', new THREE.BufferAttribute(col, 3));
     return new THREE.Points(g, new THREE.PointsMaterial({ size: 9, vertexColors: true, sizeAttenuation: true, fog: false, depthWrite: false }));
@@ -984,7 +1350,8 @@ class Environment {
     const { count, extent } = CFG.dust; const pos = new Float32Array(count * 3);
     for (let i = 0; i < count * 3; i++) pos[i] = THREE.MathUtils.randFloatSpread(extent);
     const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
-    return new THREE.Points(g, new THREE.PointsMaterial({ color: 0x8fa3c4, size: .6, transparent: true, opacity: .55, depthWrite: false }));
+    return new THREE.Points(g, new THREE.PointsMaterial({ color: 0x8fa3c4, size: .6, transparent: true,
+      opacity: CFG.dust.opacity, depthWrite: false }));
   }
   update(dt) {
     const p = this.player.position; this.stars.position.copy(p);
@@ -998,6 +1365,10 @@ class Environment {
       a.setXYZ(i, x, y, z);
     }
     a.needsUpdate = true;
+    // Density rises with speed, so boosting reads as faster without motion blur.
+    const t = THREE.MathUtils.clamp(
+      (this.player.speed - CFG.ship.brake) / (CFG.ship.boost - CFG.ship.brake), 0, 1);
+    this.dust.geometry.setDrawRange(0, Math.round(a.count * THREE.MathUtils.lerp(CFG.dust.minVisible, 1, t)));
     this.planatron.rotation.y += .02 * dt;
   }
 }
@@ -1139,6 +1510,69 @@ class FX {
 }
 
 /* =====================================================================
+   ENEMY GLOW — one billboarded additive quad behind each fighter, drawn
+   from a single InstancedMesh. Per-instance colour carries the fade
+   (InstancedMesh has no per-instance opacity, but additive blending means
+   scaling the colour toward black IS a fade).
+   The quad holds a roughly constant SCREEN size, so a fighter at 700 u is
+   still a readable smudge rather than one dark pixel; it fades out again
+   very close in, where the hull reads on its own and a glow would just
+   wash it out.
+   ===================================================================== */
+class EnemyGlow {
+  constructor(scene, world, camera) {
+    const E = CFG.enemies;
+    const mat = new THREE.MeshBasicMaterial({ map: particleTexture(), transparent: true,
+      blending: THREE.AdditiveBlending, depthWrite: false, color: 0xffffff });
+    this.mesh = new THREE.InstancedMesh(new THREE.PlaneGeometry(1, 1), mat, E.pool);
+    this.mesh.count = 0; this.mesh.frustumCulled = false; this.mesh.renderOrder = -1;
+    this.mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+    this.mesh.instanceColor =
+      new THREE.InstancedBufferAttribute(new Float32Array(E.pool * 3), 3);
+    scene.add(this.mesh);
+    this.world = world; this.camera = camera;
+    this._m = new THREE.Matrix4(); this._s = new THREE.Vector3();
+    this._q = new THREE.Quaternion(); this._camPos = new THREE.Vector3();
+    this._c = new THREE.Color();
+  }
+  sync() {
+    const E = CFG.enemies;
+    // world units per screen pixel at 1 unit of depth
+    this._projK = 2 * Math.tan(THREE.MathUtils.degToRad(this.camera.fov) / 2) / innerHeight;
+    this.camera.getWorldPosition(this._camPos);
+    this.camera.getWorldQuaternion(this._q);
+    let i = 0;
+    for (const e of this.world.tagged('enemy')) {
+      if (!e.alive || i >= E.pool) continue;
+      const d = e.position.distanceTo(this._camPos);
+      const fadeIn = THREE.MathUtils.clamp((d - 40) / Math.max(1, E.glowNear - 40), 0, 1);
+      const fadeOut = 1 - THREE.MathUtils.clamp((d - E.glowFar) / (E.glowFar * 0.6), 0, 1);
+      const k = fadeIn * fadeOut;
+      if (k <= 0.01) continue;
+      // Two terms: a constant WORLD size (which would fall off as 1/distance) and a
+      // SCREEN-pixel cap. With glowSize 26 against a 6px cap the cap wins for every
+      // distance inside the engagement envelope, so in practice each fighter is a
+      // steady ~6px dot: big enough to stay visible at 900u, small enough that a wing
+      // reads as separate points instead of one blob. The world term only takes over
+      // past ~2400u, where contacts are out of play anyway.
+      const maxWorld = E.glowMaxPx * d * this._projK;
+      const sc = Math.min(E.glowSize, maxWorld);
+      this._s.set(sc, sc, sc);
+      this._m.compose(e.position, this._q, this._s);
+      this.mesh.setMatrixAt(i, this._m);
+      this._c.setHSL(e.glowHue, 1, 0.55).multiplyScalar(k);   // orange->amber per fighter
+      this.mesh.setColorAt(i, this._c);
+      i++;
+    }
+    this.mesh.count = i;
+    if (i > 0) {
+      this.mesh.instanceMatrix.needsUpdate = true;
+      if (this.mesh.instanceColor) this.mesh.instanceColor.needsUpdate = true;
+    }
+  }
+}
+
+/* =====================================================================
    AUDIO — WebAudio synthesis only, no assets. Context is created on the
    first user gesture (autoplay policy); every voice is built per shot and
    torn down by its own envelope.
@@ -1215,13 +1649,14 @@ class AudioFX {
    ===================================================================== */
 class Tracker {
   constructor(camera, player) {
-    this.camera = camera; this.player = player;
+    this.camera = camera; this.player = player; this.layout = null;   // bound by Game
     this.root = document.getElementById('track');
+    this.tie = this.#mk('mk tie', '');                 // created first so it sits under the bracket
     this.bracket = this.#mk('mk bracket',
       '<i></i><i></i><i></i><i></i><div class="hp"><b></b><b></b><b></b><b></b></div>');
     this.segs = [...this.bracket.querySelectorAll('.hp b')];
     this.lead = this.#mk('mk lead', '');
-    this.arrows = Array.from({ length: 6 }, () => this.#mk('mk arrow', ''));
+    this.arrows = Array.from({ length: 6 }, () => this.#mk('mk arrow', '<i></i><b></b>'));
     this._v = new THREE.Vector3(); this._w = new THREE.Vector3(); this._ic = new THREE.Vector3();
     this.target = null;
     this.hideAll();
@@ -1233,7 +1668,34 @@ class Tracker {
   }
   hideAll() {
     this.bracket.style.display = 'none'; this.lead.style.display = 'none';
+    this.tie.style.display = 'none';
     for (const a of this.arrows) a.style.display = 'none';
+  }
+  // Tab steps through live fighters, nearest first. User-driven, so the sort
+  // here is not on the per-tick path.
+  cycle(world) {
+    const list = [];
+    for (const e of world.tagged('enemy')) if (e.alive) list.push(e);
+    if (!list.length) { this.target = null; return null; }
+    list.sort((a, b) => a.position.distanceToSquared(this.player.position)
+                      - b.position.distanceToSquared(this.player.position));
+    const i = list.indexOf(this.target);
+    this.target = list[(i + 1) % list.length];
+    return this.target;
+  }
+  // Auto-acquire only when there is no live target: prefer nearest on-screen,
+  // fall back to nearest anywhere. Keeps the bracket from flickering between
+  // fighters, which is what SPEC 3 means by "all four point at the same target".
+  #acquire(world, cam) {
+    let onBest = null, onD = Infinity, anyBest = null, anyD = Infinity;
+    for (const e of world.tagged('enemy')) {
+      if (!e.alive) continue;
+      const d = e.position.distanceToSquared(this.player.position);
+      if (d < anyD) { anyD = d; anyBest = e; }
+      const behind = this.#ndc(e.position, cam);
+      if (!behind && Math.abs(this._v.x) <= 1 && Math.abs(this._v.y) <= 1 && d < onD) { onD = d; onBest = e; }
+    }
+    this.target = onBest || anyBest;
   }
   // world -> NDC, with the behind-camera case folded out (project() mirrors it)
   #ndc(pos, cam) {
@@ -1244,84 +1706,519 @@ class Tracker {
     return behind;
   }
   update(world, cam) {
-    const W = innerWidth, H = innerHeight;
-    let best = null, bestD = Infinity, nArrow = 0;
+    const W = innerWidth, H = innerHeight, HUDC = CFG.hud;
+    if (!this.target || !this.target.alive) this.#acquire(world, cam);
+    const tgt = this.target;
+
+    // ---- off-screen arrows, with range, for everything not on screen ----
+    const showArrows = !this.layout || this.layout.state.arrows.visible;
+    let nArrow = 0;
     for (const e of world.tagged('enemy')) {
       if (!e.alive) continue;
       const behind = this.#ndc(e.position, cam);
       const on = !behind && Math.abs(this._v.x) <= 1 && Math.abs(this._v.y) <= 1;
-      if (on) {
-        const d = e.position.distanceToSquared(this.player.position);
-        if (d < bestD) { bestD = d; best = e; }
-      } else if (nArrow < this.arrows.length) {
-        const a = this.arrows[nArrow++];
-        // clamp the (possibly wild) off-screen NDC to the viewport edge
-        const len = Math.hypot(this._v.x, this._v.y) || 1;
-        const k = 0.86 / len;
-        const sx = (this._v.x * k * 0.5 + 0.5) * W, sy = (-this._v.y * k * 0.5 + 0.5) * H;
-        const ang = Math.atan2(-this._v.y, this._v.x) + Math.PI / 2;
-        a.style.display = 'block';
-        a.style.transform = `translate(${sx.toFixed(1)}px,${sy.toFixed(1)}px) rotate(${ang.toFixed(3)}rad)`;
-      }
+      if (on || !showArrows || nArrow >= this.arrows.length) continue;
+      const a = this.arrows[nArrow++];
+      const len = Math.hypot(this._v.x, this._v.y) || 1, k = 0.86 / len;
+      const sx = (this._v.x * k * 0.5 + 0.5) * W, sy = (-this._v.y * k * 0.5 + 0.5) * H;
+      const ang = Math.atan2(-this._v.y, this._v.x) + Math.PI / 2;
+      a.style.display = 'block';
+      a.style.transform = `translate(${sx.toFixed(1)}px,${sy.toFixed(1)}px)`;
+      a.firstChild.style.transform = `rotate(${ang.toFixed(3)}rad)`;
+      a.lastChild.textContent = Math.round(e.position.distanceTo(this.player.position)) + ' m';
+      a.classList.toggle('tgt', e === tgt);
     }
     for (let i = nArrow; i < this.arrows.length; i++) this.arrows[i].style.display = 'none';
 
-    this.target = best;
-    if (!best) { this.bracket.style.display = 'none'; this.lead.style.display = 'none'; return; }
+    if (!tgt) { this.bracket.style.display = 'none'; this.lead.style.display = 'none'; this.tie.style.display = 'none'; return; }
 
-    this.#ndc(best.position, cam);
+    // ---- bracket on the target ----
+    const behindT = this.#ndc(tgt.position, cam);
+    const onT = !behindT && Math.abs(this._v.x) <= 1 && Math.abs(this._v.y) <= 1;
+    if (!onT) { this.bracket.style.display = 'none'; this.lead.style.display = 'none'; this.tie.style.display = 'none'; return; }
+    const dist = tgt.position.distanceTo(this.player.position);
     const bx = (this._v.x * 0.5 + 0.5) * W, by = (-this._v.y * 0.5 + 0.5) * H;
-    const scale = THREE.MathUtils.clamp(220 / Math.max(30, Math.sqrt(bestD)), 0.45, 1.8);
+    const scale = THREE.MathUtils.clamp(HUDC.bracketRef / Math.max(HUDC.bracketMinDist, dist),
+                                        HUDC.bracketMin, HUDC.bracketMax);
     this.bracket.style.display = 'block';
     this.bracket.style.transform = `translate(${bx.toFixed(1)}px,${by.toFixed(1)}px) scale(${scale.toFixed(2)})`;
     for (let i = 0; i < this.segs.length; i++) {
-      const used = i < best.health.max;
-      this.segs[i].style.display = used ? 'block' : 'none';
-      this.segs[i].classList.toggle('off', i >= best.health.cur);
+      this.segs[i].style.display = i < tgt.health.max ? 'block' : 'none';
+      this.segs[i].classList.toggle('off', i >= tgt.health.cur);
     }
-    // lead dot: where the player's shot and this fighter would actually meet
+
+    // ---- lead ring where the shot and the fighter would meet ----
     const speed = CFG.laser.speed + this.player.speed;
-    const t = interceptTime(this.player.position, best.position, best.vel, speed, this._ic);
-    this._ic.copy(best.position);
-    if (t !== null && t < CFG.enemies.ai.leadMaxTime) this._ic.addScaledVector(best.vel, t);
+    const t = interceptTime(this.player.position, tgt.position, tgt.vel, speed, this._ic);
+    this._ic.copy(tgt.position);
+    if (t !== null && t < CFG.enemies.ai.leadMaxTime) this._ic.addScaledVector(tgt.vel, t);
     const lb = this.#ndc(this._ic, cam);
-    if (lb || Math.abs(this._v.x) > 1 || Math.abs(this._v.y) > 1) { this.lead.style.display = 'none'; return; }
+    if (lb || Math.abs(this._v.x) > 1 || Math.abs(this._v.y) > 1) {
+      this.lead.style.display = 'none'; this.tie.style.display = 'none'; return;
+    }
     const lx = (this._v.x * 0.5 + 0.5) * W, ly = (-this._v.y * 0.5 + 0.5) * H;
     this.lead.style.display = 'block';
     this.lead.style.transform = `translate(${lx.toFixed(1)}px,${ly.toFixed(1)}px)`;
+
+    // ---- bracket -> lead line, so the eye connects the two ----
+    const dx = lx - bx, dy = ly - by, len = Math.hypot(dx, dy);
+    if (len > 8) {
+      this.tie.style.display = 'block';
+      this.tie.style.width = len.toFixed(1) + 'px';
+      this.tie.style.transform = `translate(${bx.toFixed(1)}px,${by.toFixed(1)}px) rotate(${Math.atan2(dy, dx).toFixed(3)}rad)`;
+    } else this.tie.style.display = 'none';
   }
+}
+
+/* =====================================================================
+   RADAR — 220x220 canvas on its own 20 Hz clock (SPEC 8). Player centred,
+   ship forward is up. Bearing comes from the horizontal plane of the
+   player's frame; height becomes a vertical elevation stem, so a blip
+   above the line is above you.
+   ===================================================================== */
+class Radar {
+  constructor(player, world, env, tracker) {
+    this.player = player; this.world = world; this.env = env; this.tracker = tracker;
+    this.cv = document.getElementById('radar');
+    this.c = this.cv.getContext('2d');
+    this.rangeIdx = Math.max(0, CFG.radar.ranges.indexOf(CFG.radar.defaultRange));
+    this.acc = 0; this.sweep = 0; this.t = 0; this.lastMs = 0;
+    this.counts = { enemies: 0, bolts: 0, asteroids: 0, planatron: 0 };
+    this._rel = new THREE.Vector3(); this._fwd = new THREE.Vector3();
+    this._right = new THREE.Vector3(); this._up = new THREE.Vector3();
+    this._p = { x: 0, y: 0, z: 0 };
+  }
+  get range() { return CFG.radar.ranges[this.rangeIdx]; }
+  cycleRange(step) {
+    this.rangeIdx = THREE.MathUtils.clamp(this.rangeIdx + step, 0, CFG.radar.ranges.length - 1);
+    return this.range;
+  }
+  // Own accumulator so the radar holds 20 Hz whatever the render rate does.
+  tick(dt) {
+    this.t += dt;
+    this.sweep = (this.sweep + dt / CFG.radar.sweepPeriod) % 1;
+    this.acc += dt;
+    const step = 1 / CFG.radar.hz;
+    if (this.acc < step) return;
+    this.acc %= step;
+    const t0 = performance.now();
+    this.#draw();
+    this.lastMs = performance.now() - t0;
+  }
+  #project(pos) {
+    this._rel.subVectors(pos, this.player.position);
+    const p = this._p;
+    p.x = this._rel.dot(this._right);
+    p.z = this._rel.dot(this._fwd);
+    p.y = this._rel.dot(this._up);
+    return Math.hypot(p.x, p.z) <= this.range;
+  }
+  #draw() {
+    const c = this.c, S = CFG.radar.size, R = S / 2 - 6, cx = S / 2, cy = S / 2, p = this._p;
+    const q = this.player.object.quaternion;
+    this._fwd.set(0, 0, -1).applyQuaternion(q);
+    this._right.set(1, 0, 0).applyQuaternion(q);
+    this._up.set(0, 1, 0).applyQuaternion(q);
+    const k = R / this.range;
+
+    c.clearRect(0, 0, S, S);
+    c.save();
+    c.beginPath(); c.arc(cx, cy, R, 0, Math.PI * 2); c.closePath();
+    c.fillStyle = 'rgba(4,7,13,0.86)'; c.fill();
+    c.clip();
+
+    // range rings + crosshairs
+    c.strokeStyle = 'rgba(245,182,66,0.26)'; c.lineWidth = 1;
+    for (const f of CFG.radar.ringFractions) { c.beginPath(); c.arc(cx, cy, R * f, 0, Math.PI * 2); c.stroke(); }
+    c.beginPath(); c.moveTo(cx, cy - R); c.lineTo(cx, cy + R); c.moveTo(cx - R, cy); c.lineTo(cx + R, cy); c.stroke();
+
+    // sweep
+    const a = this.sweep * Math.PI * 2 - Math.PI / 2;
+    const g = c.createLinearGradient(cx, cy, cx + Math.cos(a) * R, cy + Math.sin(a) * R);
+    g.addColorStop(0, 'rgba(245,182,66,0.34)'); g.addColorStop(1, 'rgba(245,182,66,0)');
+    c.strokeStyle = g; c.lineWidth = 2;
+    c.beginPath(); c.moveTo(cx, cy); c.lineTo(cx + Math.cos(a) * R, cy + Math.sin(a) * R); c.stroke();
+
+    // asteroids (dim) then enemy bolts (faint)
+    let nAst = 0, nBolt = 0;
+    c.fillStyle = 'rgba(150,140,125,0.34)';
+    for (const e of this.world.tagged('asteroid')) {
+      if (!this.#project(e.position)) continue;
+      c.fillRect(cx + p.x * k - 1, cy - p.z * k - 1, 2, 2); nAst++;
+    }
+    c.fillStyle = 'rgba(93,255,157,0.55)';
+    for (const e of this.world.tagged('enemyProjectile')) {
+      if (!e.alive || !this.#project(e.position)) continue;
+      c.fillRect(cx + p.x * k - 1, cy - p.z * k - 1, 2, 2); nBolt++;
+    }
+
+    // fighters: elevation stem then a heading triangle at the stem tip
+    let nE = 0;
+    for (const e of this.world.tagged('enemy')) {
+      if (!e.alive || !this.#project(e.position)) continue;
+      const px = cx + p.x * k, py = cy - p.z * k;
+      const stem = THREE.MathUtils.clamp(p.y * k, -CFG.radar.stemMax, CFG.radar.stemMax);
+      c.strokeStyle = 'rgba(245,182,66,0.42)'; c.lineWidth = 1;
+      c.beginPath(); c.moveTo(px, py); c.lineTo(px, py - stem); c.stroke();
+      const isT = e === this.tracker.target;
+      const sz = CFG.radar.blip * (isT ? 1 + 0.32 * Math.sin(this.t * 7) : 1);
+      c.save();
+      c.translate(px, py - stem);
+      c.rotate(Math.atan2(e.vel.dot(this._right), e.vel.dot(this._fwd)));
+      c.beginPath(); c.moveTo(0, -sz); c.lineTo(sz * 0.72, sz * 0.72); c.lineTo(-sz * 0.72, sz * 0.72); c.closePath();
+      c.fillStyle = isT ? '#fff2d6' : '#f5b642'; c.fill();
+      c.restore();
+      nE++;
+    }
+
+    // Planatron: hollow square, pinned to the rim when beyond range
+    const inRange = this.#project(this.env.planatron.position);
+    let px = cx + p.x * k, py = cy - p.z * k;
+    if (!inRange) {
+      const l = Math.hypot(p.x, p.z) || 1;
+      px = cx + p.x / l * (R - 7); py = cy - p.z / l * (R - 7);
+    }
+    c.strokeStyle = 'rgba(188,216,234,0.85)'; c.lineWidth = 1.5;
+    c.strokeRect(px - 4, py - 4, 8, 8);
+
+    // player
+    c.fillStyle = '#fff2d6';
+    c.beginPath(); c.moveTo(cx, cy - 5); c.lineTo(cx + 3.5, cy + 4); c.lineTo(cx - 3.5, cy + 4); c.closePath(); c.fill();
+
+    // phosphor scanlines, inside the dish
+    c.strokeStyle = 'rgba(0,0,0,0.30)'; c.lineWidth = 1;
+    c.beginPath();
+    for (let y = 0; y < S; y += 3) { c.moveTo(0, y + 0.5); c.lineTo(S, y + 0.5); }
+    c.stroke();
+    c.restore();
+
+    c.strokeStyle = 'rgba(245,182,66,0.55)'; c.lineWidth = 1;
+    c.beginPath(); c.arc(cx, cy, R, 0, Math.PI * 2); c.stroke();
+    c.fillStyle = 'rgba(245,182,66,0.62)'; c.font = '9px ui-monospace, monospace'; c.textAlign = 'center';
+    c.fillText(this.range + ' m', cx, S - 3);
+
+    this.counts.enemies = nE; this.counts.bolts = nBolt;
+    this.counts.asteroids = nAst; this.counts.planatron = 1;
+  }
+}
+
+/* =====================================================================
+   HUD LAYOUT (SPEC 16) — every readout is a widget the player can move,
+   scale or hide. Positions are stored as viewport PERCENTAGES so a layout
+   survives a resize, and nothing may be dropped inside the firing keep-out
+   (SPEC 3): the player must never have to shoot through his instruments.
+   ===================================================================== */
+const HUD_DEFAULTS = {
+  radar:      { x: 11, y: 76, scale: 1, visible: true,  label: 'Radar' },
+  velocity:   { x: 11, y: 94, scale: 1, visible: true,  label: 'Velocity' },
+  vitals:     { x: 90, y: 90, scale: 1, visible: true,  label: 'Hull / Shield' },
+  score:      { x: 92, y: 8,  scale: 1, visible: true,  label: 'Score' },
+  wave:       { x: 50, y: 9,  scale: 1, visible: true,  label: 'Wave' },
+  target:     { x: 50, y: 16, scale: 1, visible: true,  label: 'Target readout' },
+  data:       { x: 89, y: 32, scale: 1, visible: true,  label: 'Data' },
+  difficulty: { x: 11, y: 61, scale: 1, visible: true,  label: 'Difficulty' },
+  debug:      { x: 9,  y: 22, scale: 1, visible: DEBUG, label: 'Debug' },
+  arrows:     { toggleOnly: true, visible: true, label: 'Off-screen arrows' },
+};
+const DATA_ROWS_DEFAULT = { enemies: true, nearest: true, closure: false,
+                            hits: true, wavetime: false, heat: false };
+
+class HudLayout {
+  constructor(game) {
+    this.game = game;
+    this.state = HudLayout.load();
+    this.els = {};
+    for (const id of Object.keys(HUD_DEFAULTS)) {
+      const el = document.querySelector(`[data-w="${id}"]`);
+      if (el) { this.els[id] = el; this.#tools(id, el); this.#drag(id, el); }
+    }
+    this.mode = false;
+    document.getElementById('lb-save').addEventListener('click', e => { e.stopPropagation(); this.save(); });
+    document.getElementById('lb-reset').addEventListener('click', e => { e.stopPropagation(); this.reset(); });
+    document.getElementById('lb-done').addEventListener('click', e => { e.stopPropagation(); this.exit(); });
+    addEventListener('resize', () => this.apply());
+    this.apply();
+  }
+  static load() {
+    const st = {};
+    for (const [id, d] of Object.entries(HUD_DEFAULTS)) st[id] = { ...d };
+    st.data.rows = { ...DATA_ROWS_DEFAULT };
+    try {
+      const raw = localStorage.getItem(CFG.hud.storeKey);
+      if (raw) {
+        const saved = JSON.parse(raw);
+        for (const [id, v] of Object.entries(saved)) {
+          if (!st[id] || !v) continue;
+          if (typeof v.x === 'number') st[id].x = v.x;
+          if (typeof v.y === 'number') st[id].y = v.y;
+          if (typeof v.scale === 'number')
+            st[id].scale = THREE.MathUtils.clamp(v.scale, CFG.hud.scaleMin, CFG.hud.scaleMax);
+          if (typeof v.visible === 'boolean') st[id].visible = v.visible;
+          if (id === 'data' && v.rows) Object.assign(st.data.rows, v.rows);
+        }
+      }
+    } catch { /* storage disabled: defaults stand */ }
+    return st;
+  }
+  save() {
+    const out = {};
+    for (const [id, v] of Object.entries(this.state)) {
+      out[id] = { visible: v.visible };
+      if (typeof v.x === 'number') { out[id].x = v.x; out[id].y = v.y; out[id].scale = v.scale; }
+      if (id === 'data') out[id].rows = { ...v.rows };
+    }
+    try { localStorage.setItem(CFG.hud.storeKey, JSON.stringify(out)); } catch { /* ignore */ }
+    this.flash('Saved');
+  }
+  reset() {
+    try { localStorage.removeItem(CFG.hud.storeKey); } catch { /* ignore */ }
+    this.state = HudLayout.load();
+    this.apply(); this.#syncTools(); this.flash('Reset');
+  }
+  flash(msg) {
+    const el = document.querySelector('#layoutbar span');
+    if (!el) return;
+    const prev = el.textContent; el.textContent = msg;
+    clearTimeout(this._ft); this._ft = setTimeout(() => { el.textContent = prev; }, 900);
+  }
+  keepOutRadius() { return Math.min(innerWidth, innerHeight) * CFG.hud.keepOutPct; }
+  // closest point on the rect to screen centre; inside the radius = intrusion
+  intrudes(r) {
+    const cx = innerWidth / 2, cy = innerHeight / 2, rad = this.keepOutRadius();
+    const nx = Math.max(r.left, Math.min(cx, r.right));
+    const ny = Math.max(r.top, Math.min(cy, r.bottom));
+    return Math.hypot(nx - cx, ny - cy) < rad;
+  }
+  violations() {
+    const bad = [];
+    for (const [id, el] of Object.entries(this.els)) {
+      if (!this.state[id].visible || this.state[id].toggleOnly) continue;
+      if (this.intrudes(el.getBoundingClientRect())) bad.push(id);
+    }
+    return bad;
+  }
+  apply() {
+    for (const [id, el] of Object.entries(this.els)) {
+      const st = this.state[id];
+      el.classList.toggle('hidden', !st.visible);
+      if (typeof st.x === 'number') {
+        el.style.left = st.x + '%'; el.style.top = st.y + '%';
+        el.style.setProperty('--s', st.scale);
+      }
+    }
+    const ko = document.getElementById('keepout');
+    if (ko) ko.style.width = ko.style.height = (this.keepOutRadius() * 2) + 'px';
+    this.#applyRows();
+    this.#clamp();
+    this.#evict();
+  }
+  #place(id, px, py) {
+    const st = this.state[id], el = this.els[id], r = el.getBoundingClientRect();
+    px = THREE.MathUtils.clamp(px, r.width / 2, Math.max(r.width / 2, innerWidth - r.width / 2));
+    py = THREE.MathUtils.clamp(py, r.height / 2, Math.max(r.height / 2, innerHeight - r.height / 2));
+    st.x = +(px / innerWidth * 100).toFixed(2);
+    st.y = +(py / innerHeight * 100).toFixed(2);
+    el.style.left = st.x + '%'; el.style.top = st.y + '%';
+  }
+  // A layout saved on a desktop can land off-screen on a phone; pull it back in.
+  #clamp() {
+    for (const [id, st] of Object.entries(this.state)) {
+      if (!st.visible || typeof st.x !== 'number' || !this.els[id]) continue;
+      this.#place(id, st.x / 100 * innerWidth, st.y / 100 * innerHeight);
+    }
+  }
+  // SPEC 3 is an invariant, not just a drag-time check: anything sitting in the
+  // firing zone after a load or a resize gets pushed radially out until it clears.
+  #evict() {
+    const cx = innerWidth / 2, cy = innerHeight / 2;
+    for (const [id, st] of Object.entries(this.state)) {
+      if (!st.visible || typeof st.x !== 'number' || !this.els[id]) continue;
+      const el = this.els[id];
+      for (let i = 0; i < 40 && this.intrudes(el.getBoundingClientRect()); i++) {
+        const px = st.x / 100 * innerWidth, py = st.y / 100 * innerHeight;
+        let dx = px - cx, dy = py - cy;
+        const l = Math.hypot(dx, dy);
+        if (l < 1) { dx = 0; dy = -1; } else { dx /= l; dy /= l; }
+        this.#place(id, px + dx * 14, py + dy * 14);
+      }
+    }
+  }
+  #applyRows() {
+    for (const row of document.querySelectorAll('#data .row'))
+      row.classList.toggle('off', !this.state.data.rows[row.dataset.row]);
+    const heat = document.getElementById('heat');
+    if (heat) heat.style.display = this.state.data.rows.heat ? '' : 'none';
+  }
+  #tools(id, el) {
+    const st = this.state[id];
+    const bar = document.createElement('div');
+    bar.className = 'wtools';
+    const vis = document.createElement('button');
+    vis.textContent = st.label;
+    vis.addEventListener('pointerdown', e => e.stopPropagation());
+    vis.addEventListener('click', e => {
+      e.stopPropagation(); st.visible = !st.visible;
+      vis.classList.toggle('off', !st.visible); this.apply();
+    });
+    bar.appendChild(vis);
+    if (!st.toggleOnly) {
+      const sl = document.createElement('input');
+      sl.type = 'range'; sl.min = CFG.hud.scaleMin; sl.max = CFG.hud.scaleMax;
+      sl.step = '0.05'; sl.value = st.scale;
+      sl.addEventListener('pointerdown', e => e.stopPropagation());
+      sl.addEventListener('input', e => {
+        e.stopPropagation(); st.scale = +sl.value;
+        el.style.setProperty('--s', st.scale);
+      });
+      bar.appendChild(sl);
+      st._slider = sl;
+    }
+    st._visBtn = vis;
+    el.appendChild(bar);
+  }
+  #syncTools() {
+    for (const st of Object.values(this.state)) {
+      if (st._visBtn) st._visBtn.classList.toggle('off', !st.visible);
+      if (st._slider) st._slider.value = st.scale;
+    }
+  }
+  #drag(id, el) {
+    const st = this.state[id];
+    if (st.toggleOnly) return;
+    let sx = 0, sy = 0, ox = 0, oy = 0, on = false, prev = null;
+    el.addEventListener('pointerdown', e => {
+      if (!this.mode || e.target.closest('.wtools')) return;
+      e.preventDefault(); e.stopPropagation();
+      on = true; el.setPointerCapture?.(e.pointerId); el.classList.add('drag');
+      prev = { x: st.x, y: st.y };
+      sx = e.clientX; sy = e.clientY;
+      ox = st.x / 100 * innerWidth; oy = st.y / 100 * innerHeight;
+    });
+    el.addEventListener('pointermove', e => {
+      if (!on) return;
+      e.stopPropagation();
+      const g = CFG.hud.snapPx, r = el.getBoundingClientRect();
+      let px = Math.round((ox + e.clientX - sx) / g) * g;
+      let py = Math.round((oy + e.clientY - sy) / g) * g;
+      px = THREE.MathUtils.clamp(px, r.width / 2, innerWidth - r.width / 2);
+      py = THREE.MathUtils.clamp(py, r.height / 2, innerHeight - r.height / 2);
+      st.x = +(px / innerWidth * 100).toFixed(2);
+      st.y = +(py / innerHeight * 100).toFixed(2);
+      el.style.left = st.x + '%'; el.style.top = st.y + '%';
+      el.classList.toggle('bad', this.intrudes(el.getBoundingClientRect()));   // live cue
+    });
+    const end = () => {
+      if (!on) return;
+      on = false; el.classList.remove('drag');
+      if (this.intrudes(el.getBoundingClientRect())) {   // SPEC 3: bounce it out of the firing line
+        st.x = prev.x; st.y = prev.y;
+        el.style.left = st.x + '%'; el.style.top = st.y + '%';
+        el.classList.add('bad');
+        clearTimeout(this._bt); this._bt = setTimeout(() => el.classList.remove('bad'), 400);
+        this.flash('Blocked — keep-out zone');
+      }
+    };
+    el.addEventListener('pointerup', end);
+    el.addEventListener('pointercancel', end);
+  }
+  toggle() { this.mode ? this.exit() : this.enter(); }
+  enter() {
+    this.mode = true;
+    // Under pointer lock clientX/clientY are frozen and only movementX/Y update, so a
+    // drag would compute a zero delta forever and silently do nothing. Release it.
+    if (document.pointerLockElement) document.exitPointerLock();
+    document.body.classList.add('layout');
+    this.#syncTools(); this.apply(); this.game.setLayoutMode(true);
+  }
+  exit() { this.mode = false; document.body.classList.remove('layout'); this.game.setLayoutMode(false); }
 }
 
 /* =====================================================================
    HUD — DOM only; subscribes to bus, reads player each frame
    ===================================================================== */
 class HUD {
-  constructor(bus) {
+  constructor(bus, camera) {
     this.$ = id => document.getElementById(id);
-    this.warn = this.$('warn'); this.vig = this.$('vig'); this.hpEl = this.$('hp');
+    this.camera = camera;
+    this.warn = this.$('warn'); this.vig = this.$('vig'); this.edge = this.$('edge');
+    this.hpEl = this.$('hp'); this.shEl = this.$('sh');
     this.waveEl = this.$('wave'); this.msgEl = this.$('wavemsg'); this.scoreEl = this.$('score');
-    this.msgT = 0;
+    this.diffEl = this.$('diffhud');
+    this.msgT = 0; this._tmp = new THREE.Vector3();
+    // Data widget accounting
+    this.shots = 0; this.hits = 0; this.waveT = 0; this.heat = 0;
+    this._lastNearest = null; this._closure = 0;
+    bus.on('player:fire', e => { this.shots += e.muzzles.length; });
+    bus.on('enemy:hit', () => { this.hits++; });
+    bus.on('wave:start', () => { this.waveT = 0; });
     bus.on('player:boundary', on => this.warn.classList.toggle('on', on));
-    bus.on('player:damaged', h => { this.setHull(h); this.#damageFlash(); });
+    bus.on('player:damaged', e => { this.setVitals(e.player); this.#damageFlash(e.from); });
+    bus.on('player:restored', e => this.setVitals(e.player));
     bus.on('score:changed', v => { this.scoreEl.textContent = v; });
     bus.on('wave:start', w => this.message(`Wave ${w.index + 1} — ${w.count} inbound`, 2));
     bus.on('wave:clear', w => this.message(`Wave ${w.index + 1} clear   +${w.bonus}`, 2));
+    bus.on('difficulty:changed', n => this.setDifficulty(n));
   }
-  #damageFlash() {
+  setDifficulty(name) { this.diffEl.textContent = name.charAt(0) + name.slice(1).toLowerCase(); }
+  // Vignette plus a wash from the side the bolt came from, so you know where
+  // to turn rather than just that you were hit.
+  #damageFlash(from) {
     this.vig.classList.add('on');
     this.hpEl.classList.remove('pulse'); void this.hpEl.offsetWidth; this.hpEl.classList.add('pulse');
     clearTimeout(this._vt);
     this._vt = setTimeout(() => this.vig.classList.remove('on'), CFG.fx.vignette * 1000);
+    if (from) {
+      this._tmp.copy(from).applyMatrix4(this.camera.matrixWorldInverse);
+      const deg = Math.atan2(this._tmp.x, this._tmp.y) * 180 / Math.PI + 180;
+      this.edge.style.background =
+        `linear-gradient(${deg.toFixed(0)}deg, rgba(255,72,48,.62), rgba(255,72,48,0) 38%)`;
+      this.edge.classList.add('on');
+      clearTimeout(this._et);
+      this._et = setTimeout(() => this.edge.classList.remove('on'), CFG.hud.edgeFlash * 1000);
+    }
   }
   message(text, secs) { this.msgEl.textContent = text; this.msgT = secs; }
-  setHull(h) { this.hpEl.textContent = Math.round(h.cur); this.$('hpbar').style.width = (h.ratio * 100) + '%'; }
+  setVitals(p) {
+    this.hpEl.textContent = Math.round(p.health.cur);
+    this.$('hpbar').style.width = (p.health.ratio * 100) + '%';
+    this.shEl.textContent = Math.round(p.shield);
+    this.$('shbar').style.width = (p.shield / p.shieldMax * 100) + '%';
+  }
   update(player, env, spawner, dt) {
     this.$('spd').textContent = Math.round(player.speed);
     this.$('spdbar').style.width = (player.speed / CFG.ship.boost * 100) + '%';
+    this.shEl.textContent = Math.round(player.shield);
+    this.$('shbar').style.width = (player.shield / player.shieldMax * 100) + '%';
     this.$('tgt').textContent = Math.round(player.position.distanceTo(env.planatron.position)) + ' m';
     this.waveEl.textContent = spawner.waveIndex >= 0
       ? `${spawner.waveIndex + 1} — ${spawner.remaining} remaining` : '—';
     if (this.msgT > 0 && (this.msgT -= dt) <= 0) this.msgEl.textContent = '';
+    this.#data(player, spawner, dt);
+  }
+  // Data widget: cheap derived numbers, only the rows the player left switched on.
+  #data(player, spawner, dt) {
+    this.waveT += dt;
+    const boosting = player.speed > (CFG.ship.cruise + CFG.ship.boost) / 2;
+    this.heat = THREE.MathUtils.clamp(this.heat + (boosting ? dt * 0.5 : -dt * 0.35), 0, 1);
+    let near = Infinity;
+    for (const e of player.world.tagged('enemy')) {
+      if (!e.alive) continue;
+      const d = e.position.distanceTo(player.position);
+      if (d < near) near = d;
+    }
+    if (near < Infinity) {
+      if (this._lastNearest !== null && dt > 0)
+        this._closure += (((this._lastNearest - near) / dt) - this._closure) * 0.15;
+      this._lastNearest = near;
+    } else { this._lastNearest = null; this._closure = 0; }
+    this.$('d-enemies').textContent = spawner.remaining;
+    this.$('d-nearest').textContent = near < Infinity ? Math.round(near) + ' m' : '—';
+    this.$('d-closure').textContent = near < Infinity ? (this._closure >= 0 ? '+' : '') + this._closure.toFixed(0) + ' m/s' : '—';
+    this.$('d-hits').textContent = `${this.shots} / ${this.shots ? Math.round(this.hits / this.shots * 100) : 0}%`;
+    this.$('d-wavetime').textContent = this.waveT.toFixed(1) + 's';
+    this.$('d-heat').textContent = Math.round(this.heat * 100) + '%';
+    const hi = document.querySelector('#heat > i');
+    if (hi) hi.style.width = (this.heat * 100).toFixed(0) + '%';
   }
 }
 
@@ -1336,26 +2233,38 @@ class Game {
     this.scene = new THREE.Scene();
     this.camera = new THREE.PerspectiveCamera(CFG.camera.fov, innerWidth / innerHeight, CFG.camera.near, CFG.camera.far);
     this.bus = new EventBus(); this.input = new Input(this.renderer.domElement);
+    this.diff = new Difficulty(this.bus);
     this.world = new World(this.scene, this.bus);
     this.player = this.world.add(new PlayerShip(this.input, this.camera, this.bus));
     this.env = new Environment(this.scene, this.player);
     this.lasers = new LaserSystem(this.world, this.bus);
-    this.hud = new HUD(this.bus); this.hud.setHull(this.player.health);
+    this.hud = new HUD(this.bus, this.camera);
+    this.hud.setVitals(this.player); this.hud.setDifficulty(this.diff.name);
     this.fx = new FX(this.scene, this.bus, this.camera);
     this.audio = new AudioFX(this.bus, this.camera);
     this.tracker = new Tracker(this.camera, this.player);
+    this.glow = new EnemyGlow(this.scene, this.world, this.camera);
+    this.radar = new Radar(this.player, this.world, this.env, this.tracker);
+    this.lasers.bind(this.diff, this.tracker);
+    this.player.diff = this.diff;
     // One shared context handed to every fighter: no globals, no per-tick lookups.
-    this.ctx = { player: this.player, bus: this.bus, lasers: this.lasers, slowT: 0 };
+    this.ctx = { player: this.player, bus: this.bus, lasers: this.lasers, diff: this.diff, slowT: 0 };
     this.spawner = new Spawner(this.world, this.ctx);
-    this.score = 0; this.dead = false;
+    this.layoutMode = false;
+    this.layout = new HudLayout(this);
+    this.tracker.layout = this.layout;
+    // SPEC 4: a fresh wave hands back shield (and hull, by default).
+    this.bus.on('wave:start', () => this.player.restore());
+    this.score = 0; this.dead = false; this.won = false; this.runTime = 0;
     this.bus.on('enemy:died', () => { this.score += CFG.score.perKill; this.bus.emit('score:changed', this.score); });
     this.bus.on('wave:clear', w => { this.score += w.bonus; this.bus.emit('score:changed', this.score); });
     this.bus.on('player:died', () => this.#playerDied());
+    this.bus.on('campaign:clear', () => this.#campaignClear());
     this.spawnAsteroids();
     this.spawner.reset();
     this.acc = 0; this.clock = new THREE.Clock(); this.frames = 0; this.fpsT = 0;
     this.simMs = 0; this.renderMs = 0;   // EMA of sim vs raster cost (debug readout)
-    this.paused = false;
+    this.paused = false; this.launched = false;   // launched = the gate has been cleared
     addEventListener('resize', () => { this.camera.aspect = innerWidth / innerHeight; this.camera.updateProjectionMatrix(); this.renderer.setSize(innerWidth, innerHeight); });
     /* --- Overlay: gates MOUSE CAPTURE only. The sim never waits on pointer lock. --- */
     const ov = document.getElementById('overlay');
@@ -1369,14 +2278,21 @@ class Game {
       touchOn = true; pad.classList.add('on'); pad.setAttribute('aria-hidden', 'false');
     };
     ov.addEventListener('click', () => {
+      this.audio.init();                          // context on the launch click, not mid-fight
       ov.classList.add('hidden');                 // clear the gate regardless of lock outcome
+      this.launched = true;                       // only now can PAUSED legitimately appear
       if (coarse) { enableTouch(); return; }
       this.input.requestLock();
-      // Sandboxed iframes can no-op the request without firing pointerlockerror.
-      setTimeout(() => { if (!this.input.locked) { enableTouch(); hint.classList.add('on'); } }, 700);
+      // Sandboxed iframes can no-op the request without firing pointerlockerror, so
+      // probe once. Cancelled below the moment lock is genuinely acquired, otherwise a
+      // deliberate release (Esc, or H for layout mode) inside the window would be
+      // misread as a failure and switch on the mobile pad mid-session.
+      this._lockProbe = setTimeout(() => {
+        if (!this.input.locked) { enableTouch(); hint.classList.add('on'); }
+      }, 700);
     });
     document.addEventListener('pointerlockchange', () => {
-      if (this.input.locked) hint.classList.remove('on');
+      if (this.input.locked) { clearTimeout(this._lockProbe); hint.classList.remove('on'); }
       else if (ov.classList.contains('hidden')) hint.classList.add('on');   // Esc: offer re-capture, keep playing
     });
     document.addEventListener('pointerlockerror', () => {
@@ -1403,8 +2319,21 @@ class Game {
 
     /* --- Pause when the tab is hidden; stay paused until the player acts --- */
     const pausedEl = document.getElementById('paused');
-    this.setPaused = on => { this.paused = on; pausedEl.classList.toggle('on', on); };
-    document.addEventListener('visibilitychange', () => { if (document.hidden) this.setPaused(true); });
+    // Two rules: never pause before launch, and never show PAUSED on top of the
+    // launch gate -- the overlays must not coexist.
+    this.setPaused = on => {
+      const allow = on && this.launched;
+      this.paused = allow;
+      pausedEl.classList.toggle('on', allow);
+    };
+    document.addEventListener('visibilitychange', () => {
+      clearTimeout(this._hideT);
+      if (!document.hidden) return;
+      // A brief hide -- alt-tab bounce, a focus blip, a screenshot -- should not
+      // stop play; only a sustained one does.
+      this._hideT = setTimeout(() => { if (document.hidden) this.setPaused(true); },
+                               CFG.pauseDelay * 1000);
+    });
     const resume = () => {
       if (!this.paused || document.hidden) return;
       this.setPaused(false); this.clock.getDelta(); this.acc = 0;   // drop the elapsed-while-hidden gap
@@ -1412,7 +2341,7 @@ class Game {
     pausedEl.addEventListener('click', resume);
     addEventListener('keydown', resume);
     addEventListener('pointerdown', resume);
-    this.setPaused(document.hidden);
+    this.paused = false;            // the launch gate is up; there is nothing to pause yet
 
     // WebAudio needs a user gesture before it will start.
     const bootAudio = () => this.audio.init();
@@ -1420,12 +2349,65 @@ class Game {
     addEventListener('keydown', bootAudio, { once: true });
     addEventListener('keydown', e => {
       if (e.code === 'KeyM') { this.audio.init(); this.audio.toggleMute(); }
-      else if (e.code === 'KeyR' && this.dead) this.relaunch();
+      else if (e.code === 'KeyR' && (this.dead || this.won)) this.relaunch();
+      else if (e.code === 'KeyN' && this.won) this.nextDifficulty();
+      else if (e.code === 'Tab') { e.preventDefault(); this.tracker.cycle(this.world); }
+      else if (e.code === 'KeyH') { e.preventDefault(); this.layout.toggle(); }
+      else if (e.code === 'BracketLeft') this.radar.cycleRange(-1);
+      else if (e.code === 'BracketRight') this.radar.cycleRange(1);
     });
+    // Difficulty picker on the launch overlay; must not close the gate.
+    const pick = document.getElementById('diffpick');
+    const paintPick = () => {
+      for (const b of pick.querySelectorAll('button'))
+        b.classList.toggle('on', b.dataset.diff === this.diff.name);
+    };
+    pick.addEventListener('click', e => {
+      const b = e.target.closest('button'); if (!b) return;
+      e.stopPropagation();
+      this.diff.set(b.dataset.diff); paintPick();
+    });
+    this.bus.on('difficulty:changed', paintPick);
+    paintPick();
     document.getElementById('dead').addEventListener('click', () => { if (this.dead) this.relaunch(); });
+    document.getElementById('win-again').addEventListener('click', e => { e.stopPropagation(); this.relaunch(); });
+    document.getElementById('win-next').addEventListener('click', e => {
+      e.stopPropagation(); this.nextDifficulty();
+    });
 
-    if (DEBUG) { document.getElementById('dbg').style.display = 'block'; window.__game = this; }
+    this.prewarm();
+
+    if (DEBUG) window.__game = this;
     this.renderer.setAnimationLoop(() => this.frame());
+  }
+  // Every material's shader is compiled lazily on first render. Left alone, the
+  // first kill of a session stalls for tens of ms while the explosion, debris and
+  // glow programs compile. Touch one of each far off-screen, force the compile,
+  // then clean up — cost is paid once, at load, behind the launch overlay.
+  prewarm() {
+    const far = new THREE.Vector3(0, 0, -100000);
+    const e = this.spawner.pool.get();
+    e.position.copy(far);
+    e.reset(this.ctx, CFG.enemies.hp, CFG.enemies.laser.cooldown, null, 0);
+    this.world.add(e);
+    const pl = this.lasers.pool.get().launch(far, this.player._fwd.set(0, 0, -1), 0);
+    const el = this.lasers.enemyPool.get().launch(far, this.player._fwd, 0);
+    this.world.add(pl); this.world.add(el);
+    this.fx.spark(far); this.fx.explode(far);
+    this.lasers.sync(this.world); this.glow.sync();
+    this.renderer.compile(this.scene, this.camera);
+    this.renderer.render(this.scene, this.camera);      // realise the programs
+    e.destroy(); pl.destroy(); el.destroy();
+    this.world.step(0);
+    this.fx.clear();
+    this.lasers.sync(this.world); this.glow.sync();
+    this.player._fwd.set(0, 0, -1).applyQuaternion(this.player.object.quaternion);
+    this.warmed = true;
+  }
+  // Layout mode freezes the sim so the player can arrange the HUD in peace.
+  setLayoutMode(on) {
+    this.layoutMode = on;
+    if (!on) { this.clock.getDelta(); this.acc = 0; }
   }
   spawnAsteroids() {
     for (let i = 0; i < CFG.asteroids.count; i++) {
@@ -1434,8 +2416,23 @@ class Game {
       this.world.add(a);
     }
   }
+  #campaignClear() {
+    this.won = true;
+    if (document.pointerLockElement) document.exitPointerLock();   // or its buttons are dead
+    const shots = this.hud.shots, pct = shots ? Math.round(this.hud.hits / shots * 100) : 0;
+    document.getElementById('winstats').textContent =
+      `Score ${this.score}  ·  ${this.runTime.toFixed(1)}s  ·  ${shots} shots  ·  ${pct}% hits  ·  ${this.diff.name}`;
+    document.getElementById('win').classList.add('on');
+    this.tracker.hideAll();
+  }
+  nextDifficulty() {
+    const order = CFG.difficulty.order, i = order.indexOf(this.diff.name);
+    this.diff.set(order[Math.min(order.length - 1, i + 1)]);
+    this.relaunch();
+  }
   #playerDied() {
     this.dead = true;
+    if (document.pointerLockElement) document.exitPointerLock();   // cursor back for the overlay
     document.getElementById('deadscore').textContent = `Final score ${this.score}`;
     document.getElementById('dead').classList.add('on');
     this.tracker.hideAll();
@@ -1452,17 +2449,21 @@ class Game {
     p.position.set(0, 0, 0); p.object.quaternion.identity(); p.cockpit.rotation.z = 0;
     p.speed = CFG.ship.cruise; p.strafeV = 0; p.vel.set(0, 0, 0); p._hitCd = 0;
     p.health.cur = p.health.max; p.health.dead = false;
-    this.hud.setHull(p.health);
+    p.shield = p.shieldMax; p.sinceHit = 0; p.damageTaken = 0;
+    this.hud.setVitals(p);
     this.score = 0; this.bus.emit('score:changed', 0);
     this.ctx.slowT = 0;
     this.spawner.reset();
-    this.tracker.hideAll();
-    this.dead = false;
+    this.tracker.hideAll(); this.glow.sync();
+    this.dead = false; this.won = false; this.runTime = 0;
+    this.hud.shots = 0; this.hud.hits = 0; this.hud.waveT = 0;
     document.getElementById('dead').classList.remove('on');
+    document.getElementById('win').classList.remove('on');
     this.acc = 0; this.clock.getDelta();
   }
   tick(dt) {
     // How long the player has been loitering -- this is what flips fighters to ORBIT.
+    this.runTime += dt;
     this.ctx.slowT = this.player.speed < CFG.ship.brake + 10 ? this.ctx.slowT + dt : 0;
     this.spawner.update(dt);
     this.world.step(dt);
@@ -1475,14 +2476,13 @@ class Game {
       else t.health?.damage(CFG.laser.damage);
     });
     this.world.collide('enemyProjectile', 'player', (l, p) => {
+      p.takeDamage(this.diff.p.enemyDamage, l.position);
       l.destroy();
-      p.health.damage(CFG.enemies.laser.damage);
-      this.bus.emit('player:damaged', p.health);
     });
     this.world.collide('enemy', 'player', (e, p) => {
       if (e._ramCd > 0) return;
       e._ramCd = 1;
-      p.health.damage(CFG.enemies.ram); this.bus.emit('player:damaged', p.health);
+      p.takeDamage(CFG.enemies.ram, e.position);
       e.hit(CFG.enemies.ram);
       if (e.alive) e.breakOff();
     });
@@ -1498,14 +2498,16 @@ class Game {
     const t0 = performance.now();
     // The simulation runs whenever the tab is visible. Pointer lock only decides
     // whether the mouse steers -- it must never decide whether time advances.
-    if (!this.paused && !this.dead) {
+    if (!this.paused && !this.dead && !this.won && !this.layoutMode) {
       this.acc += frameDt; let n = 0;
       while (this.acc >= CFG.fixedStep && n++ < CFG.maxSubSteps) { this.tick(CFG.fixedStep); this.acc -= CFG.fixedStep; }
       if (n >= CFG.maxSubSteps) this.acc = 0;
     } else this.input.consumeMouse();
     const t1 = performance.now();
     this.hud.update(this.player, this.env, this.spawner, frameDt);
+    if (!this.paused) this.radar.tick(frameDt);
     this.lasers.sync(this.world);
+    this.glow.sync();
     this.fx.applyShake(this.camera);
     this.renderer.render(this.scene, this.camera);
     const t2 = performance.now();
@@ -1517,13 +2519,15 @@ class Game {
       if (this.fpsT >= .5) {
         const over = this.spawner.pool.overflow + this.lasers.pool.overflow + this.lasers.enemyPool.overflow
                    + this.fx.sparkPool.overflow + this.fx.boomPool.overflow + this.fx.debrisPool.overflow;
-        document.getElementById('dbg').textContent =
+        document.getElementById('dbgtext').textContent =
           `fps ${(this.frames / this.fpsT).toFixed(0)}\nsim ${this.simMs.toFixed(2)} ms\nrender ${this.renderMs.toFixed(2)} ms\n` +
           `entities ${this.world.entities.length}\nasteroids ${this.world.tagged('asteroid').size}\n` +
           `enemies ${this.world.tagged('enemy').size}\n` +
           `lasers ${this.world.tagged('projectile').size} + ${this.world.tagged('enemyProjectile').size}\n` +
           `fx ${this.fx.bursts.length} burst / ${this.fx.debris.length} debris\n` +
           `wave ${this.spawner.waveIndex + 1}\npool overflow ${over}\n` +
+          `difficulty ${this.diff.name}\nshield ${Math.round(this.player.shield)}\n` +
+          `radar ${this.radar.lastMs.toFixed(2)} ms (${this.radar.counts.enemies}e)\n` +
           `draw ${this.renderer.info.render.calls}`;
         this.frames = 0; this.fpsT = 0;
       }
