@@ -88,6 +88,20 @@ sections:
     columns: 3
     items:
       - type: FeaturedItem
+        title: Solar Savers
+        text: >-
+          First-person 3D space shooter — Three.js, four difficulty tiers,
+          customizable HUD
+        actions:
+          - type: Link
+            label: Play Solar Savers
+            url: /games/solar-savers/
+            target: _blank
+            rel: noopener noreferrer
+        styles:
+          self:
+            textAlign: left
+      - type: FeaturedItem
         title: Marley1
         text: >-
           A portable AI + compute platform designed for field-ready
