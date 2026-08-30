@@ -1,4 +1,4 @@
-# SOLAR SAVERS — SPEC v1.15 (2026-08-29)
+# SOLAR SAVERS — SPEC v1.16 (2026-08-30)
 
 Authoritative. Where a prompt or agent disagrees with this file, this file wins; flag the conflict.
 File under review: `public/games/solar-savers/index.html` (single file, Three.js r160 via cdnjs importmap, no build).
@@ -203,6 +203,24 @@ where a number here disagrees with §3 or §5, the section has been amended to m
   Default on: enemies remaining, nearest distance, hit %.
 
 ## 17. Amendments
+- **v1.16** — §11's radar budget is measurable again, and the instrument that made it look
+  unmeetable is fixed. `Radar.lastMs` is a single `performance.now()` delta, and Chrome
+  coarsens that clock to **0.1 ms** — so it cannot resolve this draw at all. Measured
+  directly: against a batch-timed **0.020 ms** draw on real Chrome (167 contacts: 64 bolts,
+  40 cores, 60 asteroids, 3 fighters), `lastMs` still reported **0.0999 ms**, pure
+  quantization, and it also absorbs any main-thread preemption landing mid-draw. Sampling
+  that value once per redraw and aggregating it is what reported the radar as a 0.96 ms and
+  then 0.527 ms §11 failure across three rounds of investigation. `Radar.avgMs` now averages
+  over a one-second window and is what the debug HUD shows; `lastMs` stays raw for anything
+  that deliberately wants the unfiltered read. **Time a batch of redraws and divide — never
+  aggregate single reads at this resolution.**
+  A real cost was found on the way and removed: `Radar.#project` tested range with
+  `Math.hypot`, once per contact per redraw. A squared compare is identical in result and
+  **18× faster** — 0.0286 ms vs 0.0016 ms per 228 contacts on real Chrome.
+  Also on the record, since it cost a round of work: the earlier attribution of radar cost to
+  a per-contact `fillRect` was **wrong**. Phase-timing on real Chrome puts every canvas
+  operation in the draw at ~0.039 ms combined. The genuine canvas cost was the static chrome
+  being rebuilt at 20 Hz (v1.15's baking), not the contacts.
 - **v1.15** — `approachBlend` 200 → **100**. This constant is bounded by **two** SPEC rows
   pulling in opposite directions, and both bounds are tail events invisible to small samples.
   **Upper bound, §12.** 200 breached the worst-of-N first-shot rule on EASY: passive
