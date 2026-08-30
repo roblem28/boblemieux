@@ -1,4 +1,4 @@
-# SOLAR SAVERS — SPEC v1.8 (2026-08-29)
+# SOLAR SAVERS — SPEC v1.11 (2026-08-29)
 
 Authoritative. Where a prompt or agent disagrees with this file, this file wins; flag the conflict.
 File under review: `public/games/solar-savers/index.html` (single file, Three.js r160 via cdnjs importmap, no build).
@@ -102,6 +102,14 @@ band. A floor graded worst-of-5 is also self-defeating — the worst case for a 
 fastest run, so one lucky spawn geometry fails the whole tier. Reported, not blocking; revisit
 by raising `groupDelay` or the wave-1 spawn distance if wave 1 ever needs to last longer.
 
+**M3.5 targets** (added v1.9, graded on MEDIUM with a bot that collects cores):
+- Weapon level at the end of wave 5: **L3–L4** on average.
+- Shield above 0 at the end of wave 5, on average.
+- Hull-only loss/min unchanged from the table above.
+- Time-to-kill one enemy at **L4 on wave 5** must be **>= 60%** of time-to-kill at L1 on wave 1.
+  Upgrades must feel like progress without flattening the curve; enemy Health rising with the
+  wave (§18) is the counterweight.
+
 **Measurement rules** (added v1.1; the M3 audit showed the metrics are ambiguous without them):
 - *Hull lost/min* is **hull-only**: the sum of decrements to `Health.cur`, with shield
   absorption excluded and `wave:start` restores not netted out. Gross damage-taken is not
@@ -154,6 +162,7 @@ Original names, ship designs, sounds, and copy only. Forbidden anywhere in code,
 | M3 | Difficulty, shield, radar, tracking | `<!-- SS-M3 -->` |
 | M4 | Planatron boss, win/loss | `<!-- SS-M4 -->` |
 | M5 | Touch controls, reduced motion, mute persistence, title screen | `<!-- SS-M5 -->` |
+| M3.5 | Manual pause, cores, weapon upgrades | `<!-- SS-M35 -->` |
 | M6 | Local high scores, wave select after first win, polish pass | `<!-- SS-M6 -->` |
 
 Note (v1.1): the M1 and M2 markers were never stamped into the file when those milestones
@@ -194,6 +203,21 @@ where a number here disagrees with §3 or §5, the section has been amended to m
   Default on: enemies remaining, nearest distance, hit %.
 
 ## 17. Amendments
+- **v1.11** — flat `xpPerLevel` replaced by the rising curve `xpThresholds: [2,5,7,11]`.
+  Dropping the flat cost 4 → 3 moved the measured average only 2.40 → 2.60 (5 trials) /
+  2.93 (15), still short of §9's L3–L4. The exact distribution shows why: with XP fixed at
+  `5 + Binomial(22, 0.10)`, a flat cost of 3 centres on L3.02 — on the target boundary,
+  12% of runs below it — and the next step down overshoots to L4.20. No flat value lands
+  inside the band, so the free parameter had to become a curve.
+- **v1.10** — `CFG.weapon.xpPerLevel` 4 → 3 after the M3.5 balance audit measured the
+  end-of-wave-5 weapon level at L2.40 against §9's L3–L4 target. Superseded by v1.11.
+  Also records the bolt-tunneling limitation the same audit surfaced.
+- **v1.9** — M3.5 added as §18 (manual pause, cores, weapon upgrades), with §9 gaining M3.5
+  balance targets and §14 an `SS-M35` marker row. Two pieces of earlier behaviour are
+  deliberately superseded and the reasons are recorded in §18.1: Esc now pauses rather than
+  merely releasing the mouse, and resume is no longer any-input, because a pause menu makes
+  an any-input resume unusable. Enemy health moves to a wave formula, replacing the wave-5
+  hp override rather than sitting alongside it.
 - **v1.8** — §9 MEDIUM wave-1 lower bound marked non-blocking, after the final audit returned it
   as the sole remaining failure with every other metric passing on every graded tier. Three bots
   spanning the skill range all breach it; the constraint is not measuring player skill and cannot
@@ -278,3 +302,73 @@ where a number here disagrees with §3 or §5, the section has been amended to m
   3. §7 MEDIUM enemy cooldown ×1.0 → ×1.15; HARD enemy damage 10 → 9.
   4. §14 note recording that the M1/M2 markers were stamped retroactively in M3.
 Gates per milestone: test-engineer → game-feel-critic (M3, M5) → balance-auditor (M3, M4) → softlock-hunter (M4, M6) → perf-gatekeeper → ip-compliance-reviewer → deploy-agent. Feel gate: Bob plays M3 before M4 starts.
+
+## 18. M3.5 — pause, cores, weapon upgrades
+
+### 18.1 Manual pause
+- **P**, or **Esc while pointer-locked**, toggles PAUSED. Same overlay as the tab-hidden pause.
+- Pause menu buttons: **Resume**, **HUD layout (H)**, **Difficulty**, **Mute**, **Relaunch**.
+- Resume re-requests pointer lock through the guarded `resumeFlight` path from M3.3 — a failed
+  re-capture must only offer the lock hint, never be read as "pointer lock unavailable".
+
+**Supersedes earlier behaviour, deliberately:**
+1. §3's key legend said *Esc — release mouse*, and since M2 releasing the mouse left the sim
+   running. Esc now pauses. Browsers exit pointer lock on Esc without reliably delivering a
+   keydown, so this is driven off `pointerlockchange`: an unlock that was not requested by the
+   game (layout mode, an overlay) pauses the game.
+2. §3 said *resume on click/key*. A menu makes an any-input resume unusable — clicking **Mute**
+   would resume, pressing **H** would resume instead of opening the layout editor. Resume is
+   therefore: the Resume button, **P**, **Esc**, or a click on the overlay *background*.
+   Buttons stop propagation. This keeps the spirit of §3 (never auto-resume, always an explicit
+   user action) while letting the menu work.
+
+### 18.2 Cores (pickups)
+- Every enemy death spawns a `Core` at the death point. Pooled, capacity 32.
+- Small glowing octahedron, drifting at 20% of the dead enemy's velocity, life 20 s.
+- **Magnet:** within 45 u of the player it accelerates toward the ship; collected on contact.
+  Collision is tag `pickup` × `player`.
+- **Type by weighted roll:** Shield 70%, Repair 20%, Weapon 10%.
+  - Shield: +20 shield; overflow above max spills to hull as +5.
+  - Repair: +15 hull.
+  - Weapon: +1 weapon XP (§18.3).
+- Radar draws cores as small cyan dots. HUD shows a brief toast ("+20 SHIELD"). Collect sound
+  and flash. Emits `core:collected {type}`.
+
+### 18.3 Weapon upgrades
+**Known limitation (v1.10).** Bolt collision is a single per-tick sphere test with no
+continuous detection, and an L3 bolt travels ~13 u per tick against a ~4 u hit window. A
+perfectly static player and a static target at certain exact ranges can therefore miss
+indefinitely. It does not reproduce in live play — the player always cruises (§3, never 0)
+and fighters manoeuvre constantly — but a future "hold position" mechanic or a faster tier
+would make it reachable. Fixing it means a swept-sphere test, which is its own change.
+
+Weapon level 1–5, driven by weapon XP: +1 per Weapon core, +1 on each `wave:clear`.
+All values in `CFG.weapon`. Level cost is a **rising curve**, `xpThresholds: [2,5,7,11]`
+(cumulative XP for L2/L3/L4/L5), not a flat per-level cost. A wave-5 clear yields 5
+wave-clear XP plus `Binomial(~22, 10%)` weapon cores, and against that economy no flat
+cost satisfies §9's L3–L4 average: 4/level centres on L2.33 (measured 2.40), 3/level on
+L3.02 — exactly ON the boundary, with 12% of runs below L3, which is why a 5-trial sample
+measured 2.60 and 15 trials 2.93 — and 2/level on L4.20 with a third of runs pinned at the
+L5 cap, undercutting the no-steamroll requirement. The curve centres on **L3.62** with 0%
+of runs below L3 and L5 left rare (1.2%), and ramps L1→L2→L2→L3→L4 across the five waves.
+
+| L | Name | Muzzles | Cooldown | Damage | Notes |
+|---|---|---|---|---|---|
+| 1 | Twin | 2 | 0.13 | 1 | current behaviour |
+| 2 | Quad | 4 | 0.13 | 1 | |
+| 3 | Rapid | 4 | 0.09 | 1 | bolt speed +15% |
+| 4 | Heavy | 4 | 0.14 | 2 | bolt ×1.5 size, 12 u splash |
+| 5 | Lance | 4 | 0.14 | 2 | every 4th shot charged: damage 4, 20 u splash, distinct colour and sound |
+
+- Splash damages enemies within the radius of the impact point.
+- Weapon level persists across waves within a run; **resets on relaunch**.
+- HUD widget `WEAPON L3 ▮▮▮▯▯` with XP progress, and it is a first-class widget in the §16
+  layout editor (drag, hide, scale, persisted).
+- **Enemy Health scales with wave: `3 + floor(wave / 2)`** so upgrades matter without
+  trivialising. This *replaces* the wave-5 `enemyOverrides.hp: 4` — the formula yields 5 at
+  wave 5, and two sources of truth for enemy health would drift. The wave-5 cooldown override
+  stays.
+- The target bracket's segmented health bar must render up to the new maximum; it was fixed at
+  four DOM segments.
+- **Difficulty:** EASY weapon XP ×1.5. HARD and ACE drop the Shield core roll to 50%
+  (the remainder redistributed across Repair and Weapon in their existing 2:1 ratio).

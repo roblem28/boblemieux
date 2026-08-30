@@ -67,7 +67,8 @@ const HARNESS = () => {
     },
     overflow() {
       return g.spawner.pool.overflow + g.lasers.pool.overflow + g.lasers.enemyPool.overflow
-           + g.fx.sparkPool.overflow + g.fx.boomPool.overflow + g.fx.debrisPool.overflow;
+           + g.fx.sparkPool.overflow + g.fx.boomPool.overflow + g.fx.debrisPool.overflow
+           + g.cores.pool.overflow;    // SPEC 18.2: cores pool, capacity 32
     },
   };
 };
@@ -880,24 +881,57 @@ const HARNESS = () => {
   // page.keyboard press), then drives the ship with a REAL page.mouse.move and a REAL held W
   // key and reads back observable state -- all within roughly a 1s wall-clock budget, per the
   // user's report ("ship responds to mouse and W within 1 s").
+  //
+  // NOTE on the *d checks (H1d/H2d/H3d/H4d) -- rescoped, not just re-numbered:
+  // the previous version started `t0`, triggered, then unconditionally slept
+  // 120ms + 450ms = 570ms and made ~10 CDP round-trips (4 evaluates, 7 mouse
+  // moves, a keypress) before stopping the clock. That measured the harness'
+  // own fixed padding and CDP latency, not the ship's response -- and once M3.5
+  // added per-frame cost (core update/magnet, weapon HUD readout) each of those
+  // round-trips got slower under SwiftShader, pushing a pass at 826ms (170ms of
+  // headroom) to 1113-1167ms with no change in how fast the SHIP actually
+  // responds. Fixed here by polling for the real observable events (pointer
+  // lock landing, then yaw+speed actually changing) instead of sleeping a fixed
+  // duration and hoping: the clock now stops the instant a poll observes the
+  // response, so elapsedMs measures "time to observed response," the same
+  // thing H1b/H1c/H1c already assert boolean-style, just timed. This also
+  // removes the 120ms "let pointerlockchange land" guess -- CFG.ship.accel (90
+  // u/s^2 into an exponential damp) reaches +5 speed in ~40ms of real ticks
+  // once W is actually held, so the true budget is dominated by CDP/browser
+  // event latency, not sim speed, and a fixed sleep either wastes it or races
+  // it depending on machine load. Mouse deltas are only accumulated by the
+  // game while pointer-locked (Input#mousemove, gated on `this.locked`), so
+  // waiting for lock before sending them is a real precondition, not padding.
   const realFlyCheck = async (page, trigger) => {
     await page.evaluate(() => window.__game.renderer.setAnimationLoop(() => window.__game.frame()));
-    const t0 = Date.now();
-    await trigger();
-    await page.waitForTimeout(120);           // let pointerlockchange land
-    const locked = await page.evaluate(() => document.pointerLockElement !== null);
     const before = await page.evaluate(() => ({
       yaw: window.__game.player.object.quaternion.y, speed: window.__game.player.speed,
     }));
+    const t0 = Date.now();
+    await trigger();
+    const deadline = t0 + 950;    // ~50ms slack inside the SPEC 1s budget for the post-timing reads below
+    let locked = false;
+    while (Date.now() < deadline) {
+      locked = await page.evaluate(() => document.pointerLockElement !== null);
+      if (locked) break;
+      await page.waitForTimeout(10);
+    }
+    // Real cursor movement and a real held key, sent as soon as lock lands
+    // (not after a fixed hold) -- delivering them is itself part of the
+    // response being timed, not harness overhead.
     await page.mouse.move(640, 400);                                     // cursor origin
     for (let i = 1; i <= 6; i++) await page.mouse.move(640 + i * 30, 400);  // real movementX deltas
     await page.keyboard.down('w');
-    await page.waitForTimeout(450);
-    const after = await page.evaluate(() => ({
-      yaw: window.__game.player.object.quaternion.y, speed: window.__game.player.speed,
-    }));
+    let after = before;
+    while (Date.now() < deadline) {
+      after = await page.evaluate(() => ({
+        yaw: window.__game.player.object.quaternion.y, speed: window.__game.player.speed,
+      }));
+      if (Math.abs(after.yaw - before.yaw) > 1e-4 && after.speed > before.speed + 5) break;
+      await page.waitForTimeout(10);
+    }
+    const elapsedMs = Date.now() - t0;      // stopped the instant the response was observed (or the budget ran out)
     await page.keyboard.up('w');
-    const elapsedMs = Date.now() - t0;
     const diffHud = await page.evaluate(() => document.getElementById('diffhud').textContent);
     const deadOn = await page.evaluate(() => document.getElementById('dead').classList.contains('on'));
     return {
@@ -1013,6 +1047,333 @@ const HARNESS = () => {
     check(errs.length === 0, 'H4g no console errors on the R-key (death) route', errs.slice(0, 3).join(' | ') || 'clean');
     await ctx.close();
   }
+
+  /* ================= I. M3.5: pause, cores, weapon upgrades (SPEC 18) =================
+   * I1 uses REAL input end-to-end (the same rationale as the H-series above): pause is
+   * driven off a real keydown ('p') and pointerlockchange, and Resume is gated to the
+   * button/P/Esc/background-click (SPEC 18.1) rather than any-input, so synthetic
+   * dispatch would not exercise the shipped path. I2-I9 use the deterministic g.tick()
+   * harness, per the pattern used throughout sections B/D/G, since cores/weapon math
+   * does not depend on real browser input timing.
+   */
+
+  // --- I1 P pauses the sim; Resume restores lock and input within 1s (SPEC 18.1) ---
+  {
+    const { ctx, page, errs } = await routeCtx();
+    const locked = await realLaunch(page);
+    check(locked, 'I1-0 precondition: real launch click genuinely engages pointer lock',
+          `document.pointerLockElement !== null: ${locked}` +
+          (locked ? '' : '  -- NOT exercising the bug; I1 below would be meaningless'));
+
+    await page.keyboard.press('p');
+    await page.waitForTimeout(150);
+    const paused = await page.evaluate(() => ({
+      pausedFlag: window.__game.paused,
+      pausedOn: document.getElementById('paused').classList.contains('on'),
+      locked: document.pointerLockElement !== null,
+    }));
+    check(paused.pausedFlag && paused.pausedOn,
+          'I1a real P keypress pauses the sim and shows the PAUSED overlay (SPEC 18.1)', JSON.stringify(paused));
+    // SPEC 18.1: the pause overlay releases pointer lock when it appears -- it carries
+    // buttons, and under lock every click goes to the canvas, making the menu unreachable
+    // (the same class of fix already applied to the win/dead overlays).
+    check(!paused.locked,
+          'I1b PAUSED releases pointer lock so its menu buttons are clickable (SPEC 18.1)',
+          `pointerLockElement !== null: ${paused.locked}`);
+
+    const t1 = await page.evaluate(() => document.getElementById('tgt').textContent);
+    await page.waitForTimeout(400);
+    const t2 = await page.evaluate(() => document.getElementById('tgt').textContent);
+    check(t1 === t2, 'I1c manual PAUSED halts the sim', `tgt ${t1} -> ${t2}`);
+
+    // Real click on #pm-resume -- SPEC 18.1 item 2: resume is the Resume button, P, Esc,
+    // or a click on the overlay BACKGROUND, not any input, so this must be the actual button.
+    const resumeResult = await realFlyCheck(page, () => page.click('#pm-resume'));
+    check(resumeResult.locked, 'I1d real click #pm-resume re-acquires pointer lock (resumeFlight path, SPEC 18.1)',
+          `document.pointerLockElement !== null: ${resumeResult.locked}`);
+    check(resumeResult.yawMoved, 'I1e Resume: ship yaws to a real mouse move within 1s',
+          `quaternion.y ${resumeResult.before.yaw.toFixed(5)} -> ${resumeResult.after.yaw.toFixed(5)}`);
+    check(resumeResult.accelerated, 'I1f Resume: ship accelerates to a real held W within 1s',
+          `speed ${resumeResult.before.speed.toFixed(1)} -> ${resumeResult.after.speed.toFixed(1)}`);
+    check(resumeResult.elapsedMs < 1000, 'I1g Resume: response measured inside a 1s budget',
+          `elapsed ${resumeResult.elapsedMs}ms`);
+    check(errs.length === 0, 'I1h no console errors on the pause/resume route', errs.slice(0, 3).join(' | ') || 'clean');
+    await ctx.close();
+  }
+
+  const ctxI = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+  const ip = await ctxI.newPage();
+  const iErrs = [];
+  ip.on('console', m => { if (m.type() === 'error') iErrs.push(m.text()); });
+  ip.on('pageerror', e => iErrs.push('pageerror: ' + e.message.split('\n')[0]));
+  await ip.goto(URL, { waitUntil: 'load' });
+  await ip.waitForTimeout(1500);
+  await ip.evaluate(HARNESS);
+
+  // --- I2 a core spawns on enemy death (near the death point) and despawns at its
+  // measured life (CFG.cores.life, SPEC 18.2). The life value is read off the freshly
+  // spawned core itself rather than hardcoded, same reasoning as simUntil elsewhere in
+  // this file: a future CFG.cores.life retune cannot silently desync this from the game.
+  const coreDeath = await ip.evaluate(() => {
+    const g = window.__game;
+    g.relaunch(); window.__h.godMode();
+    g.diff.set('MEDIUM');
+    window.__h.sim(1.6);                                       // past the 1.5s wave-1 spawn timer
+    window.__h.simUntil(() => window.__h.enemies().length >= g.spawner.alive);  // let queued fighters materialise
+    const e = window.__h.enemies()[0];
+    const deathPos = e.position.clone();
+    const beforeCount = g.world.tagged('pickup').size;
+    e.health.cur = 1; e.hit(1);
+    window.__h.sim(0.02);
+    const core = [...g.world.tagged('pickup')].find(c => c.alive);
+    const afterCount = g.world.tagged('pickup').size;
+    const dist = core ? core.position.distanceTo(deathPos) : null;
+    const life = core ? core.life : null;
+    window.__h.sim(Math.max(0, life - 0.5));
+    const aliveBeforeExpiry = core.alive;
+    window.__h.sim(1.0);
+    const goneAfterExpiry = !core.alive;
+    return { beforeCount, afterCount, dist, life, aliveBeforeExpiry, goneAfterExpiry };
+  });
+  check(coreDeath.afterCount > coreDeath.beforeCount && coreDeath.dist !== null && coreDeath.dist < 5,
+        'I2a enemy death spawns a Core pickup at the death point (SPEC 18.2)',
+        `pickups ${coreDeath.beforeCount} -> ${coreDeath.afterCount}, distance from death point ${coreDeath.dist}`);
+  check(coreDeath.aliveBeforeExpiry && coreDeath.goneAfterExpiry,
+        'I2b core despawns at its measured life (CFG.cores.life, SPEC 18.2)',
+        `life=${coreDeath.life}s, alive just before expiry: ${coreDeath.aliveBeforeExpiry}, gone after: ${coreDeath.goneAfterExpiry}`);
+
+  // --- I3 magnet: a core ~40u out (inside the 45u magnetRange) homes in and is
+  // collected on contact (SPEC 18.2). ---
+  const magnet = await ip.evaluate(() => {
+    const g = window.__game;
+    g.relaunch(); window.__h.godMode();
+    const V = g.player.position.constructor;
+    const fwd = g.player._fwd.clone().normalize();
+    const pos = g.player.position.clone().addScaledVector(fwd, 40);
+    const core = g.cores.drop(pos, new V(0, 0, 0));
+    const startDist = core.position.distanceTo(g.player.position);
+    let collectedType = null;
+    const off = g.bus.on('core:collected', t => { collectedType = t; });
+    const wait = window.__h.simUntil(() => !core.alive, 6, 0.1);
+    off();
+    return { startDist, collectedType, alive: core.alive, seconds: wait.seconds };
+  });
+  check(magnet.startDist <= 45 && magnet.startDist > 30,
+        'I3 setup: core placed ~40u out, inside the 45u magnetRange', `startDist=${magnet.startDist}`);
+  check(!magnet.alive && magnet.collectedType !== null,
+        'I3 magnet pulls a core within 45u to the ship and it is collected on contact (SPEC 18.2)',
+        `collected after ${magnet.seconds}s, type=${magnet.collectedType}, alive=${magnet.alive}`);
+
+  // --- I4 shield core: +20 shield; overflow above max spills +5 to hull (SPEC 18.2) ---
+  const shieldCore = await ip.evaluate(() => {
+    const g = window.__game;
+    g.relaunch(); window.__h.godMode();
+    const p = g.player;
+    const V = p.position.constructor;
+    // case A: shield has room for the full +20, hull must stay untouched
+    p.shield = 10; p.health.max = 100; p.health.cur = 80;
+    const c1 = g.cores.pool.get();
+    c1.launch(p.position.clone(), new V(0, 0, 0), 'shield'); c1.ctxPlayer = p;
+    g.world.add(c1);
+    window.__h.sim(0.05);
+    const a = { shield: p.shield, hull: p.health.cur };
+    // case B: shield already at max -- the overflow must spill +5 to hull
+    p.shield = p.shieldMax; p.health.cur = 80;
+    const c2 = g.cores.pool.get();
+    c2.launch(p.position.clone(), new V(0, 0, 0), 'shield'); c2.ctxPlayer = p;
+    g.world.add(c2);
+    window.__h.sim(0.05);
+    const b = { shield: p.shield, hull: p.health.cur };
+    return { a, b, shieldMax: p.shieldMax };
+  });
+  check(shieldCore.a.shield === 30 && shieldCore.a.hull === 80,
+        'I4a Shield core raises shield by +20 with hull untouched when there is room (SPEC 18.2)',
+        JSON.stringify(shieldCore.a));
+  check(shieldCore.b.shield === shieldCore.shieldMax && shieldCore.b.hull === 85,
+        'I4b Shield core overflow above max spills +5 to hull (SPEC 18.2)', JSON.stringify(shieldCore.b));
+
+  // --- I5 weapon XP -> level thresholds, driven by whatever CFG.weapon.xpThresholds
+  // currently is, capped at whatever CFG.weapon.maxLevel currently is (SPEC 18.3, v1.11) ---
+  // I5a originally asserted xpForLevel === 4, a hardcoded copy of a SPEC constant the
+  // balance audit could (and did, v1.10: 4 -> 3) legitimately retune. The v1.10 fix read
+  // g.weapon.xpForLevel ONCE per test run and treated it as a constant span to re-grant --
+  // which broke again in v1.11, when the flat per-level cost was replaced by a rising
+  // curve (CFG.weapon.xpThresholds) and xpForLevel started returning a DIFFERENT span at
+  // every level (and 0 at max level, not "the same number forever"). Fixed here by
+  // re-reading g.weapon.xpForLevel fresh immediately before every single grant, treating
+  // xpForLevel === 0 as the cap signal (not "grant nothing forever"), and never comparing
+  // any result against a literal 2/3/4/5 -- only against other measured values. `Weapon`
+  // has no `g.weapon.maxLevel` getter and `CFG` itself is module-scoped (unreachable from
+  // page.evaluate), so maxLevel is discovered the same way, by behaviour.
+  const xpLevels = await ip.evaluate(() => {
+    const g = window.__game;
+    g.diff.set('MEDIUM');           // avoid EASY's weaponXpMul skewing XP amounts
+    g.weapon.reset();
+    const levelEvents = [];
+    const off = g.bus.on('weapon:level', lv => levelEvents.push(lv));  // attached before ANY XP grant below
+
+    // I5a/I5a2: whatever span the CURRENT level (level 1, fresh off reset()) reports,
+    // a shortfall of 1 XP against it must NOT advance the level, and the remaining 1 XP
+    // must advance exactly one level. Read once here deliberately -- this is testing "one
+    // specific level's span holds up", not the shape of the curve (that's I5b below).
+    const span1 = g.weapon.xpForLevel;
+    const levelBeforeSpan1 = g.weapon.level;
+    let shortOfLevel = levelBeforeSpan1;
+    if (span1 > 1) {
+      g.weapon.addXp(span1 - 1);
+      shortOfLevel = g.weapon.level;
+    }
+    g.weapon.addXp(span1 > 1 ? 1 : span1);   // completes exactly span1 XP granted in total
+    const afterExact = g.weapon.level;
+
+    // I5b/I5c/I5aCap: keep granting whatever xpForLevel CURRENTLY reports, re-read fresh
+    // on every iteration (the whole point of this rewrite -- the span changes level to
+    // level under the v1.11 curve). xpForLevel === 0 is the game's own cap signal; treat
+    // it as such rather than looping on a stale cached span. `stuck` catches the case a
+    // nonzero span is granted in full but the level fails to advance anyway -- a real bug,
+    // not a cap, so it must not be silently absorbed into `capped`. Hard-bounded so a
+    // curve that never reaches 0 (or a stuck level) cannot hang the loop.
+    const seen = [afterExact];
+    let capped = false, stuck = false, grants = 0;
+    const CAP_GRANTS = 40;
+    while (grants < CAP_GRANTS) {
+      const span = g.weapon.xpForLevel;      // fresh read, every iteration -- never cached
+      if (span === 0) { capped = true; break; }
+      const before = g.weapon.level;
+      g.weapon.addXp(span);
+      grants++;
+      const after = g.weapon.level;
+      if (after === before) { stuck = true; break; }
+      seen.push(after);
+    }
+    const maxLevel = g.weapon.level;
+    const spanAtCap = g.weapon.xpForLevel;   // expected 0 once capped
+    g.weapon.addXp(1);                       // one more grant past the discovered cap
+    const finalLevel = g.weapon.level;
+    off();
+    return { span1, shortOfLevel, afterExact, seen, levelEvents,
+             capped, stuck, grants, maxLevel, spanAtCap, finalLevel };
+  });
+  check(xpLevels.shortOfLevel === 1,
+        'I5a a shortfall of 1 XP against the current level\'s measured span does not advance the level',
+        `span1=${xpLevels.span1}, level held at ${xpLevels.shortOfLevel}`);
+  check(xpLevels.afterExact === xpLevels.shortOfLevel + 1,
+        'I5a2 granting the remaining 1 XP (total = the measured span) advances exactly one level',
+        `span1=${xpLevels.span1}, level ${xpLevels.shortOfLevel} -> ${xpLevels.afterExact}`);
+  check(!xpLevels.stuck,
+        'I5aStuck no grant of a nonzero measured span ever failed to advance the level (would indicate a real bug, not a cap)',
+        `stuck=${xpLevels.stuck} after ${xpLevels.grants} grants`);
+  check(xpLevels.capped,
+        'I5aCap xpForLevel actually reached 0 (the cap signal) within 40 grants, each re-read fresh',
+        `capped=${xpLevels.capped} after ${xpLevels.grants} grants, maxLevel=${xpLevels.maxLevel}`);
+  check(xpLevels.spanAtCap === 0,
+        'I5aSpan xpForLevel reads 0 once the level is at cap', `spanAtCap=${xpLevels.spanAtCap}`);
+  const expectedClimb = Array.from({ length: xpLevels.maxLevel - xpLevels.afterExact + 1 },
+                                     (_, i) => xpLevels.afterExact + i);
+  check(xpLevels.seen.join(',') === expectedClimb.join(','),
+        'I5b weapon level advances in lockstep with fresh-read xpForLevel-sized grants, all the way to maxLevel (any curve shape)',
+        JSON.stringify({ seen: xpLevels.seen, expectedClimb, maxLevel: xpLevels.maxLevel }));
+  check(xpLevels.finalLevel === xpLevels.maxLevel,
+        'I5c weapon level caps at maxLevel (measured) past the top threshold (SPEC 18.3)',
+        `finalLevel=${xpLevels.finalLevel}, measured maxLevel=${xpLevels.maxLevel}`);
+  check(xpLevels.levelEvents.join(',') === xpLevels.seen.join(','),
+        'I5d weapon:level fires exactly once per level-up, in the same order as the levels observed',
+        JSON.stringify({ levelEvents: xpLevels.levelEvents, seen: xpLevels.seen }));
+
+  // --- I6 weapon level 2 (Quad) fires 4 bolts in one shot (SPEC 18.3) ---
+  const l2fire = await ip.evaluate(() => {
+    const g = window.__game;
+    g.relaunch(); window.__h.godMode();
+    g.spawner.pending = false; g.spawner.clear();
+    g.weapon.reset(); g.weapon.level = 2;
+    for (const l of g.world.tagged('projectile')) l.destroy();
+    g.world.step(0);
+    const before = g.world.tagged('projectile').size;
+    g.player.fireCd = 0;
+    g.input.press('fire', true);
+    g.tick(1 / 60);
+    g.input.press('fire', false);
+    const after = g.world.tagged('projectile').size;
+    return { before, after, muzzles: g.weapon.stats.muzzles, name: g.weapon.stats.name };
+  });
+  check(l2fire.name === 'Quad' && l2fire.muzzles === 4 && (l2fire.after - l2fire.before) === 4,
+        'I6 weapon L2 (Quad) fires 4 bolts in a single shot (SPEC 18.3)', JSON.stringify(l2fire));
+
+  // --- I7 weapon level 4 (Heavy) splash damages a second enemy within 12u (SPEC 18.3) ---
+  const splash = await ip.evaluate(() => {
+    const g = window.__game;
+    g.relaunch(); window.__h.godMode();
+    g.spawner.pending = false; g.spawner.clear();
+    for (const e of window.__h.enemies()) e.destroy();
+    g.world.step(0);
+    g.weapon.reset(); g.weapon.level = 4;
+    const V = g.player.position.constructor;
+    const p0 = g.player.position.clone().addScaledVector(g.player._fwd, 100);
+    const e1 = g.spawner.pool.get(); e1.position.copy(p0); e1.reset(g.ctx, 10, 1, null, 0); g.world.add(e1);
+    const e2 = g.spawner.pool.get(); e2.position.copy(p0).add(new V(8, 0, 0)); e2.reset(g.ctx, 10, 1, null, 0); g.world.add(e2);
+    g.world.rebuildHash();
+    const before = { e1: e1.health.cur, e2: e2.health.cur };
+    // A stationary laser carrying the current weapon level's damage/splash -- same
+    // controlled-collision technique as the HARNESS's shootAt(), so the impact point
+    // cannot travel past e1 within this tick.
+    const l = g.lasers.pool.get().launch(p0, g.player._fwd.clone().normalize(), 0);
+    l.vel.set(0, 0, 0);
+    l.damage = g.weapon.stats.damage; l.splash = g.weapon.stats.splash;
+    g.world.add(l); g.world.rebuildHash();
+    g.tick(1 / 60);
+    return {
+      dist: e1.position.distanceTo(e2.position),
+      before, after: { e1: e1.health.cur, e2: e2.health.cur },
+      dmg: g.weapon.stats.damage, splashRadius: g.weapon.stats.splash, name: g.weapon.stats.name,
+    };
+  });
+  check(splash.name === 'Heavy' && splash.dist < splash.splashRadius,
+        'I7 setup: second enemy placed inside the L4 splash radius', JSON.stringify(splash));
+  check(splash.after.e1 === splash.before.e1 - splash.dmg,
+        'I7a directly-hit enemy takes the weapon\'s direct damage', JSON.stringify(splash));
+  check(splash.after.e2 === splash.before.e2 - splash.dmg,
+        'I7b weapon L4 (Heavy) splash damages a second enemy within 12u of the impact (SPEC 18.3)',
+        JSON.stringify(splash));
+
+  // --- I8 weapon level resets on relaunch (SPEC 18.3) ---
+  const weaponResetOnRelaunch = await ip.evaluate(() => {
+    const g = window.__game;
+    g.weapon.reset(); g.weapon.level = 5; g.weapon.xp = 999;
+    g.relaunch();
+    return { level: g.weapon.level, xp: g.weapon.xp };
+  });
+  check(weaponResetOnRelaunch.level === 1 && weaponResetOnRelaunch.xp === 0,
+        'I8 weapon level and XP reset on relaunch (SPEC 18.3)', JSON.stringify(weaponResetOnRelaunch));
+
+  // --- I9 cores pool: measured capacity is 32, and it is never exceeded across a full
+  // 5-wave campaign clear (many core drops at realistic kill pacing, SPEC 18.2) ---
+  const poolCap = await ip.evaluate(() => {
+    const g = window.__game;
+    g.relaunch(); window.__h.godMode();
+    g.diff.set('MEDIUM');
+    const capacity = g.cores.pool.capacity;
+    let cleared = false, drops = 0, maxAlive = 0;
+    const offDied = g.bus.on('enemy:died', () => drops++);
+    const offClear = g.bus.on('campaign:clear', () => { cleared = true; });
+    let seconds = 0; const CAP = 90;
+    while (!cleared && seconds < CAP) {
+      window.__h.sim(1); seconds++;
+      for (const e of window.__h.enemies()) { e.health.cur = 1; e.hit(1); }
+      maxAlive = Math.max(maxAlive, g.world.tagged('pickup').size);
+    }
+    offDied(); offClear();
+    return { capacity, drops, maxAlive, overflow: g.cores.pool.overflow, seconds, cleared };
+  });
+  check(poolCap.capacity === 32, 'I9a measured cores pool capacity matches SPEC 18.2 (32)', `capacity=${poolCap.capacity}`);
+  check(poolCap.overflow === 0 && poolCap.maxAlive <= poolCap.capacity,
+        'I9b cores pool never overflows its capacity across a full 5-wave campaign clear',
+        `overflow=${poolCap.overflow}, max concurrently-alive cores ${poolCap.maxAlive}/${poolCap.capacity}, ` +
+        `${poolCap.drops} total drops over ${poolCap.seconds}s (campaign cleared=${poolCap.cleared})`);
+
+  check(iErrs.length === 0, 'I10 no console errors during pause/core/weapon checks',
+        iErrs.slice(0, 3).join(' | ') || 'clean');
+
+  await ctxI.close();
 
   /* ================= F. M3.1: HUD layout editor (SPEC 16, SPEC 3 keep-out) ================= */
 
