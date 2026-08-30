@@ -2177,26 +2177,37 @@ class Radar {
     c.strokeStyle = g; c.lineWidth = 2;
     c.beginPath(); c.moveTo(cx, cy); c.lineTo(cx + Math.cos(a) * R, cy + Math.sin(a) * R); c.stroke();
 
-    // asteroids (dim) then enemy bolts (faint)
+    // asteroids (dim) then enemy bolts (faint), then cores (SPEC 18.2).
+    // Each category is ONE path and ONE fill. Issuing a separate fillRect per contact
+    // made the radar cost scale linearly with live bolts, and M3.5 is what made a large
+    // bolt count reachable in real play -- L2-L5 fire four at a time and L3 drops the
+    // cooldown to 0.09s. Measured at 128 live lasers it cost 0.68ms mean / 1.4ms p95 /
+    // 2.1ms max against the SPEC 11 0.4ms radar budget, over on every percentile rather
+    // than just the tail. Same rects, same colours, one draw op per category instead of N.
     let nAst = 0, nBolt = 0;
     c.fillStyle = 'rgba(150,140,125,0.34)';
+    c.beginPath();
     for (const e of this.world.tagged('asteroid')) {
       if (!this.#project(e.position)) continue;
-      c.fillRect(cx + p.x * k - 1, cy - p.z * k - 1, 2, 2); nAst++;
+      c.rect(cx + p.x * k - 1, cy - p.z * k - 1, 2, 2); nAst++;
     }
+    if (nAst) c.fill();
     c.fillStyle = 'rgba(93,255,157,0.55)';
+    c.beginPath();
     for (const e of this.world.tagged('enemyProjectile')) {
       if (!e.alive || !this.#project(e.position)) continue;
-      c.fillRect(cx + p.x * k - 1, cy - p.z * k - 1, 2, 2); nBolt++;
+      c.rect(cx + p.x * k - 1, cy - p.z * k - 1, 2, 2); nBolt++;
     }
+    if (nBolt) c.fill();
 
-    // cores: small cyan dots (SPEC 18.2)
     let nCore = 0;
     c.fillStyle = 'rgba(105,210,255,0.9)';
+    c.beginPath();
     for (const e of this.world.tagged('pickup')) {
       if (!e.alive || !this.#project(e.position)) continue;
-      c.fillRect(cx + p.x * k - 1.5, cy - p.z * k - 1.5, 3, 3); nCore++;
+      c.rect(cx + p.x * k - 1.5, cy - p.z * k - 1.5, 3, 3); nCore++;
     }
+    if (nCore) c.fill();
 
     // fighters: elevation stem then a heading triangle at the stem tip
     let nE = 0;
