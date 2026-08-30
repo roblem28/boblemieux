@@ -116,7 +116,7 @@
              border-bottom:13px solid var(--hud-dim); }
   .arrow b { position:absolute; left:11px; top:-5px; font-size:9px; font-weight:400;
              letter-spacing:.08em; color:var(--hud-dim); white-space:nowrap; }
-  .tie { height:1px; background:var(--hud-dim); opacity:.65; transform-origin:0 50%; }
+  .leadline { height:1px; background:var(--hud-dim); opacity:.65; transform-origin:0 50%; }
   .arrow.tgt i { border-bottom-color:var(--hud); }
   .arrow.tgt b { color:var(--hud); }
 
@@ -239,7 +239,7 @@
   <div class="w" data-w="data" id="data">
     <div class="lbl">Data</div>
     <div class="row" data-row="enemies"><span>Enemies</span><b id="d-enemies">0</b></div>
-    <div class="row" data-row="nearest"><span>Nearest</span><b id="d-nearest">—</b></div>
+    <div class="row" data-row="nearest"><span>Target</span><b id="d-nearest">—</b></div>
     <div class="row" data-row="closure"><span>Closure</span><b id="d-closure">—</b></div>
     <div class="row" data-row="hits"><span>Shots / hit%</span><b id="d-hits">0 / 0%</b></div>
     <div class="row" data-row="wavetime"><span>Wave time</span><b id="d-wavetime">0.0s</b></div>
@@ -269,7 +269,7 @@
 <div id="overlay">
   <div class="card">
     <h1>Solar Savers</h1>
-    <p>Rebel fighter — flight systems check</p>
+    <p>Solar fighter — flight systems check</p>
     <table>
       <tr><td>Mouse</td><td>Pitch / yaw</td></tr>
       <tr><td>W / S</td><td>Boost / brake (ship always cruises forward)</td></tr>
@@ -345,6 +345,11 @@ const CFG = {
     modelScale: 1.5,                          // v1.2 contrast pass: fighters read too small
     glowSize: 26, glowNear: 120, glowFar: 900, // billboard glow behind each fighter
     glowMaxPx: 6,                             // cap on-screen size so a group stays countable
+    glowThrottleFloor: 0.30,                  // glow size/brightness at zero throttle (1 = full)
+                                              // 0.45 rated only MEDIUM legibility by the feel
+                                              // gate (~1.3px swing); 0.30 roughly doubles the
+                                              // dynamic range, and is safe now the tell cannot
+                                              // fire on an EVADE and be read as damage.
     glowHue: [0.055, 0.125],                  // per-fighter orange->amber jitter
     hullEmissive: 2.2,                        // silhouette must read at 400u
     hullColor: 0xc9c2b5, engineColor: 0xff7a1a, outlineColor: 0x14100e,
@@ -356,6 +361,28 @@ const CFG = {
     // every other state still scales with difficulty, so EASY combat stays easy.
     approachMargin: 40,                       // u/s the floor must beat player cruise by
     approachSpeedFloor: 95,                   // recomputed below as cruise + approachMargin
+    // The floor used to switch OFF the instant dist crossed fireRange. On EASY that is a
+    // 95 -> 56 u/s step (80 * 0.70 tier cruise), and damp pulled it down inside a few
+    // ticks: fighters read as hitting a handbrake at a fixed, invisible range. The step is
+    // widest on EASY and near-nil on ACE (92 vs 95), which is exactly where it was reported.
+    // Fade the floor out across this band instead, ending at fireRange.
+    // Width of the fade. TWO different SPEC rows bound it, from opposite directions, and
+    // it is not a free knob -- read SPEC 17 v1.15 before touching it.
+    //   Upper bound, SPEC 12: a wide band decelerates the fighter before it can fire, and
+    //   on EASY tierCruise (56) is barely above player cruise (55), so a slowdown out
+    //   there collapses net closure -- the stall the floor exists to prevent. 200 breached
+    //   at a worst-of-12 first shot of 37.0s against the 25s bound, 3/12 over.
+    //   SPEC 9 closest approach: NOT monotonic in this constant. 100 and 200 are both
+    //   clean, while 105, 116 and 130 each breach the 40u floor on HARD (105 measured
+    //   29.0u and 38.7u in two independent seed families). Almost certainly an interaction
+    //   with breakOffRange 110 rather than a function of the fade width.
+    // 100 is the widest value clean on BOTH: 0/2000 SPEC 12 breaches across two seed
+    // families with 1.6s margin, and 0 closest-approach breaches over 250 large-N HARD
+    // trials. Both bounds are TAIL events -- 105 looked clean at N=10 and 110 looked clean
+    // at N=12/36/48/84/200x2. Never re-tune this from a small sample; SPEC 17 v1.6 records
+    // this same trap already costing a wrong answer once.
+    approachBlend: 100,                       // u: width of the floor -> tier-cruise fade
+    plumeThrottle: 0.5,                       // exhaust plume length at zero throttle (1 = full)
     bank: 0.62,          // roll amplitude when turning at full rate (rad)
     bankDamp: 5,
     flash: 0.08,         // white emissive hit flash (s)
@@ -1083,9 +1110,10 @@ class Enemy extends Entity {
     rig.add(body);
     super(rig, { tags: ['enemy', 'damageable'], radius: CFG.enemies.radius });
     this.id = Enemy._next++; this.pool = pool; this.body = body; this.hullMesh = hullMesh;
+    this.nozzle = nozzle;                             // scaled per tick as the throttle tell
     this.vel = new THREE.Vector3(); this.ctx = null;
     this.state = ''; this.stateT = 0; this.breakT = 0;
-    this.speed = 0; this.fireCd = 0; this.burstLeft = 0; this.burstCd = 0;
+    this.speed = 0; this.throttle = 1; this.fireCd = 0; this.burstLeft = 0; this.burstCd = 0;
     this.flashT = 0; this.bank = 0; this.leader = null; this.slot = 0;
     this.glowHue = THREE.MathUtils.randFloat(CFG.enemies.glowHue[0], CFG.enemies.glowHue[1]);
     this.cooldown = CFG.enemies.laser.cooldown;
@@ -1133,7 +1161,7 @@ class Enemy extends Entity {
     this.flashT = 0; this.bank = 0; this.body.rotation.z = 0;
     this.glowHue = THREE.MathUtils.randFloat(CFG.enemies.glowHue[0], CFG.enemies.glowHue[1]);
     this.hullMesh.material = enemyAssets().hullMat;
-    this.vel.set(0, 0, 0); this.state = ''; this.setState(E_STATE.APPROACH);
+    this.vel.set(0, 0, 0); this.throttle = 1; this.state = ''; this.setState(E_STATE.APPROACH);
     return this;
   }
 
@@ -1285,17 +1313,40 @@ class Enemy extends Entity {
     this.body.rotation.z = this.bank;
 
     // ---- integrate -------------------------------------------------------
-    // The floor applies while a fighter is still CLOSING to firing position -- in
-    // APPROACH, and in ATTACK_RUN until it is inside fire range. Flooring APPROACH
-    // alone was not enough: the hand-off happens at approachRange (380u) but firing
-    // needs fireRange (300u), and at tier speed EASY covers that last 80u at ~1 u/s
-    // against a fleeing player (measured: ATTACK_RUN at 25.6s, first shot at 73.8s).
-    // Once inside fire range the dogfight runs at tier speed, so EASY stays easy.
+    // The floor exists because closing speed near player cruise is unstable: at tier
+    // speed EASY covers the last 80u to fireRange at ~1 u/s against a fleeing player
+    // (measured: ATTACK_RUN at 25.6s, first shot at 73.8s). Once inside fire range the
+    // dogfight runs at tier speed, so EASY stays easy.
+    //
+    // It is faded in over distance rather than switched, and the SAME curve is used in
+    // both closing states. A per-state switch would only move the discontinuity to the
+    // APPROACH -> ATTACK_RUN hand-off at approachRange (380u), which sits inside this
+    // band; sharing the curve keeps speed continuous across that transition too.
     const cruiseTarget = E.maxSpeed * dp.enemySpeed;
-    const closingIn = this.state === E_STATE.APPROACH
-                   || (this.state === E_STATE.ATTACK_RUN && dist > AI.fireRange);
-    const target = closingIn ? Math.max(cruiseTarget, E.approachSpeedFloor) : cruiseTarget;
+    const closing = this.state === E_STATE.APPROACH || this.state === E_STATE.ATTACK_RUN;
+    // 1 beyond fireRange + approachBlend, 0 at fireRange and inside it, smooth between.
+    const floorK = closing
+      ? THREE.MathUtils.smoothstep(dist, AI.fireRange, AI.fireRange + E.approachBlend) : 0;
+    const target = THREE.MathUtils.lerp(
+      cruiseTarget, Math.max(cruiseTarget, E.approachSpeedFloor), floorK);
     this.speed = THREE.MathUtils.damp(this.speed, target, E.accel / 60, dt);
+
+    // The tell: the exhaust plume tracks throttle, so easing off reads as a fighter
+    // backing down rather than hitting an invisible wall. Scaled PER INSTANCE --
+    // nozzleMat is shared, so writing to it would throttle the whole squadron's plume
+    // at once (the same trap the hit flash avoids by swapping the material reference).
+    // Published for EnemyGlow, which carries the tell where the camera can see it.
+    // Gated on CLOSING on purpose. A fighter knocked into EVADE also slows, and dimming
+    // its glow immediately after the white hit flash reads as "I hurt it": the feel gate
+    // measured 6.0 -> 5.2 px and -25% brightness across the ~1s jink, landing exactly
+    // where a player is primed to misread it, and with death removing the glow outright
+    // that would be the ONLY fading-glow behaviour in the game. EVADE already reads
+    // through its own break turn, so the glow holds full there and the tell stays
+    // unambiguous: dimming means backing off an approach, nothing else.
+    this.throttle = closing
+      ? THREE.MathUtils.clamp(this.speed / E.approachSpeedFloor, 0, 1) : 1;
+    const plume = E.plumeThrottle + (1 - E.plumeThrottle) * this.throttle;
+    this.nozzle.scale.set(0.85 + 0.15 * this.throttle, plume, 0.85 + 0.15 * this.throttle);
     this._fwd.set(0, 0, -1).applyQuaternion(this.object.quaternion);
     this.vel.copy(this._fwd).multiplyScalar(this.speed);
     this.position.addScaledVector(this.vel, dt);
@@ -1797,11 +1848,18 @@ class EnemyGlow {
       // reads as separate points instead of one blob. The world term only takes over
       // past ~2400u, where contacts are out of play anyway.
       const maxWorld = E.glowMaxPx * d * this._projK;
-      const sc = Math.min(E.glowSize, maxWorld);
+      // This glow also carries the throttle tell, dimming and shrinking as a fighter
+      // eases off its approach speed. The exhaust plume cannot do that job: through
+      // APPROACH and ATTACK_RUN the nose is held on the player, so the tail-mounted
+      // nozzle points directly away from the camera for exactly the window the tell
+      // has to read. A billboard has no aspect, and at the 6px cap it is the one
+      // fighter feature already proven legible out to 900u.
+      const thr = E.glowThrottleFloor + (1 - E.glowThrottleFloor) * e.throttle;
+      const sc = Math.min(E.glowSize, maxWorld) * thr;
       this._s.set(sc, sc, sc);
       this._m.compose(e.position, this._q, this._s);
       this.mesh.setMatrixAt(i, this._m);
-      this._c.setHSL(e.glowHue, 1, 0.55).multiplyScalar(k);   // orange->amber per fighter
+      this._c.setHSL(e.glowHue, 1, 0.55).multiplyScalar(k * thr);   // orange->amber per fighter
       this.mesh.setColorAt(i, this._c);
       i++;
     }
@@ -1915,14 +1973,14 @@ class Tracker {
   constructor(camera, player) {
     this.camera = camera; this.player = player; this.layout = null;   // bound by Game
     this.root = document.getElementById('track');
-    this.tie = this.#mk('mk tie', '');                 // created first so it sits under the bracket
+    this.leadLine = this.#mk('mk leadline', '');                 // created first so it sits under the bracket
     this.bracket = this.#mk('mk bracket',
       '<i></i><i></i><i></i><i></i><div class="hp">' + '<b></b>'.repeat(8) + '</div>');
     this.segs = [...this.bracket.querySelectorAll('.hp b')];
     this.lead = this.#mk('mk lead', '');
     this.arrows = Array.from({ length: 6 }, () => this.#mk('mk arrow', '<i></i><b></b>'));
     this._v = new THREE.Vector3(); this._w = new THREE.Vector3(); this._ic = new THREE.Vector3();
-    this.target = null;
+    this.target = null; this._nArrow = 0;
     this.hideAll();
   }
   #mk(cls, html) {
@@ -1932,7 +1990,7 @@ class Tracker {
   }
   hideAll() {
     this.bracket.style.display = 'none'; this.lead.style.display = 'none';
-    this.tie.style.display = 'none';
+    this.leadLine.style.display = 'none';
     for (const a of this.arrows) a.style.display = 'none';
   }
   // Tab steps through live fighters, nearest first. User-driven, so the sort
@@ -1961,6 +2019,22 @@ class Tracker {
     }
     this.target = onBest || anyBest;
   }
+  // One off-screen arrow. Returns without consuming a slot when e is on screen or
+  // the slots are full, so callers can just offer every fighter in priority order.
+  #arrow(e, cam, W, H) {
+    if (this._nArrow >= this.arrows.length) return;
+    const behind = this.#ndc(e.position, cam);
+    if (!behind && Math.abs(this._v.x) <= 1 && Math.abs(this._v.y) <= 1) return;
+    const a = this.arrows[this._nArrow++];
+    const len = Math.hypot(this._v.x, this._v.y) || 1, k = 0.86 / len;
+    const sx = (this._v.x * k * 0.5 + 0.5) * W, sy = (-this._v.y * k * 0.5 + 0.5) * H;
+    const ang = Math.atan2(-this._v.y, this._v.x) + Math.PI / 2;
+    a.style.display = 'block';
+    a.style.transform = `translate(${sx.toFixed(1)}px,${sy.toFixed(1)}px)`;
+    a.firstChild.style.transform = `rotate(${ang.toFixed(3)}rad)`;
+    a.lastChild.textContent = Math.round(e.position.distanceTo(this.player.position)) + ' m';
+    a.classList.toggle('tgt', e === this.target);
+  }
   // world -> NDC, with the behind-camera case folded out (project() mirrors it)
   #ndc(pos, cam) {
     this._w.copy(pos).applyMatrix4(cam.matrixWorldInverse);
@@ -1975,31 +2049,27 @@ class Tracker {
     const tgt = this.target;
 
     // ---- off-screen arrows, with range, for everything not on screen ----
+    // The SELECTED target claims a slot before anyone else. Filling the 6 slots in
+    // world-iteration order let a wave of 9 fighters take them all before the selected
+    // one was reached, so Tab could land on a fighter with no bracket (off screen) AND
+    // no arrow -- from the seat the highlight looked stuck on the previous target.
+    // Measured before this fix: no tagged arrow on 3 of 10 presses at wave 4, 9 alive.
     const showArrows = !this.layout || this.layout.state.arrows.visible;
-    let nArrow = 0;
-    for (const e of world.tagged('enemy')) {
-      if (!e.alive) continue;
-      const behind = this.#ndc(e.position, cam);
-      const on = !behind && Math.abs(this._v.x) <= 1 && Math.abs(this._v.y) <= 1;
-      if (on || !showArrows || nArrow >= this.arrows.length) continue;
-      const a = this.arrows[nArrow++];
-      const len = Math.hypot(this._v.x, this._v.y) || 1, k = 0.86 / len;
-      const sx = (this._v.x * k * 0.5 + 0.5) * W, sy = (-this._v.y * k * 0.5 + 0.5) * H;
-      const ang = Math.atan2(-this._v.y, this._v.x) + Math.PI / 2;
-      a.style.display = 'block';
-      a.style.transform = `translate(${sx.toFixed(1)}px,${sy.toFixed(1)}px)`;
-      a.firstChild.style.transform = `rotate(${ang.toFixed(3)}rad)`;
-      a.lastChild.textContent = Math.round(e.position.distanceTo(this.player.position)) + ' m';
-      a.classList.toggle('tgt', e === tgt);
+    this._nArrow = 0;
+    if (showArrows) {
+      if (tgt && tgt.alive) this.#arrow(tgt, cam, W, H);
+      for (const e of world.tagged('enemy')) {
+        if (e.alive && e !== tgt) this.#arrow(e, cam, W, H);
+      }
     }
-    for (let i = nArrow; i < this.arrows.length; i++) this.arrows[i].style.display = 'none';
+    for (let i = this._nArrow; i < this.arrows.length; i++) this.arrows[i].style.display = 'none';
 
-    if (!tgt) { this.bracket.style.display = 'none'; this.lead.style.display = 'none'; this.tie.style.display = 'none'; return; }
+    if (!tgt) { this.bracket.style.display = 'none'; this.lead.style.display = 'none'; this.leadLine.style.display = 'none'; return; }
 
     // ---- bracket on the target ----
     const behindT = this.#ndc(tgt.position, cam);
     const onT = !behindT && Math.abs(this._v.x) <= 1 && Math.abs(this._v.y) <= 1;
-    if (!onT) { this.bracket.style.display = 'none'; this.lead.style.display = 'none'; this.tie.style.display = 'none'; return; }
+    if (!onT) { this.bracket.style.display = 'none'; this.lead.style.display = 'none'; this.leadLine.style.display = 'none'; return; }
     const dist = tgt.position.distanceTo(this.player.position);
     const bx = (this._v.x * 0.5 + 0.5) * W, by = (-this._v.y * 0.5 + 0.5) * H;
     const scale = THREE.MathUtils.clamp(HUDC.bracketRef / Math.max(HUDC.bracketMinDist, dist),
@@ -2018,7 +2088,7 @@ class Tracker {
     if (t !== null && t < CFG.enemies.ai.leadMaxTime) this._ic.addScaledVector(tgt.vel, t);
     const lb = this.#ndc(this._ic, cam);
     if (lb || Math.abs(this._v.x) > 1 || Math.abs(this._v.y) > 1) {
-      this.lead.style.display = 'none'; this.tie.style.display = 'none'; return;
+      this.lead.style.display = 'none'; this.leadLine.style.display = 'none'; return;
     }
     const lx = (this._v.x * 0.5 + 0.5) * W, ly = (-this._v.y * 0.5 + 0.5) * H;
     this.lead.style.display = 'block';
@@ -2027,10 +2097,10 @@ class Tracker {
     // ---- bracket -> lead line, so the eye connects the two ----
     const dx = lx - bx, dy = ly - by, len = Math.hypot(dx, dy);
     if (len > 8) {
-      this.tie.style.display = 'block';
-      this.tie.style.width = len.toFixed(1) + 'px';
-      this.tie.style.transform = `translate(${bx.toFixed(1)}px,${by.toFixed(1)}px) rotate(${Math.atan2(dy, dx).toFixed(3)}rad)`;
-    } else this.tie.style.display = 'none';
+      this.leadLine.style.display = 'block';
+      this.leadLine.style.width = len.toFixed(1) + 'px';
+      this.leadLine.style.transform = `translate(${bx.toFixed(1)}px,${by.toFixed(1)}px) rotate(${Math.atan2(dy, dx).toFixed(3)}rad)`;
+    } else this.leadLine.style.display = 'none';
   }
 }
 
@@ -2046,7 +2116,7 @@ class Radar {
     this.cv = document.getElementById('radar');
     this.c = this.cv.getContext('2d');
     this.rangeIdx = Math.max(0, CFG.radar.ranges.indexOf(CFG.radar.defaultRange));
-    this.acc = 0; this.sweep = 0; this.t = 0; this.lastMs = 0;
+    this.acc = 0; this.sweep = 0; this.t = 0; this.lastMs = 0; this._lastSel = null;
     this.counts = { enemies: 0, bolts: 0, asteroids: 0, planatron: 0, cores: 0 };
     this._rel = new THREE.Vector3(); this._fwd = new THREE.Vector3();
     this._right = new THREE.Vector3(); this._up = new THREE.Vector3();
@@ -2063,6 +2133,10 @@ class Radar {
     this.sweep = (this.sweep + dt / CFG.radar.sweepPeriod) % 1;
     this.acc += dt;
     const step = 1 / CFG.radar.hz;
+    // The target blip is drawn highlighted, so a Tab has to land on the very next
+    // frame rather than waiting up to 50ms for the next 20 Hz slot. Force a single
+    // redraw when the selection changes; the steady-state rate is untouched.
+    if (this.tracker.target !== this._lastSel) { this._lastSel = this.tracker.target; this.acc = step; }
     if (this.acc < step) return;
     this.acc %= step;
     const t0 = performance.now();
@@ -2127,12 +2201,27 @@ class Radar {
     // fighters: elevation stem then a heading triangle at the stem tip
     let nE = 0;
     for (const e of this.world.tagged('enemy')) {
-      if (!e.alive || !this.#project(e.position)) continue;
-      const px = cx + p.x * k, py = cy - p.z * k;
-      const stem = THREE.MathUtils.clamp(p.y * k, -CFG.radar.stemMax, CFG.radar.stemMax);
+      if (!e.alive) continue;
+      const inR = this.#project(e.position);
+      const isT = e === this.tracker.target;
+      // Out-of-range fighters are dropped on purpose: the dish shows what is in range.
+      // The SELECTED target is the one exception and is pinned to the rim exactly like
+      // the Planatron below. Without it there is a reachable state with NOTHING on
+      // screen pointing at the target -- the wave spawn band is 900-1200u against a
+      // 1000u default range, so Tab onto a fresh contact with the off-screen arrows
+      // toggled off (a legitimate SPEC 16 setting) left no bracket, no arrow and no
+      // blip. SPEC 3 requires every indicator to name the same fighter, which it
+      // cannot do if none of them names any.
+      if (!inR && !isT) continue;
+      let px = cx + p.x * k, py = cy - p.z * k;
+      let stem = THREE.MathUtils.clamp(p.y * k, -CFG.radar.stemMax, CFG.radar.stemMax);
+      if (!inR) {
+        const l = Math.hypot(p.x, p.z) || 1;
+        px = cx + p.x / l * (R - 7); py = cy - p.z / l * (R - 7);
+        stem = 0;                       // elevation is meaningless once pinned to the rim
+      }
       c.strokeStyle = 'rgba(245,182,66,0.42)'; c.lineWidth = 1;
       c.beginPath(); c.moveTo(px, py); c.lineTo(px, py - stem); c.stroke();
-      const isT = e === this.tracker.target;
       const sz = CFG.radar.blip * (isT ? 1 + 0.32 * Math.sin(this.t * 7) : 1);
       c.save();
       c.translate(px, py - stem);
@@ -2437,6 +2526,7 @@ class HUD {
     this.toastT = 0;
   }
   setDifficulty(name) { this.diffEl.textContent = name.charAt(0) + name.slice(1).toLowerCase(); }
+  bindTracker(t) { this.tracker = t; }
   bindWeapon(w) {
     this.weapon = w;
     this.wlvl = this.$('wlvl'); this.wname = this.$('wname'); this.wpips = this.$('wpips');
@@ -2504,8 +2594,13 @@ class HUD {
     this.waveT += dt;
     const boosting = player.speed > (CFG.ship.cruise + CFG.ship.boost) / 2;
     this.heat = THREE.MathUtils.clamp(this.heat + (boosting ? dt * 0.5 : -dt * 0.35), 0, 1);
+    // Range and closure name a specific fighter, so they follow the SELECTED target
+    // rather than whatever happens to be closest -- Tab must move every readout that
+    // refers to one. Nearest-alive is the fallback while nothing is selected.
+    const sel = this.tracker && this.tracker.target;
     let near = Infinity;
-    for (const e of player.world.tagged('enemy')) {
+    if (sel && sel.alive) near = sel.position.distanceTo(player.position);
+    else for (const e of player.world.tagged('enemy')) {
       if (!e.alive) continue;
       const d = e.position.distanceTo(player.position);
       if (d < near) near = d;
@@ -2562,6 +2657,12 @@ class Game {
     this.layoutMode = false;
     this.layout = new HudLayout(this);
     this.tracker.layout = this.layout;
+    this.hud.bindTracker(this.tracker);
+    // A dead fighter goes back to the pool and can be relaunched as a different one.
+    // Holding the reference past death would silently re-point every readout at
+    // whoever reused the object, so drop it and let #acquire take the nearest
+    // survivor on the next update (SPEC 3: all indicators name one fighter).
+    this.bus.on('enemy:died', e => { if (this.tracker.target === e) this.tracker.target = null; });
     // SPEC 4: a fresh wave hands back shield (and hull, by default).
     this.bus.on('wave:start', () => this.player.restore());
     this.score = 0; this.dead = false; this.won = false; this.runTime = 0;
@@ -2740,7 +2841,7 @@ class Game {
 
     this.prewarm();
 
-    if (DEBUG) window.__game = this;
+    if (DEBUG) { window.__game = this; window.__CFG = CFG; }   // __CFG so audits can sweep constants
     this.renderer.setAnimationLoop(() => this.frame());
   }
   // Every material's shader is compiled lazily on first render. Left alone, the

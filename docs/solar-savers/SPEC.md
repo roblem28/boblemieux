@@ -1,4 +1,4 @@
-# SOLAR SAVERS — SPEC v1.11 (2026-08-29)
+# SOLAR SAVERS — SPEC v1.15 (2026-08-29)
 
 Authoritative. Where a prompt or agent disagrees with this file, this file wins; flag the conflict.
 File under review: `public/games/solar-savers/index.html` (single file, Three.js r160 via cdnjs importmap, no build).
@@ -203,6 +203,104 @@ where a number here disagrees with §3 or §5, the section has been amended to m
   Default on: enemies remaining, nearest distance, hit %.
 
 ## 17. Amendments
+- **v1.15** — `approachBlend` 200 → **100**. This constant is bounded by **two** SPEC rows
+  pulling in opposite directions, and both bounds are tail events invisible to small samples.
+  **Upper bound, §12.** 200 breached the worst-of-N first-shot rule on EASY: passive
+  worst-of-12 **37.0 s** against the 25 s bound, 3/12 over. The cause is structural — a 200 u
+  band begins decelerating at 500 u, before the fighter is close enough to fire, and on EASY
+  tier cruise (56 u/s) is barely above player cruise (55 u/s), so a slowdown there collapses
+  net closure and re-creates the stall v1.4 built the floor to eliminate.
+  **§9 closest approach, and it is NOT monotonic in this constant.** 100 and 200 are both
+  clean, while **105, 116 and 130 each breach the 40 u floor on HARD** — 105 measured 29.0 u
+  and 38.7 u in two independent seed families, 116 measured 27.2 u. This is almost certainly
+  an interaction with `breakOffRange` 110 (§5, §17 v1.6), where particular spawn/timing
+  coincidences let a break-off arc swing closer before separation asserts itself, rather
+  than a function of fade width. **It is not characterised, and it should be swept on its
+  own before this constant is ever moved again.**
+  **Method, which is the durable part of this entry.** `Math.random` is replaced with a
+  seeded generator reset per trial, so identical spawn geometry replays across every
+  candidate and `approachBlend` is the only variable. Under that: 100 holds **0/2000 §12
+  breaches** in two seed families with 1.6 s margin, and **0 closest-approach breaches over
+  250 large-N HARD trials** with 4–9 u margin. §9's aggressive-bot table passes every graded
+  row at 100 (EASY TTK 7.72 s, MEDIUM 7.22 s, HARD 9.27 s, hull worst 25.33 against 50, zero
+  rams), and the BREAK_OFF re-engagement tail is at or better than the 200 baseline on every
+  tier (EASY 6.13 s, MEDIUM 11.28 s, HARD 13.22 s).
+  **Sample sizes, recorded because they cost two wrong answers in one session.** 105 was
+  recommended and then retracted: it looked clean at N=10 on closest approach and only
+  failed under a seeded N=100–150 sweep. 110 read clean at N = 12, 36, 48, 84 and 200×2 and
+  fails §12 at 0.15% only at N≈2000. Anything at or below N≈300 cannot see either. §17 v1.6
+  already lost an answer to this exact trap on `breakOffRange`. **Never re-tune this
+  constant from a small sample.**
+  To make any of this possible, `window.__CFG` is now exposed alongside `window.__game`
+  under `?debug`. `CFG` being module-scoped had forced audits to reason about constants
+  instead of testing them, and forced the §12 `E1` test exception; both are gone.
+- **v1.14** — two findings from the M3.5 feel gate, both accepted.
+  1. **The selected target is pinned to the radar rim when out of range**, exactly as
+     the Planatron already was. Ordinary out-of-range fighters are still dropped — the
+     dish shows what is in range — but the selection is the one exception. Without it
+     a reachable state existed with *nothing* on screen naming the target: off-screen
+     arrows are a legitimate §16 toggle the player can leave off for a whole session,
+     and the §6 wave spawn band is 900–1200 u against a 1000 u default radar range, so
+     a Tab onto a fresh contact gave no bracket (off screen), no arrow (toggled off)
+     and no blip (out of range). §3 requires every indicator to name the same fighter,
+     which it cannot do when none of them names any. Re-verified at 1131 u directly
+     behind with arrows off: bracket none, 0 arrows, selected-fill pixels now present
+     in the rim band.
+  2. **The throttle tell moved from the exhaust plume to the billboard glow.** The
+     plume added in v1.12 is mounted on the tail (+Z) while APPROACH and ATTACK_RUN
+     hold the nose (−Z) on the player, so it faced directly away from the camera for
+     exactly the window the tell had to read, on a feature subtending 1–3 px at the
+     measured band. `EnemyGlow` has no aspect and is the one fighter feature already
+     proven legible to 900 u at the 6 px cap, so `Enemy.throttle` is now published each
+     tick and multiplies both glow size and brightness by
+     `glowThrottleFloor + (1 - glowThrottleFloor) * throttle`, `glowThrottleFloor: 0.45`.
+     The plume is kept as a secondary cue because it does read during BREAK_OFF, when
+     the tail is genuinely toward the player.
+     The tell fires **only while CLOSING** (APPROACH/ATTACK_RUN). A fighter knocked into
+     EVADE also slows, and the feel gate measured that dimming — 6.0 → 5.2 px and −25%
+     brightness across the ~1 s jink — arriving immediately after the white hit flash,
+     where a player is primed to read it as "I hurt it". Since death removes the glow
+     outright with no fade, that would have been the only fading-glow behaviour in the
+     game. Gated, the meaning stays unambiguous: a dimming glow means a fighter backing
+     off an approach and nothing else. Verified under a forced EVADE — throttle holds at
+     1.000 and the glow at 6 px while actual speed falls to 56.8 u/s.
+     `glowThrottleFloor` is **0.30**, not the 0.45 first tried: the gate rated 0.45 only
+     MEDIUM legibility (~1.3 px swing), and 0.30 roughly doubles the dynamic range, which
+     is safe once the tell can no longer fire on a hit.
+- **v1.13** — target switching made atomic across every readout that names a fighter,
+  after live play reported that Tab left the reticle on the old target. One concrete
+  cause was measured: the six off-screen arrow slots were filled in world-iteration
+  order, so at wave 4 with 9 fighters alive the selected target could receive no
+  bracket (off screen) AND no arrow — no tagged arrow on 3 of 10 Tab presses. The only
+  highlight left on screen belonged to another fighter, which from the seat reads as a
+  stuck reticle. The selected target now claims an arrow slot before any other fighter
+  (10/10 after the fix). Two readouts were also not switching in the same tick and are
+  now made to: the radar forces one redraw on the frame the selection changes rather
+  than waiting up to 50 ms for its 20 Hz slot, and the Data widget range/closure rows
+  follow the SELECTED target rather than the nearest fighter — the row label therefore
+  changes *Nearest* → *Target*, keeping its `data-row` key and element id. Finally the
+  tracker drops its reference when the selected fighter dies, which both guarantees
+  re-acquisition of the nearest survivor and closes a pool-recycle hole: a dead enemy
+  returns to the pool, and a relaunched fighter reusing the object would otherwise have
+  silently inherited the selection.
+- **v1.12** — enemy approach-speed floor faded over distance instead of switched. It
+  previously stepped the TARGET from `approachSpeedFloor` (95 u/s) to tier cruise in one
+  tick the moment distance crossed `ai.fireRange` — actual speed was already eased by
+  `damp(speed, target, accel/60, dt)`, lambda 1.0, so roughly a 1 s time constant. The
+  artifact is therefore a ~39 u/s drop spread over about a second, always at the same
+  range, not a literal one-tick stop. On EASY that is 95 → 56 (80 × 0.70) and it
+  was reported in play as fighters hitting a handbrake at a fixed, invisible range. The
+  step is widest on EASY and near-nil on ACE (92 vs 95), which is exactly where it was
+  reported. `floorK = smoothstep(dist, ai.fireRange, ai.fireRange + approachBlend)` with
+  `approachBlend` (200 as first written; **superseded by v1.15, now 100**), and the SAME
+  curve is used in both APPROACH and ATTACK_RUN — a
+  per-state switch would only move the discontinuity to the APPROACH → ATTACK_RUN
+  hand-off at 380 u, which sits inside the band. Measured target speed on a parked
+  fighter, EASY, 560→250 u: 95, 95, 89.2, 76.1, 62.7, 56.2, 56.0; ACE over the same
+  range: 95, 95, 94.6, 93.6, 92.5, 92.0, 92.0. A visual tell was added with it — the
+  exhaust plume scales with throttle (`plumeThrottle: 0.5`), measured 1.00 → 0.79 across
+  the band — scaled per instance, because `nozzleMat` is shared and writing to it would
+  throttle the whole squadron's plume at once.
 - **v1.11** — flat `xpPerLevel` replaced by the rising curve `xpThresholds: [2,5,7,11]`.
   Dropping the flat cost 4 → 3 moved the measured average only 2.40 → 2.60 (5 trials) /
   2.93 (15), still short of §9's L3–L4. The exact distribution shows why: with XP fixed at

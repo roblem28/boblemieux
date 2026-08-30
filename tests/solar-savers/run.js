@@ -649,6 +649,15 @@ const HARNESS = () => {
   // with the real radar. Reproducing the identical projection keeps this a
   // real test of the radar (an actually-dropped in-range contact still
   // fails it) without importing that flakiness.
+  //
+  // A later change (reported by game-feel-critic) pins the SELECTED target
+  // to the rim when it is out of dish range -- same treatment the Planatron
+  // already got -- so raw inRange undercounts by exactly one whenever the
+  // current tracker.target is alive, a REAL member of world.tagged('enemy')
+  // (a stale non-entity reference, like a synthetic test target, is never
+  // visited by the radar's own loop and cannot be pinned), and itself out of
+  // range. Derived live below, not assumed: this is exactly the projection
+  // Radar#draw performs on `this.tracker.target`.
   const radarCount = await dp.evaluate(() => {
     const g = window.__game;
     window.__h.godMode();
@@ -668,18 +677,70 @@ const HARNESS = () => {
     const fwd = new V(0, 0, -1).applyQuaternion(q);
     const right = new V(1, 0, 0).applyQuaternion(q);
     const rel = new V();
-    let inRange = 0;
-    for (const e of window.__h.enemies()) {
+    const inR = e => {
       rel.subVectors(e.position, g.player.position);
-      const px = rel.dot(right), pz = rel.dot(fwd);
-      if (Math.hypot(px, pz) <= g.radar.range) inRange++;
-    }
-    return { committedAlive, liveEnemies, inRange, radarCount: g.radar.counts.enemies, waitSeconds: wait.seconds };
+      return Math.hypot(rel.dot(right), rel.dot(fwd)) <= g.radar.range;
+    };
+    let inRange = 0;
+    for (const e of window.__h.enemies()) if (inR(e)) inRange++;
+
+    const sel = g.tracker.target;
+    const selIsRealEnemy = !!sel && window.__h.enemies().includes(sel);
+    const pinnedExtra = (selIsRealEnemy && sel.alive && !inR(sel)) ? 1 : 0;
+
+    return {
+      committedAlive, liveEnemies, inRange, pinnedExtra,
+      radarCount: g.radar.counts.enemies, waitSeconds: wait.seconds,
+    };
   });
   check(radarCount.committedAlive === 3 && radarCount.liveEnemies === 3 &&
-        radarCount.radarCount === radarCount.inRange,
-        'M3-5 radar draws one triangle per enemy within radar.range (post-jitter)',
+        radarCount.radarCount === radarCount.inRange + radarCount.pinnedExtra,
+        'M3-5 radar draws one triangle per enemy within radar.range, plus one if the SELECTED ' +
+        'target is out of range and pinned to the rim (post-jitter)',
         JSON.stringify(radarCount));
+
+  // --- M3-5b radar actually exercises the pin, not just tolerates it: the
+  // SELECTED target moved well beyond radar.range is drawn anyway (pinned to
+  // the rim, counted), while a second, non-selected fighter pushed equally
+  // far out is correctly dropped -- the dish "shows what is in range" for
+  // everyone except the one target SPEC 3 requires every indicator to name.
+  const pinned = await dp.evaluate(() => {
+    const g = window.__game;
+    const enemies = window.__h.enemies();
+    if (enemies.length < 2) return { error: 'need >=2 live enemies', count: enemies.length };
+    const V = g.player.position.constructor;
+    const q = g.player.object.quaternion;
+    const fwd = new V(0, 0, -1).applyQuaternion(q);
+    const right = new V(1, 0, 0).applyQuaternion(q);
+    const inR = e => {
+      const rel = e.position.clone().sub(g.player.position);
+      return Math.hypot(rel.dot(right), rel.dot(fwd)) <= g.radar.range;
+    };
+
+    const target = enemies[0], other = enemies[1];
+    const far = g.radar.range * 1.5 + 200;             // well past the rim either way
+    target.position.copy(g.player.position).addScaledVector(fwd, far);
+    other.position.copy(g.player.position).addScaledVector(fwd, far).addScaledVector(right, 40);
+    g.world.rebuildHash();
+    g.tracker.target = target;
+
+    let inRange = 0;
+    for (const e of window.__h.enemies()) if (inR(e)) inRange++;
+    const targetInRange = inR(target), otherInRange = inR(other);
+
+    g.radar.acc = 0;                                   // ignore the 20Hz accumulator
+    g.radar.tick(1);                                    // dt=1 forces an immediate draw
+
+    return { count: enemies.length, inRange, targetInRange, otherInRange, radarCount: g.radar.counts.enemies };
+  });
+  check(!pinned.error, 'M3-5b setup: at least two live enemies to work with', JSON.stringify(pinned));
+  check(!pinned.targetInRange && !pinned.otherInRange,
+        'M3-5b setup: both the selected target and the other fighter are genuinely out of radar.range',
+        JSON.stringify(pinned));
+  check(pinned.radarCount === pinned.inRange + 1,
+        'M3-5b radar pins the SELECTED out-of-range target to the rim (counted) but still drops ' +
+        'the non-selected out-of-range fighter (not counted)',
+        JSON.stringify(pinned));
 
   // --- M3-6 Tab cycles target (SPEC 3/8: tracker.cycle) ---
   // SPEC v1.6 (§6): wave 1 on MEDIUM is now 3 fighters (see M3-5), not 2, so
@@ -1596,6 +1657,440 @@ const HARNESS = () => {
   check(eErrs.length === 0, 'E3 no console errors during the 5-minute SpatialHash soak',
         eErrs.slice(0, 3).join(' | ') || 'clean');
   await ctxE.close();
+
+  /* ================= J. M3.5 targeting fixes: Tab moves every readout onto the
+   * newly selected target within one tick, the tracker never sticks on a dead
+   * target, and the approach-speed floor is now a continuous fade (SPEC 3, 5, 8, 18).
+   * Three landed changes under test here:
+   *   1. Tracker#arrow -- the selected target claims an off-screen arrow slot
+   *      before any other fighter (this._nArrow), so a full 6-slot arrow bank
+   *      cannot starve the actual selection (measured: no tagged arrow on 3/10
+   *      Tab presses at wave 4, 9 alive, before the fix).
+   *   2. Radar._lastSel forces an immediate redraw on the tick the selection
+   *      changes, instead of waiting up to 50ms for the next 20Hz slot.
+   *   3. HUD Data widget's "Target" row (data-row="nearest", #d-nearest/
+   *      #d-closure -- ids unchanged, only the label moved) follows
+   *      tracker.target, not the nearest fighter.
+   *   4. Game drops tracker.target on enemy:died so a pool-recycled object
+   *      cannot silently inherit the old selection.
+   *   5. Enemy#update's approach speed floor is now smoothstep-faded across
+   *      CFG.enemies.approachBlend instead of switched at ai.fireRange.
+   * CFG itself is module-scoped and unreachable from page.evaluate (see the
+   * E1 comment above), so every expectation below is read off the running
+   * game: THREE's own Vector3#project for screen position (the same call
+   * Tracker#ndc makes), and Aitken's delta-squared extrapolation of the
+   * exponential damp to recover Enemy#update's implied target speed without
+   * knowing CFG.enemies.accel.
+   */
+  const ctxJ = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+  const jp = await ctxJ.newPage();
+  const jErrs = [];
+  jp.on('console', m => { if (m.type() === 'error') jErrs.push(m.text()); });
+  jp.on('pageerror', e => jErrs.push('pageerror: ' + e.message.split('\n')[0]));
+  await jp.goto(URL, { waitUntil: 'load' });
+  await jp.waitForTimeout(1500);
+  await jp.evaluate(HARNESS);
+
+  // --- J1: bracket, lead ring, bracket->lead line, radar highlight and the HUD
+  // Data "Target" row all move onto the newly-Tabbed target within one post-
+  // render tracker pass. Two real fighters, A (nearer, dead-ahead-ish) and B
+  // (farther, well off to the other side, with lateral velocity so its lead
+  // point separates visibly from its bracket) -- both placed on screen so the
+  // bracket/lead machinery actually renders.
+  const j1 = await jp.evaluate(() => {
+    const g = window.__game;
+    g.relaunch(); window.__h.godMode();
+    g.diff.set('MEDIUM');
+    g.spawner.pending = false; g.spawner.clear();
+    const V = g.player.position.constructor;
+    const playerPos = g.player.position.clone();
+    const fwd = g.player._fwd.clone().normalize();
+    const right = new V(1, 0, 0).applyQuaternion(g.player.object.quaternion);
+
+    const mk = (df, dr, vel) => {
+      const e = g.spawner.pool.get();
+      e.position.copy(playerPos).addScaledVector(fwd, df).addScaledVector(right, dr);
+      e.reset(g.ctx, 3, 1, null, 0);
+      e.vel.copy(vel);
+      g.world.add(e);
+      return e;
+    };
+    const A = mk(260, 30, new V(0, 0, 0));                          // nearer
+    const B = mk(420, -80, right.clone().multiplyScalar(60));       // farther, moving laterally
+    g.world.rebuildHash();
+    g.player.object.updateMatrixWorld(true);
+
+    const proj = pos => {
+      const v = pos.clone().project(g.camera);
+      return { x: (v.x * 0.5 + 0.5) * innerWidth, y: (-v.y * 0.5 + 0.5) * innerHeight };
+    };
+    const parseXY = tf => {
+      const m = /translate\(([-\d.]+)px,\s*([-\d.]+)px\)/.exec(tf || '');
+      return m ? { x: +m[1], y: +m[2] } : null;
+    };
+
+    g.tracker.target = null;
+    dispatchEvent(new KeyboardEvent('keydown', { code: 'Tab', bubbles: true }));   // -> A (nearest)
+    const gotA = g.tracker.target === A;
+    g.player.object.updateMatrixWorld(true);
+    g.tracker.update(g.world, g.camera);
+    g.hud.update(g.player, g.env, g.spawner, 1 / 60);
+    const bracketAxy = parseXY(g.tracker.bracket.style.transform);
+
+    // Deterministic baseline for the radar-latency check below: pretend a
+    // draw JUST happened (acc=0) and poison lastMs, so any change to lastMs
+    // on the very next tick can only come from the selection-change path,
+    // not from dt alone.
+    g.radar.acc = 0; g.radar.lastMs = -999;
+
+    dispatchEvent(new KeyboardEvent('keydown', { code: 'Tab', bubbles: true }));   // -> B
+    const gotB = g.tracker.target === B;
+    g.player.object.updateMatrixWorld(true);
+    g.tracker.update(g.world, g.camera);
+    g.radar.tick(0.001);            // far below the 20Hz step -- would NOT draw on dt alone
+    g.hud.update(g.player, g.env, g.spawner, 1 / 60);
+
+    const bracketTf = g.tracker.bracket.style.transform;
+    const bracketBxy = parseXY(bracketTf);
+    const leadTf = g.tracker.lead.style.transform;
+    const leadBxy = parseXY(leadTf);
+    const lineTf = g.tracker.leadLine.style.transform;
+    const lineStart = parseXY(lineTf);
+    const projB = proj(B.position);
+    const projA = proj(A.position);
+
+    return {
+      gotA, gotB,
+      bracketAxy, bracketDisp: g.tracker.bracket.style.display, bracketBxy, projB, projA,
+      leadDisp: g.tracker.lead.style.display, leadBxy,
+      lineDisp: g.tracker.leadLine.style.display, lineStart,
+      radarDrewImmediately: g.radar.lastMs !== -999,
+      radarLastSelIsB: g.radar._lastSel === B,
+      dNearest: document.getElementById('d-nearest').textContent,
+      dRowLabel: document.querySelector('[data-row="nearest"] span').textContent,
+      distB: B.position.distanceTo(g.player.position),
+      distA: A.position.distanceTo(g.player.position),
+    };
+  });
+  check(j1.gotA && j1.gotB, 'J1 setup: two successive Tabs select A then B (precondition)',
+        `gotA=${j1.gotA}, gotB=${j1.gotB}`);
+  const bracketMoved = j1.bracketAxy && j1.bracketBxy &&
+        Math.hypot(j1.bracketBxy.x - j1.bracketAxy.x, j1.bracketBxy.y - j1.bracketAxy.y) > 5;
+  const bracketOnB = j1.bracketDisp === 'block' && j1.bracketBxy &&
+        Math.hypot(j1.bracketBxy.x - j1.projB.x, j1.bracketBxy.y - j1.projB.y) < 1 &&
+        Math.hypot(j1.bracketBxy.x - j1.projA.x, j1.bracketBxy.y - j1.projA.y) > 20;
+  check(bracketMoved && bracketOnB,
+        'J1a bracket moves onto the newly-Tabbed target B (matches THREE Vector3#project(B), not A) within one tick',
+        JSON.stringify({ bracketAxy: j1.bracketAxy, bracketBxy: j1.bracketBxy, projB: j1.projB, projA: j1.projA }));
+  const leadSeparatesFromBracket = j1.leadBxy && j1.bracketBxy &&
+        Math.hypot(j1.leadBxy.x - j1.bracketBxy.x, j1.leadBxy.y - j1.bracketBxy.y) > 8;
+  check(j1.leadDisp === 'block' && leadSeparatesFromBracket,
+        'J1b lead ring is shown for the new target B and leads its (laterally-moving) bracket position',
+        JSON.stringify({ leadDisp: j1.leadDisp, leadBxy: j1.leadBxy, bracketBxy: j1.bracketBxy }));
+  const lineOriginMatchesBracket = j1.lineStart && j1.bracketBxy &&
+        Math.hypot(j1.lineStart.x - j1.bracketBxy.x, j1.lineStart.y - j1.bracketBxy.y) < 0.15;
+  check(j1.lineDisp === 'block' && lineOriginMatchesBracket,
+        'J1c bracket->lead line originates at B\'s (updated) bracket position', JSON.stringify(j1));
+  check(j1.radarDrewImmediately,
+        'J1d radar forces an immediate redraw the tick the selection changes (dt=0.001, far below the 20Hz step)',
+        `lastMs after tiny-dt tick following Tab: ${j1.radarDrewImmediately} (poisoned at -999 beforehand)`);
+  check(j1.radarLastSelIsB, 'J1e radar._lastSel tracks the newly-Tabbed target B', `radarLastSelIsB=${j1.radarLastSelIsB}`);
+  check(j1.dNearest === Math.round(j1.distB) + ' m' && j1.dNearest !== Math.round(j1.distA) + ' m',
+        'J1f HUD Data "Target" row (#d-nearest) follows the SELECTED target B, not nearest-overall A',
+        `#d-nearest="${j1.dNearest}", distB=${j1.distB.toFixed(1)}, distA=${j1.distA.toFixed(1)}`);
+  check(j1.dRowLabel === 'Target', 'J1g Data widget row label reads "Target" (SPEC 18: renamed from "Nearest")',
+        `label="${j1.dRowLabel}"`);
+
+  // --- J2: off-screen arrow priority. Oversubscribe the 6 arrow slots (read
+  // live off tracker.arrows.length, never hardcoded) and Tab onto the LAST
+  // fighter added to the world -- the exact ordering the old bug lost, since
+  // slots used to fill in world-iteration order.
+  const j2 = await jp.evaluate(() => {
+    const g = window.__game;
+    g.relaunch(); window.__h.godMode();
+    g.diff.set('MEDIUM');
+    g.spawner.pending = false; g.spawner.clear();
+    const nSlots = g.tracker.arrows.length;
+    const V = g.player.position.constructor;
+    const pos = g.player.position.clone();
+    const back = g.player._fwd.clone().normalize().multiplyScalar(-1);   // behind: guaranteed off-screen
+    const up = new V(0, 1, 0);
+    let last = null;
+    const N = nSlots + 3;
+    for (let i = 0; i < N; i++) {
+      const e = g.spawner.pool.get();
+      e.position.copy(pos).addScaledVector(back, 200 + i * 5).addScaledVector(up, (i % 5) * 10);
+      e.reset(g.ctx, 3, 1, null, 0);
+      e.vel.set(0, 0, 0);
+      g.world.add(e);
+      last = e;
+    }
+    g.world.rebuildHash();
+    g.player.object.updateMatrixWorld(true);
+
+    g.tracker.target = last;               // simulate Tab landing on the last-iterated fighter
+    g.tracker.update(g.world, g.camera);
+
+    const visibleArrows = g.tracker.arrows.filter(a => a.style.display === 'block').length;
+    const tgtArrow = g.tracker.arrows.some(a => a.classList.contains('tgt') && a.style.display === 'block');
+    return { nSlots, aliveCount: window.__h.enemies().length, visibleArrows, tgtArrow };
+  });
+  check(j2.aliveCount > j2.nSlots,
+        'J2 setup: genuinely oversubscribed (alive fighters > off-screen arrow slots)',
+        `alive=${j2.aliveCount}, slots=${j2.nSlots}`);
+  check(j2.visibleArrows <= j2.nSlots, 'J2a visible arrows never exceed the slot count',
+        `visibleArrows=${j2.visibleArrows}, slots=${j2.nSlots}`);
+  check(j2.tgtArrow === true,
+        'J2b the selected target still claims an off-screen arrow slot when slots are oversubscribed (Tracker#arrow priority fix)',
+        JSON.stringify(j2));
+
+  // --- J3: aim assist follows the CURRENT (post-Tab) target, not whichever
+  // was selected before. A and B on opposite sides, both beyond the assist
+  // cone's reach (so the bolt cannot actually collide with either -- purely a
+  // directional measurement, same technique as M3-2 above), Tab past A onto
+  // B, then fire and confirm the bolt bends toward B's side.
+  const j3 = await jp.evaluate(() => {
+    const g = window.__game;
+    g.relaunch(); window.__h.godMode();
+    g.diff.set('MEDIUM');
+    g.spawner.pending = false; g.spawner.clear();
+    const V = g.player.position.constructor;
+    const fwd = g.player._fwd.clone().normalize();
+    const right = new V(1, 0, 0).applyQuaternion(g.player.object.quaternion);
+    const pos = g.player.position.clone();
+
+    const mk = (df, dr) => {
+      const e = g.spawner.pool.get();
+      e.position.copy(pos).addScaledVector(fwd, df).addScaledVector(right, dr);
+      e.reset(g.ctx, 3, 1, null, 0);
+      e.vel.set(0, 0, 0);
+      g.world.add(e);
+      return e;
+    };
+    const A = mk(300, 60);     // nearer, right
+    const B = mk(400, -140);   // farther, left
+    g.world.rebuildHash();
+    g.player.object.updateMatrixWorld(true);
+
+    g.tracker.target = null;
+    dispatchEvent(new KeyboardEvent('keydown', { code: 'Tab', bubbles: true }));   // -> A (nearest)
+    const gotA = g.tracker.target === A;
+    dispatchEvent(new KeyboardEvent('keydown', { code: 'Tab', bubbles: true }));   // -> B
+    const gotB = g.tracker.target === B;
+
+    const assistDeg = g.diff.p.assistDeg;
+    g.bus.emit('player:fire', { muzzles: [pos.clone()], dir: fwd.clone(), vel: 0 });
+    const l = [...g.world.tagged('projectile')].at(-1);
+    for (let i = 0; i < 30; i++) g.tick(1 / 60);
+    const finalDir = l.vel.clone().normalize();
+    // Bearings measured LIVE, post-flight: both A/B (real, autonomously-flying
+    // fighters) and the player itself move during the 30 ticks (SPEC 3: the
+    // ship always cruises), so re-reading g.player.position here -- rather
+    // than the stale pre-tick `pos` -- keeps this an honest "which side is
+    // the bolt actually pointed toward, right now" comparison.
+    const toA = A.position.clone().sub(g.player.position).normalize();
+    const toB = B.position.clone().sub(g.player.position).normalize();
+    const angTo = v => Math.acos(Math.max(-1, Math.min(1, finalDir.dot(v)))) * 180 / Math.PI;
+    return { gotA, gotB, assistDeg, angToA: angTo(toA), angToB: angTo(toB), lateral: finalDir.dot(right) };
+  });
+  check(j3.gotA && j3.gotB, 'J3 setup: Tab selects A then B (precondition)', `gotA=${j3.gotA}, gotB=${j3.gotB}`);
+  check(j3.assistDeg > 0, 'J3 precondition: MEDIUM has a nonzero assist cone (assistDeg read live from g.diff.p)',
+        `assistDeg=${j3.assistDeg}`);
+  check(j3.angToB < j3.angToA && j3.lateral < 0,
+        'J3a aim assist bends the bolt toward the CURRENTLY selected target B, not the previously-selected A',
+        `angToA=${j3.angToA.toFixed(2)}deg, angToB=${j3.angToB.toFixed(2)}deg, lateral(toward A side)=${j3.lateral.toFixed(3)}`);
+
+  // --- J4 (Task C): when the tracked target dies, the tracker drops the
+  // reference immediately (synchronously, inside the enemy:died handler) and
+  // the next post-render tracker pass re-acquires the nearest surviving
+  // fighter -- never left null while any enemy is alive. Kills the CURRENT
+  // selection each round (not always the same fighter A/B/C), so this holds
+  // regardless of which one #acquire happened to pick last round.
+  const j4 = await jp.evaluate(() => {
+    const g = window.__game;
+    g.relaunch(); window.__h.godMode();
+    g.diff.set('MEDIUM');
+    g.spawner.pending = false; g.spawner.clear();
+    const V = g.player.position.constructor;
+    const pos = g.player.position.clone();
+    const fwd = g.player._fwd.clone().normalize();
+    const right = new V(1, 0, 0).applyQuaternion(g.player.object.quaternion);
+
+    const mk = (df, dr) => {
+      const e = g.spawner.pool.get();
+      e.position.copy(pos).addScaledVector(fwd, df).addScaledVector(right, dr);
+      e.reset(g.ctx, 3, 1, null, 0);
+      e.vel.set(0, 0, 0);
+      g.world.add(e);
+      return e;
+    };
+    const A = mk(200, -50), B = mk(350, 0), C = mk(500, 60);
+    g.world.rebuildHash();
+    g.player.object.updateMatrixWorld(true);
+    // These three fighters are spawned directly, outside Spawner's own wave
+    // bookkeeping (spawner.alive/waveIndex), so Spawner's global 'enemy:died'
+    // listener must not see alive hit 0 and treat it as a real wave clear
+    // (CFG.waves[-1] after relaunch's spawner.reset() -> waveIndex=-1, which
+    // would throw). pending=true short-circuits that path without triggering
+    // an actual auto-spawn, since this test never calls g.tick().
+    g.spawner.pending = true;
+
+    // Deliberately select the MIDDLE one first, not the nearest, so a naive
+    // "just re-pick nearest" that ignores the drop-on-death event can't
+    // accidentally look right by coincidence.
+    g.tracker.target = B;
+
+    const nearestAliveOf = list => {
+      let best = null, bd = Infinity;
+      for (const e of list) if (e.alive) {
+        const d = e.position.distanceToSquared(g.player.position);
+        if (d < bd) { bd = d; best = e; }
+      }
+      return best;
+    };
+
+    const order = [B, A, C];   // kill the current selection first, then the rest
+    const steps = [];
+    for (const victim of order) {
+      const wasTarget = g.tracker.target === victim;
+      victim.health.cur = 1; victim.hit(1);                 // -> #onDeath -> enemy:died (synchronous)
+      const droppedImmediately = wasTarget ? g.tracker.target === null : null;
+      const aliveBefore = [A, B, C].filter(e => e.alive);
+      const expectedNearest = nearestAliveOf(aliveBefore);
+      g.player.object.updateMatrixWorld(true);
+      g.tracker.update(g.world, g.camera);                  // one post-render tracker pass
+      steps.push({
+        wasTarget, droppedImmediately,
+        aliveCount: aliveBefore.length,
+        targetIsAlive: !!g.tracker.target && g.tracker.target.alive,
+        targetMatchesExpected: g.tracker.target === expectedNearest,
+        nullWhileAliveExist: aliveBefore.length > 0 && g.tracker.target === null,
+      });
+    }
+
+    // Pool-recycle hole: relaunch a new fighter (the pool very likely hands
+    // back the just-freed C instance) and confirm the tracker does NOT
+    // silently point at it -- selection is only ever set by cycle()/#acquire.
+    const D = mk(300, 0);
+    g.world.rebuildHash();
+    const targetStillNullAfterRespawn = g.tracker.target === null;
+    const recycledSameObject = D === C;
+
+    return { steps, targetStillNullAfterRespawn, recycledSameObject };
+  });
+  j4.steps.forEach((s, i) => {
+    check(!s.wasTarget || s.droppedImmediately === true,
+          `J4a-${i} tracker.target is dropped to null synchronously the instant its current selection dies`,
+          JSON.stringify(s));
+    check(!s.nullWhileAliveExist,
+          `J4b-${i} tracker never sits null while an enemy is alive (after one post-render pass)`, JSON.stringify(s));
+    if (s.aliveCount > 0) {
+      check(s.targetIsAlive, `J4c-${i} re-acquired target is alive`, JSON.stringify(s));
+      check(s.targetMatchesExpected, `J4d-${i} re-acquired target is the nearest surviving fighter`, JSON.stringify(s));
+    }
+  });
+  check(j4.targetStillNullAfterRespawn,
+        'J4e pool-recycle hole: a fighter relaunched into a freed (possibly reused) object does not silently ' +
+        'inherit the dropped selection', JSON.stringify(j4));
+
+  // --- J5 (Task D): the approach speed floor is continuous across the blend
+  // band -- no single-tick/step jump anywhere in the rising portion -- and
+  // still reaches (and holds at) the floor well beyond it. Measured by
+  // Aitken's delta-squared extrapolation of 3 consecutive ticks of the
+  // exponential damp toward a target held fixed by pinning distance/state
+  // each tick, which recovers Enemy#update's implied target speed exactly
+  // without needing CFG.enemies.accel (module-scoped, unreachable here).
+  const j5 = await jp.evaluate(() => {
+    const g = window.__game;
+    g.relaunch(); window.__h.godMode();
+    g.diff.set('MEDIUM');
+    g.spawner.pending = false; g.spawner.clear();
+    const fwd = g.player._fwd.clone().normalize();
+
+    const e = g.spawner.pool.get();
+    e.position.copy(g.player.position).addScaledVector(fwd, 1000);
+    e.reset(g.ctx, 1e9, 1, null, 0);
+    e.health.max = 1e9; e.health.cur = 1e9;
+    g.world.add(e);
+    g.world.rebuildHash();
+
+    // Re-read g.player.position LIVE every tick (never a stale snapshot): the
+    // player cruises forward every tick even at rest (SPEC 3), so a captured
+    // position drifts out from under a multi-tick loop like this one and
+    // silently corrupts "dist" for every sample after the first.
+    const targetAt = dist => {
+      const s = [];
+      for (let i = 0; i < 3; i++) {
+        e.setState('APPROACH');
+        e.position.copy(g.player.position).addScaledVector(fwd, dist);
+        g.tick(1 / 60);
+        s.push(e.speed);
+      }
+      const denom = s[0] - 2 * s[1] + s[2];
+      return Math.abs(denom) < 1e-9 ? s[2] : (s[0] * s[2] - s[1] * s[1]) / denom;
+    };
+
+    // Coarse geometric bracket for the rising band (avoids d<~10, which would
+    // put the fixed test position inside the player/enemy collision radius).
+    const coarseDists = [50, 100, 200, 400, 800, 1600, 3200, 6400, 12800];
+    const coarse = coarseDists.map(d => ({ d, t: targetAt(d) }));
+    const lo = Math.min(...coarse.map(c => c.t)), hi = Math.max(...coarse.map(c => c.t));
+    const tol = Math.max(0.05, (hi - lo) * 0.01);
+    let dLow = coarse[0].d, dHigh = coarse[coarse.length - 1].d;
+    for (const c of coarse) if (c.t <= lo + tol) dLow = c.d;
+    for (let i = coarse.length - 1; i >= 0; i--) if (coarse[i].t >= hi - tol) dHigh = coarse[i].d;
+
+    // Fine linear sweep across (and a little past) the discovered band.
+    const N = 40, span = dHigh - dLow, pad = Math.max(20, span * 0.1);
+    const fine = [];
+    for (let i = 0; i <= N; i++) {
+      const d = Math.max(1, dLow - pad + (span + 2 * pad) * (i / N));
+      fine.push({ d, t: targetAt(d) });
+    }
+    let maxStep = 0, monotoneViolation = 0;
+    for (let i = 1; i < fine.length; i++) {
+      const step = fine[i].t - fine[i - 1].t;
+      if (step > maxStep) maxStep = step;
+      if (step < -tol) monotoneViolation++;
+    }
+    const range = hi - lo;
+
+    // Well beyond the band: must sit at the floor and stay there.
+    const farD = dHigh + span + 2000;
+    const farTarget = targetAt(farD);
+
+    // Independent live measurement of the floor: reset() sets a FRESH
+    // enemy's speed directly to the floor ("spawn already closing"), so read
+    // it straight off reset() before any tick touches it.
+    const e2 = g.spawner.pool.get();
+    e2.reset(g.ctx, 1, 1, null, 0);
+    const freshFloor = e2.speed;
+    e2.dispose();
+    e.dispose();
+
+    return { coarse, lo, hi, range, dLow, dHigh, maxStep, monotoneViolation, farD, farTarget, freshFloor };
+  });
+  check(j5.range > 1,
+        'J5 setup: the coarse sweep found a real rising band between a low and a high plateau',
+        JSON.stringify({ lo: j5.lo, hi: j5.hi, dLow: j5.dLow, dHigh: j5.dHigh }));
+  check(j5.monotoneViolation === 0,
+        'J5a approach floor target speed is non-decreasing with distance across the fine sweep',
+        `monotoneViolation=${j5.monotoneViolation}`);
+  check(j5.maxStep <= j5.range * 0.25 + 0.1,
+        'J5b approach floor is continuous across the blend band -- no single-tick/step jump anywhere in the fine sweep',
+        `maxStep=${j5.maxStep.toFixed(3)}, range=${j5.range.toFixed(3)} (cap = 25% of range = ${(j5.range * 0.25).toFixed(3)})`);
+  const farTol = Math.max(0.5, j5.range * 0.02);
+  check(Math.abs(j5.farTarget - j5.hi) < farTol,
+        'J5c approach floor target speed reaches (and holds at) the floor well beyond fireRange+approachBlend',
+        `farTarget=${j5.farTarget.toFixed(3)} at d=${j5.farD.toFixed(0)}, plateau hi=${j5.hi.toFixed(3)} (tol ${farTol.toFixed(3)})`);
+  check(Math.abs(j5.freshFloor - j5.hi) < farTol,
+        'J5d sweep-measured floor matches a freshly-reset enemy\'s own spawn-time floor speed (cross-check, no hardcoded CFG literal)',
+        `freshFloor=${j5.freshFloor.toFixed(3)}, sweep hi=${j5.hi.toFixed(3)} (tol ${farTol.toFixed(3)})`);
+
+  check(jErrs.length === 0, 'J6 no console errors during the M3.5 targeting-fix checks',
+        jErrs.slice(0, 3).join(' | ') || 'clean');
+
+  await ctxJ.close();
 
   console.log('\n================ SOLAR SAVERS ================');
   pass.forEach(p => console.log('  PASS  ' + p));
