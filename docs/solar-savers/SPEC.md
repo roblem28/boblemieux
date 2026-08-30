@@ -1,4 +1,4 @@
-# SOLAR SAVERS — SPEC v1.16 (2026-08-30)
+# SOLAR SAVERS — SPEC v1.17 (2026-08-30)
 
 Authoritative. Where a prompt or agent disagrees with this file, this file wins; flag the conflict.
 File under review: `public/games/solar-savers/index.html` (single file, Three.js r160 via cdnjs importmap, no build).
@@ -203,6 +203,50 @@ where a number here disagrees with §3 or §5, the section has been amended to m
   Default on: enemies remaining, nearest distance, hit %.
 
 ## 17. Amendments
+- **v1.17 — M3.5's §11 gate was accepted from DIRECT measurement, not a perf-gatekeeper run.
+  This is a recorded exception, not a new default.** perf-gatekeeper remains the §11 gate for
+  every future milestone. It was waived here only because its own instrument was the thing
+  under investigation (v1.16) and because re-running it required the user to leave the machine
+  untouched for a fourth timed window. Draw calls, sim, total and the pool counters below come
+  from its final run; the radar row is a direct main-session measurement on the same machine
+  and the same build.
+
+  Real Chrome, measured refresh ~115 fps (mean frame interval 8.65 ms, so the 16.67 ms budget
+  is not the binding constraint), stress scene 8 fighters + 128 lasers + 3 explosions pinned in
+  frustum, n = 463 frames.
+
+  | Metric | §11 budget | Mean | Median | p95 | Max |
+  |---|---|---|---|---|---|
+  | sim ms | < 2 | 0.897 | 0.6 | 2.9 | 9.6 |
+  | render ms | — | 2.309 | 2.3 | 4.0 | 8.9 |
+  | total ms | < 6 | 3.206 | 3.2 | 5.3 | 18.5 |
+  | draw calls | < 120 | **40.8** | 40 | 51 | 52 |
+  | triangles | — | 9971 | 9996 | 10456 | 10572 |
+  | radar ms @20 Hz | ≤ 0.4 | **0.020** | 0.020 | 0.028 | 0.036 |
+
+  Draw calls were **mean 121.5 / p95 155 / max 165** before the FX and core batching, i.e. over
+  the cap in ordinary combat. They are now roughly a third of it. The radar row is batch-timed
+  over 25 redraws with 167 contacts on the dish (64 bolts, 40 cores, 60 asteroids, 3 fighters);
+  per v1.16, single `lastMs` reads cannot resolve this draw and must not be aggregated.
+
+  Pools: `cores` high-water 40/64 overflow 0 (the failure that prompted the resize is gone),
+  `spawner` 8/16, `playerLasers` 64/64 by construction, `sparks` 1/32, `booms` 6/8, `debris`
+  26/40, all overflow 0. `enemyLasers` reported overflow 3 in that run; perf-gatekeeper
+  attributed it to its own top-up harness over-requesting one pool, not to the game. An
+  independent headless full-campaign run showed **all seven counters at 0**, so the game is
+  believed clean, but the point is recorded rather than asserted.
+
+  **Open, and deliberately not resolved here: §11 does not name a statistic.** The same reviewer
+  passed sim and total on mean/median in one run with a 39.2 ms total max, then failed them in a
+  later run with an 18.5 ms max — after every figure had improved (sim mean 1.09 → 0.897, total
+  mean 4.79 → 3.206). Both tails come from the fixed-step catch-up loop running several `tick()`
+  calls in one late `frame()`, not from a per-tick regression. Until §11 names a statistic this
+  will keep flip-flopping; p95 is the natural candidate. **Deciding that is a spec change and
+  belongs to Bob.**
+
+  Not exercised: the §11 boss-scene row (turrets + 6 weak points + 8 fighters, total < 8 ms).
+  M4 has not shipped — no `SS-M4` marker and no boss entities exist — so it is untested rather
+  than passing.
 - **v1.16** — §11's radar budget is measurable again, and the instrument that made it look
   unmeetable is fixed. `Radar.lastMs` is a single `performance.now()` delta, and Chrome
   coarsens that clock to **0.1 ms** — so it cannot resolve this draw at all. Measured
