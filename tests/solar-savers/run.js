@@ -68,7 +68,7 @@ const HARNESS = () => {
     overflow() {
       return g.spawner.pool.overflow + g.lasers.pool.overflow + g.lasers.enemyPool.overflow
            + g.fx.sparkPool.overflow + g.fx.boomPool.overflow + g.fx.debrisPool.overflow
-           + g.cores.pool.overflow;    // SPEC 18.2: cores pool, capacity 32
+           + g.cores.pool.overflow;    // SPEC 18.2: cores pool (capacity read live where it matters, see I9a/K)
     },
   };
 };
@@ -397,7 +397,7 @@ const HARNESS = () => {
     return { kills, wave: g.spawner.waveIndex + 1, overflow: window.__h.overflow(),
              entities: g.world.entities.length,
              enemyLasers: g.world.tagged('enemyProjectile').size,
-             bursts: g.fx.bursts.length, debris: g.fx.debris.length };
+             bursts: g.fx.sparkBursts.length + g.fx.boomBursts.length, debris: g.fx.debris.length };
   });
   check(bErrs.length === 0, 'B9 no console errors after 120s of simulated play',
         bErrs.slice(0, 3).join(' | ') || `clean (${soak.kills} kills, reached wave ${soak.wave})`);
@@ -421,7 +421,7 @@ const HARNESS = () => {
       enemies: g.world.tagged('enemy').size,
       asteroids: g.world.tagged('asteroid').size,
       lasers: g.world.tagged('projectile').size + g.world.tagged('enemyProjectile').size,
-      bursts: g.fx.bursts.length,
+      bursts: g.fx.sparkBursts.length + g.fx.boomBursts.length,
       wave: g.spawner.waveIndex,
     };
     return { dead, after };
@@ -1406,13 +1406,16 @@ const HARNESS = () => {
   check(weaponResetOnRelaunch.level === 1 && weaponResetOnRelaunch.xp === 0,
         'I8 weapon level and XP reset on relaunch (SPEC 18.3)', JSON.stringify(weaponResetOnRelaunch));
 
-  // --- I9 cores pool: measured capacity is 32, and it is never exceeded across a full
-  // 5-wave campaign clear (many core drops at realistic kill pacing, SPEC 18.2) ---
+  // --- I9 cores pool: measured capacity matches window.__CFG.cores.pool (read live, not
+  // hardcoded -- it moved 32 -> 64 with the FX/core batching pass), and it is never
+  // exceeded across a full 5-wave campaign clear (many core drops at realistic kill
+  // pacing, SPEC 18.2) ---
   const poolCap = await ip.evaluate(() => {
     const g = window.__game;
     g.relaunch(); window.__h.godMode();
     g.diff.set('MEDIUM');
     const capacity = g.cores.pool.capacity;
+    const cfgCapacity = window.__CFG.cores.pool;
     let cleared = false, drops = 0, maxAlive = 0;
     const offDied = g.bus.on('enemy:died', () => drops++);
     const offClear = g.bus.on('campaign:clear', () => { cleared = true; });
@@ -1423,13 +1426,78 @@ const HARNESS = () => {
       maxAlive = Math.max(maxAlive, g.world.tagged('pickup').size);
     }
     offDied(); offClear();
-    return { capacity, drops, maxAlive, overflow: g.cores.pool.overflow, seconds, cleared };
+    return { capacity, cfgCapacity, drops, maxAlive, overflow: g.cores.pool.overflow, seconds, cleared };
   });
-  check(poolCap.capacity === 32, 'I9a measured cores pool capacity matches SPEC 18.2 (32)', `capacity=${poolCap.capacity}`);
+  check(poolCap.capacity === poolCap.cfgCapacity,
+        'I9a measured cores pool capacity matches window.__CFG.cores.pool (SPEC 18.2, read live)',
+        `capacity=${poolCap.capacity}, window.__CFG.cores.pool=${poolCap.cfgCapacity}`);
   check(poolCap.overflow === 0 && poolCap.maxAlive <= poolCap.capacity,
         'I9b cores pool never overflows its capacity across a full 5-wave campaign clear',
         `overflow=${poolCap.overflow}, max concurrently-alive cores ${poolCap.maxAlive}/${poolCap.capacity}, ` +
         `${poolCap.drops} total drops over ${poolCap.seconds}s (campaign cleared=${poolCap.cleared})`);
+
+  // --- I9c cores pool SIZING: an ACE campaign that kills every fighter on sight, with
+  // every dropped core immediately pushed out of magnet/collision range so nothing is
+  // ever collected, is the load that broke the OLD 32 cap (measured peak 33 concurrent).
+  // Cap is read live from window.__CFG.cores.pool, per instruction not to hardcode 64
+  // (or assume any other round number) here.
+  const sizing = await ip.evaluate(() => {
+    const g = window.__game;
+    g.relaunch(); window.__h.godMode();
+    g.diff.set('ACE');
+    let cleared = false, drops = 0, maxAlive = 0;
+    const offDied = g.bus.on('enemy:died', () => drops++);
+    const offClear = g.bus.on('campaign:clear', () => { cleared = true; });
+    let seconds = 0; const CAP = 90;
+    while (!cleared && seconds < CAP) {
+      window.__h.sim(1); seconds++;
+      for (const e of window.__h.enemies()) { e.health.cur = 1; e.hit(1); }
+      // Kill on sight, collect nothing: every live pickup is pushed far out of magnet/
+      // collision range the instant it exists, so the count reflects concurrent load,
+      // not collection behaviour -- matching what was actually measured.
+      for (const c of g.world.tagged('pickup')) if (c.alive) c.position.y += 1e6;
+      maxAlive = Math.max(maxAlive, g.world.tagged('pickup').size);
+    }
+    offDied(); offClear();
+    return { cap: window.__CFG.cores.pool, drops, maxAlive, overflow: g.cores.pool.overflow, seconds, cleared };
+  });
+  check(sizing.cleared, 'I9c setup: the ACE kill-on-sight campaign actually clears (precondition)',
+        JSON.stringify(sizing));
+  check(sizing.overflow === 0,
+        'I9c cores pool overflow stays 0 under peak concurrent load (ACE, kill-on-sight, nothing ' +
+        'collected -- the SIZING load that broke the old 32 cap at a measured peak of 33)',
+        `overflow=${sizing.overflow}, cap=${sizing.cap} (window.__CFG.cores.pool), ` +
+        `peak concurrent ${sizing.maxAlive}, ${sizing.drops} total drops over ${sizing.seconds}s`);
+
+  // --- I9d cores pool RETURN PATH: N dropped cores, once destroyed, return exactly N
+  // entries to the free list after one world sweep -- so a future leak shows up as a
+  // short free list (a leak), not only as an eventual overflow under sustained load.
+  const returnPath = await ip.evaluate(() => {
+    const g = window.__game;
+    g.relaunch(); window.__h.godMode();
+    const V = g.player.position.constructor;
+    const N = 10;
+    const freeBefore = g.cores.pool.free.length;
+    const dropped = [];
+    for (let i = 0; i < N; i++) {
+      dropped.push(g.cores.drop(
+        g.player.position.clone().addScaledVector(g.player._fwd, 500 + i * 3), new V(0, 0, 0)));
+    }
+    const freeAfterDrop = g.cores.pool.free.length;
+    for (const c of dropped) c.destroy();          // marks dead; the world has not swept yet
+    const freeBeforeSweep = g.cores.pool.free.length;
+    g.tick(1 / 60);                                 // world.step() sweeps dead entities -> dispose() -> pool.put()
+    const freeAfterSweep = g.cores.pool.free.length;
+    return { N, freeBefore, freeAfterDrop, freeBeforeSweep, freeAfterSweep };
+  });
+  check(returnPath.freeBefore - returnPath.freeAfterDrop === returnPath.N,
+        'I9d setup: N drop() calls draw exactly N entries down from the free list', JSON.stringify(returnPath));
+  check(returnPath.freeBeforeSweep === returnPath.freeAfterDrop,
+        'I9d setup: destroy() alone, before the world sweep runs, does not yet return anything',
+        JSON.stringify(returnPath));
+  check(returnPath.freeAfterSweep === returnPath.freeBefore,
+        'I9d destroyed cores return exactly N to the free list after one world sweep (no leak)',
+        JSON.stringify(returnPath));
 
   check(iErrs.length === 0, 'I10 no console errors during pause/core/weapon checks',
         iErrs.slice(0, 3).join(' | ') || 'clean');
@@ -2091,6 +2159,134 @@ const HARNESS = () => {
         jErrs.slice(0, 3).join(' | ') || 'clean');
 
   await ctxJ.close();
+
+  /* ================= K. FX/core batching regression guard + radar counts (post-refactor) =====
+   * FX and core rendering are now batched (ParticleBatch for sparks/booms, one InstancedMesh
+   * per debris shard, one InstancedMesh per core type) specifically because the PREVIOUS
+   * per-effect Points/Mesh design pushed real combat past the SPEC 11 120 draw-call cap
+   * (measured mean 121.5, p95 155, max 165). Draw-call NUMBERS are perf-gatekeeper's job on
+   * real Chrome -- SwiftShader is not valid for that -- but the underlying scene-graph
+   * property IS checkable headlessly: only objects with actual renderable geometry
+   * (Mesh/Points/InstancedMesh/Sprite) cost a draw call, and that subset must stay CONSTANT
+   * as live bursts/debris/cores rise, however many are on screen.
+   *
+   * Note on scope, found while building this: raw scene.children.length is NOT that
+   * property, and DOES grow with core count -- every Core, alive or not, is still added to
+   * World.entities via World.add(), which unconditionally does scene.add(e.object); Core's
+   * object is an empty, non-rendering THREE.Object3D transform node (matrixAutoUpdate=false),
+   * so it costs zero draw calls but IS one more scene.children entry. Measured directly: 60
+   * core drops -> scene.children +60, but the Mesh/Points/InstancedMesh/Sprite subset +0.
+   * K1 below filters to that drawable subset rather than asserting on raw children, which
+   * would be a false requirement for cores (bursts and debris, having no Entity/scene
+   * presence at all, contribute 0 to either count).
+   */
+  const ctxK = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+  const kp = await ctxK.newPage();
+  const kErrs = [];
+  kp.on('console', m => { if (m.type() === 'error') kErrs.push(m.text()); });
+  kp.on('pageerror', e => kErrs.push('pageerror: ' + e.message.split('\n')[0]));
+  await kp.goto(URL, { waitUntil: 'load' });
+  await kp.waitForTimeout(1500);
+  await kp.evaluate(HARNESS);
+
+  // --- K1: drawable scene-graph size does not grow with live burst/debris/core count ---
+  const drawGraph = await kp.evaluate(() => {
+    const g = window.__game;
+    g.relaunch(); window.__h.godMode();
+    g.spawner.pending = false; g.spawner.clear();
+    const drawableCount = () =>
+      g.scene.children.filter(o => o.isMesh || o.isPoints || o.isInstancedMesh || o.isSprite).length;
+    const before = { children: g.scene.children.length, drawable: drawableCount() };
+
+    const pos = g.player.position.clone().addScaledVector(g.player._fwd, 200);
+    const V = g.player.position.constructor;
+    for (let i = 0; i < 60; i++) g.fx.spark(pos);             // beyond CFG.fx.spark.pool -- pools overflow-tolerate
+    for (let i = 0; i < 30; i++) g.fx.explode(pos);           // each also drops several debris chunks
+    for (let i = 0; i < 60; i++) g.cores.drop(pos, new V(0, 0, 0));
+    g.fx.sync(); g.cores.sync(g.camera);                       // the once-per-render-frame batch build
+
+    const after = { children: g.scene.children.length, drawable: drawableCount() };
+    return {
+      before, after,
+      liveBursts: g.fx.sparkBursts.length + g.fx.boomBursts.length,
+      liveDebris: g.fx.debris.length,
+      livePickups: g.world.tagged('pickup').size,
+    };
+  });
+  check(drawGraph.liveBursts >= 60 && drawGraph.liveDebris > 0 && drawGraph.livePickups >= 60,
+        'K1 setup: genuinely many live bursts/debris/cores exist at once (not a vacuous check)',
+        JSON.stringify(drawGraph));
+  check(drawGraph.after.drawable === drawGraph.before.drawable,
+        'K1 drawable scene children (Mesh/Points/InstancedMesh/Sprite -- the SPEC 11 draw-call ' +
+        'proxy) do not grow with live burst/debris/core count: batching cannot silently regress ' +
+        'to one object per effect',
+        JSON.stringify(drawGraph));
+  check(drawGraph.after.children - drawGraph.before.children === drawGraph.livePickups,
+        'K1 note: raw scene.children DOES grow, by exactly the live pickup count -- each Core ' +
+        'is still its own (non-rendering) transform node added via World.add(); expected, and ' +
+        'why K1 above filters to the drawable subset instead of raw children.length',
+        JSON.stringify(drawGraph));
+
+  // --- K2: radar reports the same in-range contact counts as before the FX/core batching
+  // pass (SPEC 8) -- drawing moved to baked/instanced canvases and batched fillRect calls,
+  // but the underlying counting logic (world.tagged(...) + the local-frame in-range test)
+  // is untouched. One of each contact type, all deliberately well within radar.range.
+  const radarPost = await kp.evaluate(() => {
+    const g = window.__game;
+    g.relaunch(); window.__h.godMode();
+    g.spawner.pending = false; g.spawner.clear();
+    const V = g.player.position.constructor;
+    const fwd = g.player._fwd.clone().normalize();
+    const right = new V(1, 0, 0).applyQuaternion(g.player.object.quaternion);
+    const inR = 300;   // comfortably inside the default radar.range
+
+    for (let i = 0; i < 3; i++) {
+      const e = g.spawner.pool.get();
+      e.position.copy(g.player.position).addScaledVector(fwd, inR).addScaledVector(right, i * 20);
+      e.reset(g.ctx, 3, 1, null, 0);
+      e.vel.set(0, 0, 0);
+      g.world.add(e);
+    }
+    window.__h.enemyShootPlayer();     // parks one enemy bolt right at the player -- well in range
+    for (let i = 0; i < 3; i++) {
+      g.cores.drop(g.player.position.clone().addScaledVector(fwd, inR + i * 5), new V(0, 0, 0));
+    }
+    g.world.rebuildHash();
+    g.radar.acc = 0; g.radar.tick(1);   // force an immediate draw
+
+    const q = g.player.object.quaternion;
+    const rfwd = new V(0, 0, -1).applyQuaternion(q), rright = new V(1, 0, 0).applyQuaternion(q);
+    const inRange = e => {
+      const rel = e.position.clone().sub(g.player.position);
+      return Math.hypot(rel.dot(rright), rel.dot(rfwd)) <= g.radar.range;
+    };
+    let expectEnemies = 0; for (const e of window.__h.enemies()) if (inRange(e)) expectEnemies++;
+    let expectAst = 0; for (const a of g.world.tagged('asteroid')) if (a.alive && inRange(a)) expectAst++;
+    let expectBolt = 0; for (const b of g.world.tagged('enemyProjectile')) if (b.alive && inRange(b)) expectBolt++;
+    let expectCore = 0; for (const c of g.world.tagged('pickup')) if (c.alive && inRange(c)) expectCore++;
+
+    return {
+      counts: { ...g.radar.counts },
+      expected: { enemies: expectEnemies, asteroids: expectAst, bolts: expectBolt, cores: expectCore },
+    };
+  });
+  check(radarPost.expected.enemies > 0 && radarPost.expected.asteroids > 0 &&
+        radarPost.expected.bolts > 0 && radarPost.expected.cores > 0,
+        'K2 setup: genuine in-range contacts of all four kinds exist (not a vacuous check)',
+        JSON.stringify(radarPost));
+  check(radarPost.counts.enemies === radarPost.expected.enemies &&
+        radarPost.counts.asteroids === radarPost.expected.asteroids &&
+        radarPost.counts.bolts === radarPost.expected.bolts &&
+        radarPost.counts.cores === radarPost.expected.cores,
+        'K2 radar.counts (enemies/asteroids/bolts/cores) still matches the same in-range ' +
+        'projection test post-batching (SPEC 8) -- drawing moved to baked/instanced canvases ' +
+        'but the contact-counting logic did not',
+        JSON.stringify(radarPost));
+
+  check(kErrs.length === 0, 'K3 no console errors during the FX/core batching + radar checks',
+        kErrs.slice(0, 3).join(' | ') || 'clean');
+
+  await ctxK.close();
 
   console.log('\n================ SOLAR SAVERS ================');
   pass.forEach(p => console.log('  PASS  ' + p));
