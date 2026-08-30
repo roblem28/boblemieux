@@ -440,7 +440,11 @@ const CFG = {
 
   // ---- Cores / pickups (SPEC 18.2) --------------------------------------
   cores: {
-    pool: 32, radius: 1.6, life: 20,
+    // 64, not 32. Measured: an ACE campaign killing every fighter on sight and
+    // collecting nothing peaks at 33 concurrent cores against a 20s life, which
+    // overflowed the old cap. The return path is NOT leaking -- 10 dropped cores
+    // destroyed returned 10 to the free list -- this was purely a sizing error.
+    pool: 64, radius: 1.6, life: 20,
     driftFactor: 0.2,            // inherits this much of the dead fighter's velocity
     magnetRange: 45, magnetAccel: 190, maxSpeed: 130,
     spin: 2.4, bob: 0.6,
@@ -1503,10 +1507,15 @@ function coreAssets() {
 }
 class Core extends Entity {
   constructor(pool) {
-    const A = coreAssets();
-    super(new THREE.Mesh(A.geo, A.mat.shield), { tags: ['pickup'], radius: CFG.cores.radius });
+    // Transform-only node, the same shape Laser already uses: the visible core is one
+    // instance of a shared InstancedMesh (one per type), so a core on the field is never
+    // a draw call of its own. Sixteen cores used to be sixteen calls.
+    const node = new THREE.Object3D();
+    node.matrixAutoUpdate = false;            // CoreSystem.sync composes the matrix
+    super(node, { tags: ['pickup'], radius: CFG.cores.radius });
     this.pool = pool; this.vel = new THREE.Vector3(); this.life = 0; this.type = 'shield';
-    this.age = 0;
+    this.age = 0; this.fade = 1; this.scale = 1;
+    this.rot = new THREE.Euler();
     this._toP = new THREE.Vector3();          // per-instance scratch: update allocates nothing
   }
   launch(pos, enemyVel, type) {
@@ -1514,8 +1523,7 @@ class Core extends Entity {
     this.alive = true; this.type = type; this.life = C.life; this.age = 0;
     this.position.copy(pos);
     this.vel.copy(enemyVel).multiplyScalar(C.driftFactor);
-    this.object.material = coreAssets().mat[type];
-    this.object.scale.setScalar(1);
+    this.rot.set(0, 0, 0); this.fade = 1; this.scale = 1;
     return this;
   }
   update(dt) {
@@ -1531,8 +1539,8 @@ class Core extends Entity {
       if (sp > C.maxSpeed) this.vel.multiplyScalar(C.maxSpeed / sp);
     }
     this.position.addScaledVector(this.vel, dt);
-    this.object.rotation.y += C.spin * dt;
-    this.object.rotation.x += C.spin * 0.6 * dt;
+    this.rot.y += C.spin * dt;
+    this.rot.x += C.spin * 0.6 * dt;
     // fade the last second so it does not simply vanish. Actual scale is applied by
     // CoreSystem.sync, which also holds a minimum on-screen size.
     const left = (this.life -= dt);
@@ -1546,6 +1554,21 @@ class CoreSystem {
     this.world = world; this.bus = bus; this.ctx = ctx;
     this.pool = new Pool(pool => new Core(pool), CFG.cores.pool);
     this._v = new THREE.Vector3(); this._camPos = new THREE.Vector3();
+    this._m4 = new THREE.Matrix4(); this._q = new THREE.Quaternion();
+    this._s = new THREE.Vector3(1, 1, 1);
+    // One InstancedMesh per core TYPE rather than one for all cores: the type materials
+    // differ in emissive, and InstancedMesh per-instance colour modulates diffuse only,
+    // so a single mesh would flatten the type colour coding that SPEC 18.2 depends on.
+    // Three draw calls, constant regardless of how many cores are on the field.
+    const A = coreAssets();
+    this.meshes = {};
+    for (const type of Object.keys(A.mat)) {
+      const m = new THREE.InstancedMesh(A.geo, A.mat[type], CFG.cores.pool);
+      m.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+      m.count = 0; m.frustumCulled = false;
+      world.scene.add(m);
+      this.meshes[type] = m;
+    }
     bus.on('enemy:died', e => this.drop(e.position, e.vel));
   }
   #roll() {
@@ -1565,12 +1588,24 @@ class CoreSystem {
     const C = CFG.cores;
     camera.getWorldPosition(this._camPos);
     const projK = 2 * Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2) / innerHeight;
+    for (const type in this.meshes) this.meshes[type].count = 0;
     for (const c of this.world.tagged('pickup')) {
       if (!c.alive) continue;
       const d = c.position.distanceTo(this._camPos);
       const needWorld = C.minScreenPx * d * projK;         // world size for minScreenPx on screen
       const k = Math.max(1, needWorld / (C.radius * 2));
-      c.object.scale.setScalar((c.fade === undefined ? 1 : c.fade) * k);
+      c.scale = (c.fade === undefined ? 1 : c.fade) * k;
+      c.object.scale.setScalar(c.scale);       // kept in step so anything reading the node agrees
+      const m = this.meshes[c.type];
+      if (!m || m.count >= m.instanceMatrix.count) continue;
+      this._q.setFromEuler(c.rot);
+      this._s.setScalar(c.scale);
+      this._m4.compose(c.position, this._q, this._s);
+      m.setMatrixAt(m.count++, this._m4);
+    }
+    for (const type in this.meshes) {
+      const m = this.meshes[type];
+      if (m.count > 0) m.instanceMatrix.needsUpdate = true;
     }
   }
   drop(pos, enemyVel) {
@@ -1683,21 +1718,58 @@ function particleTexture() {
   _ptex = new THREE.CanvasTexture(c);
   return _ptex;
 }
-class Burst {
-  constructor(pool, count, color, size, additive) {
-    this.pool = pool; this.count = count;
-    this.pos = new Float32Array(count * 3); this.vel = new Float32Array(count * 3);
-    this.attr = new THREE.BufferAttribute(this.pos, 3);
-    const g = new THREE.BufferGeometry(); g.setAttribute('position', this.attr);
-    this.mat = new THREE.PointsMaterial({ color, size, map: particleTexture(), transparent: true,
-      opacity: 1, depthWrite: false, sizeAttenuation: true,
-      blending: additive ? THREE.AdditiveBlending : THREE.NormalBlending });
+// One Points object per particle POOL rather than per burst. A Points per burst meant a
+// draw call per live effect, and real combat -- a spark on every hit, explosions with
+// debris -- pushed the frame past the SPEC 11 120-call cap: measured mean 121.5, p95 155,
+// max 165. Every live particle in a pool is written into one shared buffer each frame and
+// drawn in a single call. Per-vertex colour carries the fade: under additive blending,
+// scaling colour toward black IS opacity, the same trick EnemyGlow already uses.
+class ParticleBatch {
+  constructor(scene, capacity, color, size) {
+    this.capacity = capacity;
+    this.pos = new Float32Array(capacity * 3);
+    this.col = new Float32Array(capacity * 3);
+    this.base = new THREE.Color(color);
+    this.posAttr = new THREE.BufferAttribute(this.pos, 3);
+    this.colAttr = new THREE.BufferAttribute(this.col, 3);
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', this.posAttr);
+    g.setAttribute('color', this.colAttr);
+    g.setDrawRange(0, 0);
+    this.mat = new THREE.PointsMaterial({ size, map: particleTexture(), transparent: true,
+      vertexColors: true, depthWrite: false, sizeAttenuation: true,
+      blending: THREE.AdditiveBlending });
     this.points = new THREE.Points(g, this.mat);
     this.points.frustumCulled = false;          // bounds change every frame; culling would thrash
+    scene.add(this.points);
+  }
+  // Rewritten from scratch each frame. Bursts own no GPU resources now, so one returning
+  // to its pool needs no scene removal and nothing disposed.
+  write(bursts) {
+    const P = this.pos, C = this.col, cap = this.capacity;
+    const r = this.base.r, g = this.base.g, b = this.base.b;
+    let n = 0;
+    for (const bu of bursts) {
+      const k = Math.max(0, bu.life / bu.maxLife);
+      for (let i = 0; i < bu.count && n < cap; i++, n++) {
+        const si = i * 3, di = n * 3;
+        P[di] = bu.pos[si]; P[di + 1] = bu.pos[si + 1]; P[di + 2] = bu.pos[si + 2];
+        C[di] = r * k; C[di + 1] = g * k; C[di + 2] = b * k;
+      }
+    }
+    this.points.geometry.setDrawRange(0, n);
+    if (n > 0) { this.posAttr.needsUpdate = true; this.colAttr.needsUpdate = true; }
+    return n;
+  }
+}
+class Burst {
+  constructor(pool, count) {
+    this.pool = pool; this.count = count;
+    this.pos = new Float32Array(count * 3); this.vel = new Float32Array(count * 3);
     this.life = 0; this.maxLife = 1;
   }
   fire(origin, speed, life) {
-    this.life = this.maxLife = life; this.mat.opacity = 1;
+    this.life = this.maxLife = life;
     for (let i = 0; i < this.count; i++) {
       const i3 = i * 3;
       this.pos[i3] = origin.x; this.pos[i3 + 1] = origin.y; this.pos[i3 + 2] = origin.z;
@@ -1705,71 +1777,92 @@ class Burst {
       const l = Math.hypot(x, y, z) || 1, sp = speed * (0.35 + Math.random() * 0.65);
       this.vel[i3] = x / l * sp; this.vel[i3 + 1] = y / l * sp; this.vel[i3 + 2] = z / l * sp;
     }
-    this.attr.needsUpdate = true;
     return this;
   }
   update(dt) {
     this.life -= dt;
     const damp = Math.max(0, 1 - dt * 1.6), n = this.count * 3;
     for (let i = 0; i < n; i++) { this.pos[i] += this.vel[i] * dt; this.vel[i] *= damp; }
-    this.attr.needsUpdate = true;
-    this.mat.opacity = Math.max(0, this.life / this.maxLife);
     return this.life > 0;
   }
 }
+// Also data-only. Debris draws from one InstancedMesh PER SHARD GEOMETRY -- three of
+// them, since InstancedMesh takes a single geometry -- so three draw calls is the floor
+// here rather than one, and it stays constant however many chunks are live. InstancedMesh
+// has no per-instance opacity, so the fade rides per-instance colour scaled toward black,
+// exactly as EnemyGlow does; against the starfield that reads as fading.
 class Debris {
   constructor(pool) {
-    const A = enemyAssets();
     this.pool = pool;
-    this.mat = A.hullMat.clone(); this.mat.transparent = true;   // cloned once, at pool build
-    this.mesh = new THREE.Mesh(A.shards[0], this.mat);
+    this.pos = new THREE.Vector3(); this.rot = new THREE.Euler();
     this.vel = new THREE.Vector3(); this.spin = new THREE.Vector3();
+    this.shard = 0; this.scale = 1; this.fade = 1;
     this.life = 0; this.maxLife = 1;
   }
-  fire(origin, geo, speed, life, spin) {
-    this.mesh.geometry = geo; this.mesh.position.copy(origin);
-    this.mesh.rotation.set(Math.random() * 6.283, Math.random() * 6.283, Math.random() * 6.283);
+  fire(origin, shardIndex, speed, life, spin) {
+    this.shard = shardIndex; this.pos.copy(origin);
+    this.rot.set(Math.random() * 6.283, Math.random() * 6.283, Math.random() * 6.283);
     this.vel.randomDirection().multiplyScalar(speed * (0.4 + Math.random() * 0.6));
     this.spin.randomDirection().multiplyScalar(spin);
-    this.life = this.maxLife = life; this.mat.opacity = 1; this.mesh.scale.setScalar(1);
+    this.life = this.maxLife = life; this.fade = 1; this.scale = 1;
     return this;
   }
   update(dt) {
     this.life -= dt;
-    this.mesh.position.addScaledVector(this.vel, dt);
+    this.pos.addScaledVector(this.vel, dt);
     this.vel.multiplyScalar(Math.max(0, 1 - dt * 0.8));
-    this.mesh.rotation.x += this.spin.x * dt;
-    this.mesh.rotation.y += this.spin.y * dt;
-    this.mesh.rotation.z += this.spin.z * dt;
+    this.rot.x += this.spin.x * dt;
+    this.rot.y += this.spin.y * dt;
+    this.rot.z += this.spin.z * dt;
     const k = Math.max(0, this.life / this.maxLife);
-    this.mat.opacity = k; this.mesh.scale.setScalar(0.45 + k * 0.55);
+    this.fade = k; this.scale = 0.45 + k * 0.55;
     return this.life > 0;
   }
 }
 class FX {
   constructor(scene, bus, camera) {
     this.scene = scene; this.camera = camera; this.shake = 0;
-    const S = CFG.fx.spark, X = CFG.fx.explosion;
-    this.sparkPool = new Pool(p => new Burst(p, S.particles, 0xbfe3ff, S.size, true), S.pool);
-    this.boomPool = new Pool(p => new Burst(p, X.particles, 0xffc46b, X.size, true), X.pool);
+    const S = CFG.fx.spark, X = CFG.fx.explosion, A = enemyAssets();
+    this.sparkPool = new Pool(p => new Burst(p, S.particles), S.pool);
+    this.boomPool = new Pool(p => new Burst(p, X.particles), X.pool);
     this.debrisPool = new Pool(p => new Debris(p), X.pool * X.debris[1]);
-    this.bursts = []; this.debris = []; this._wp = new THREE.Vector3();
+    // Spark and boom bursts are kept in SEPARATE lists because each pool has its own
+    // Points object -- they differ in particle size and base colour, which PointsMaterial
+    // carries per material rather than per vertex.
+    this.sparkBursts = []; this.boomBursts = []; this.debris = [];
+    this.sparkBatch = new ParticleBatch(scene, S.pool * S.particles, 0xbfe3ff, S.size);
+    this.boomBatch = new ParticleBatch(scene, X.pool * X.particles, 0xffc46b, X.size);
+    // One InstancedMesh per shard geometry. hullMat is cloned ONCE here, not per chunk:
+    // it is shared with every live fighter, and attaching an instanceColor to the shared
+    // material is not something to do to the squadron's hull.
+    this.debrisMat = A.hullMat.clone();
+    const dcap = X.pool * X.debris[1];
+    this.debrisMeshes = A.shards.map(g => {
+      const m = new THREE.InstancedMesh(g, this.debrisMat, dcap);
+      m.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(dcap * 3), 3);
+      m.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+      m.count = 0; m.frustumCulled = false;
+      scene.add(m);
+      return m;
+    });
+    this._wp = new THREE.Vector3();
+    this._m4 = new THREE.Matrix4(); this._q = new THREE.Quaternion();
+    this._s = new THREE.Vector3(1, 1, 1); this._c = new THREE.Color();
     bus.on('enemy:hit', e => this.spark(e.position));
     bus.on('enemy:died', e => this.explode(e.position));
     bus.on('player:damaged', () => { this.shake = Math.max(this.shake, CFG.fx.playerKick); });
   }
   spark(pos) {
-    const S = CFG.fx.spark, b = this.sparkPool.get().fire(pos, S.speed, S.life);
-    this.scene.add(b.points); this.bursts.push(b);
+    const S = CFG.fx.spark;
+    this.sparkBursts.push(this.sparkPool.get().fire(pos, S.speed, S.life));
   }
   explode(pos) {
     const X = CFG.fx.explosion, A = enemyAssets();
-    const b = this.boomPool.get().fire(pos, X.speed, X.life);
-    this.scene.add(b.points); this.bursts.push(b);
+    this.boomBursts.push(this.boomPool.get().fire(pos, X.speed, X.life));
     const n = THREE.MathUtils.randInt(X.debris[0], X.debris[1]);
     for (let i = 0; i < n; i++) {
-      const d = this.debrisPool.get().fire(pos, A.shards[i % A.shards.length], X.debrisSpeed, X.debrisLife, X.debrisSpin);
-      this.scene.add(d.mesh); this.debris.push(d);
+      this.debris.push(this.debrisPool.get().fire(
+        pos, i % A.shards.length, X.debrisSpeed, X.debrisLife, X.debrisSpin));
     }
     // shake falls off as 1/distance, capped at fx.shake.max inside nearDist
     const s = CFG.fx.shake;
@@ -1777,16 +1870,41 @@ class FX {
     this.shake = Math.min(s.max, Math.max(this.shake, s.max * s.nearDist / Math.max(s.nearDist, dist)));
   }
   update(dt) {
-    for (let i = this.bursts.length - 1; i >= 0; i--) {
-      const b = this.bursts[i];
-      if (!b.update(dt)) { this.scene.remove(b.points); b.pool.put(b); this.bursts.splice(i, 1); }
+    for (const list of [this.sparkBursts, this.boomBursts]) {
+      for (let i = list.length - 1; i >= 0; i--) {
+        const b = list[i];
+        if (!b.update(dt)) { b.pool.put(b); list.splice(i, 1); }
+      }
     }
     for (let i = this.debris.length - 1; i >= 0; i--) {
       const d = this.debris[i];
-      if (!d.update(dt)) { this.scene.remove(d.mesh); d.pool.put(d); this.debris.splice(i, 1); }
+      if (!d.update(dt)) { d.pool.put(d); this.debris.splice(i, 1); }
     }
     this.shake *= Math.exp(-CFG.fx.shake.decay * dt);
     if (this.shake < 1e-4) this.shake = 0;
+  }
+  // Called once per RENDER frame, not per sim tick -- the buffers only need to be right
+  // at draw time, and the sim runs at a fixed step that can tick more than once a frame.
+  sync() {
+    this.sparkBatch.write(this.sparkBursts);
+    this.boomBatch.write(this.boomBursts);
+    for (const m of this.debrisMeshes) m.count = 0;
+    for (const d of this.debris) {
+      const m = this.debrisMeshes[d.shard];
+      if (!m || m.count >= m.instanceMatrix.count) continue;
+      this._q.setFromEuler(d.rot);
+      this._s.setScalar(d.scale);
+      this._m4.compose(d.pos, this._q, this._s);
+      m.setMatrixAt(m.count, this._m4);
+      this._c.setScalar(d.fade);           // toward black as it dies -- reads as a fade
+      m.setColorAt(m.count, this._c);
+      m.count++;
+    }
+    for (const m of this.debrisMeshes) {
+      if (m.count === 0) continue;
+      m.instanceMatrix.needsUpdate = true;
+      if (m.instanceColor) m.instanceColor.needsUpdate = true;
+    }
   }
   applyShake(camera) {
     if (this.shake === 0) { camera.position.set(0, 0, 0); return; }
@@ -1795,9 +1913,13 @@ class FX {
                         THREE.MathUtils.randFloatSpread(a));
   }
   clear() {
-    for (const b of this.bursts) { this.scene.remove(b.points); b.pool.put(b); }
-    for (const d of this.debris) { this.scene.remove(d.mesh); d.pool.put(d); }
-    this.bursts.length = 0; this.debris.length = 0; this.shake = 0;
+    for (const list of [this.sparkBursts, this.boomBursts]) {
+      for (const b of list) b.pool.put(b);
+      list.length = 0;
+    }
+    for (const d of this.debris) d.pool.put(d);
+    this.debris.length = 0; this.shake = 0;
+    this.sync();                            // drop every batch to a zero draw range
   }
 }
 
@@ -2117,10 +2239,54 @@ class Radar {
     this.c = this.cv.getContext('2d');
     this.rangeIdx = Math.max(0, CFG.radar.ranges.indexOf(CFG.radar.defaultRange));
     this.acc = 0; this.sweep = 0; this.t = 0; this.lastMs = 0; this._lastSel = null;
+    this._bg = null; this._fg = null; this._sweepGrad = null; this._layerRange = -1;
     this.counts = { enemies: 0, bolts: 0, asteroids: 0, planatron: 0, cores: 0 };
     this._rel = new THREE.Vector3(); this._fwd = new THREE.Vector3();
     this._right = new THREE.Vector3(); this._up = new THREE.Vector3();
     this._p = { x: 0, y: 0, z: 0 };
+  }
+  // The dish chrome -- backdrop, range rings, crosshairs, scanlines, rim and the range
+  // label -- is identical every redraw and only changes when the range does. Redrawing it
+  // from scratch at 20Hz cost more than every moving contact put together: ~53 scanline
+  // segments, four arcs and a text fill per tick. It is baked into two offscreen canvases
+  // instead and blitted, one under the contacts and one over them. Measured before:
+  // 0.96ms mean / 2.0ms p95 against the SPEC 11 0.4ms budget.
+  #buildLayers() {
+    const S = CFG.radar.size, R = S / 2 - 6, cx = S / 2, cy = S / 2;
+    const mk = () => { const cv = document.createElement('canvas'); cv.width = cv.height = S; return cv; };
+    this._bg = this._bg || mk();
+    this._fg = this._fg || mk();
+
+    const b = this._bg.getContext('2d');
+    b.clearRect(0, 0, S, S);
+    b.beginPath(); b.arc(cx, cy, R, 0, Math.PI * 2); b.closePath();
+    b.fillStyle = 'rgba(4,7,13,0.86)'; b.fill();
+    b.save(); b.clip();
+    b.strokeStyle = 'rgba(245,182,66,0.26)'; b.lineWidth = 1;
+    for (const f of CFG.radar.ringFractions) { b.beginPath(); b.arc(cx, cy, R * f, 0, Math.PI * 2); b.stroke(); }
+    b.beginPath(); b.moveTo(cx, cy - R); b.lineTo(cx, cy + R); b.moveTo(cx - R, cy); b.lineTo(cx + R, cy); b.stroke();
+    b.restore();
+
+    const f = this._fg.getContext('2d');
+    f.clearRect(0, 0, S, S);
+    f.save();
+    f.beginPath(); f.arc(cx, cy, R, 0, Math.PI * 2); f.closePath(); f.clip();
+    f.strokeStyle = 'rgba(0,0,0,0.30)'; f.lineWidth = 1;
+    f.beginPath();
+    for (let y = 0; y < S; y += 3) { f.moveTo(0, y + 0.5); f.lineTo(S, y + 0.5); }
+    f.stroke();
+    f.restore();
+    f.strokeStyle = 'rgba(245,182,66,0.55)'; f.lineWidth = 1;
+    f.beginPath(); f.arc(cx, cy, R, 0, Math.PI * 2); f.stroke();
+    f.fillStyle = 'rgba(245,182,66,0.62)'; f.font = '9px ui-monospace, monospace'; f.textAlign = 'center';
+    f.fillText(this.range + ' m', cx, S - 3);
+
+    // The sweep gradient was allocated fresh every redraw. Built once along +X instead and
+    // rotated into place with a canvas transform, which is what actually moves it.
+    const gr = this.c.createLinearGradient(0, 0, R, 0);
+    gr.addColorStop(0, 'rgba(245,182,66,0.34)'); gr.addColorStop(1, 'rgba(245,182,66,0)');
+    this._sweepGrad = gr;
+    this._layerRange = this.range;
   }
   get range() { return CFG.radar.ranges[this.rangeIdx]; }
   cycleRange(step) {
@@ -2158,24 +2324,20 @@ class Radar {
     this._right.set(1, 0, 0).applyQuaternion(q);
     this._up.set(0, 1, 0).applyQuaternion(q);
     const k = R / this.range;
+    if (this._layerRange !== this.range) this.#buildLayers();
 
     c.clearRect(0, 0, S, S);
+    c.drawImage(this._bg, 0, 0);
     c.save();
     c.beginPath(); c.arc(cx, cy, R, 0, Math.PI * 2); c.closePath();
-    c.fillStyle = 'rgba(4,7,13,0.86)'; c.fill();
-    c.clip();
+    c.clip();                       // still needed: stems and rim contacts can overhang
 
-    // range rings + crosshairs
-    c.strokeStyle = 'rgba(245,182,66,0.26)'; c.lineWidth = 1;
-    for (const f of CFG.radar.ringFractions) { c.beginPath(); c.arc(cx, cy, R * f, 0, Math.PI * 2); c.stroke(); }
-    c.beginPath(); c.moveTo(cx, cy - R); c.lineTo(cx, cy + R); c.moveTo(cx - R, cy); c.lineTo(cx + R, cy); c.stroke();
-
-    // sweep
-    const a = this.sweep * Math.PI * 2 - Math.PI / 2;
-    const g = c.createLinearGradient(cx, cy, cx + Math.cos(a) * R, cy + Math.sin(a) * R);
-    g.addColorStop(0, 'rgba(245,182,66,0.34)'); g.addColorStop(1, 'rgba(245,182,66,0)');
-    c.strokeStyle = g; c.lineWidth = 2;
-    c.beginPath(); c.moveTo(cx, cy); c.lineTo(cx + Math.cos(a) * R, cy + Math.sin(a) * R); c.stroke();
+    // sweep -- cached gradient, rotated into place
+    c.save();
+    c.translate(cx, cy); c.rotate(this.sweep * Math.PI * 2 - Math.PI / 2);
+    c.strokeStyle = this._sweepGrad; c.lineWidth = 2;
+    c.beginPath(); c.moveTo(0, 0); c.lineTo(R, 0); c.stroke();
+    c.restore();
 
     // asteroids (dim) then enemy bolts (faint), then cores (SPEC 18.2).
     // Each category is ONE path and ONE fill. Issuing a separate fillRect per contact
@@ -2257,17 +2419,8 @@ class Radar {
     c.fillStyle = '#fff2d6';
     c.beginPath(); c.moveTo(cx, cy - 5); c.lineTo(cx + 3.5, cy + 4); c.lineTo(cx - 3.5, cy + 4); c.closePath(); c.fill();
 
-    // phosphor scanlines, inside the dish
-    c.strokeStyle = 'rgba(0,0,0,0.30)'; c.lineWidth = 1;
-    c.beginPath();
-    for (let y = 0; y < S; y += 3) { c.moveTo(0, y + 0.5); c.lineTo(S, y + 0.5); }
-    c.stroke();
     c.restore();
-
-    c.strokeStyle = 'rgba(245,182,66,0.55)'; c.lineWidth = 1;
-    c.beginPath(); c.arc(cx, cy, R, 0, Math.PI * 2); c.stroke();
-    c.fillStyle = 'rgba(245,182,66,0.62)'; c.font = '9px ui-monospace, monospace'; c.textAlign = 'center';
-    c.fillText(this.range + ' m', cx, S - 3);
+    c.drawImage(this._fg, 0, 0);    // scanlines, rim and range label, over the contacts
 
     this.counts.enemies = nE; this.counts.bolts = nBolt;
     this.counts.asteroids = nAst; this.counts.planatron = 1; this.counts.cores = nCore;
@@ -2869,13 +3022,13 @@ class Game {
     const el = this.lasers.enemyPool.get().launch(far, this.player._fwd, 0);
     this.world.add(pl); this.world.add(el);
     this.fx.spark(far); this.fx.explode(far);
-    this.lasers.sync(this.world); this.glow.sync();
+    this.lasers.sync(this.world); this.glow.sync(); this.fx.sync();
     this.renderer.compile(this.scene, this.camera);
     this.renderer.render(this.scene, this.camera);      // realise the programs
     e.destroy(); pl.destroy(); el.destroy();
     this.world.step(0);
     this.fx.clear();
-    this.lasers.sync(this.world); this.glow.sync();
+    this.lasers.sync(this.world); this.glow.sync(); this.fx.sync();
     this.player._fwd.set(0, 0, -1).applyQuaternion(this.player.object.quaternion);
     this.warmed = true;
   }
@@ -2973,7 +3126,7 @@ class Game {
     this.weapon.reset();
     this.ctx.slowT = 0;
     this.spawner.reset();
-    this.tracker.hideAll(); this.glow.sync();
+    this.tracker.hideAll(); this.glow.sync(); this.fx.sync();
     this.dead = false; this.won = false; this.runTime = 0;
     this.hud.shots = 0; this.hud.hits = 0; this.hud.waveT = 0;
     document.getElementById('dead').classList.remove('on');
@@ -3035,6 +3188,7 @@ class Game {
     this.lasers.sync(this.world);
     this.glow.sync();
     this.cores.sync(this.camera);
+    this.fx.sync();                 // particles + debris are batched; buffers built here
     this.fx.applyShake(this.camera);
     this.renderer.render(this.scene, this.camera);
     const t2 = performance.now();
@@ -3045,13 +3199,14 @@ class Game {
       this.frames++; this.fpsT += frameDt;
       if (this.fpsT >= .5) {
         const over = this.spawner.pool.overflow + this.lasers.pool.overflow + this.lasers.enemyPool.overflow
-                   + this.fx.sparkPool.overflow + this.fx.boomPool.overflow + this.fx.debrisPool.overflow;
+                   + this.fx.sparkPool.overflow + this.fx.boomPool.overflow + this.fx.debrisPool.overflow
+                   + this.cores.pool.overflow;   // cores were missing from this sum
         document.getElementById('dbgtext').textContent =
           `fps ${(this.frames / this.fpsT).toFixed(0)}\nsim ${this.simMs.toFixed(2)} ms\nrender ${this.renderMs.toFixed(2)} ms\n` +
           `entities ${this.world.entities.length}\nasteroids ${this.world.tagged('asteroid').size}\n` +
           `enemies ${this.world.tagged('enemy').size}\n` +
           `lasers ${this.world.tagged('projectile').size} + ${this.world.tagged('enemyProjectile').size}\n` +
-          `fx ${this.fx.bursts.length} burst / ${this.fx.debris.length} debris\n` +
+          `fx ${this.fx.sparkBursts.length + this.fx.boomBursts.length} burst / ${this.fx.debris.length} debris\n` +
           `wave ${this.spawner.waveIndex + 1}\npool overflow ${over}\n` +
           `difficulty ${this.diff.name}\nshield ${Math.round(this.player.shield)}\n` +
           `radar ${this.radar.lastMs.toFixed(2)} ms (${this.radar.counts.enemies}e)\n` +
