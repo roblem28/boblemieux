@@ -67,7 +67,8 @@ const HARNESS = () => {
     },
     overflow() {
       return g.spawner.pool.overflow + g.lasers.pool.overflow + g.lasers.enemyPool.overflow
-           + g.fx.sparkPool.overflow + g.fx.boomPool.overflow + g.fx.debrisPool.overflow;
+           + g.fx.sparkPool.overflow + g.fx.boomPool.overflow + g.fx.debrisPool.overflow
+           + g.cores.pool.overflow;    // SPEC 18.2: cores pool (capacity read live where it matters, see I9a/K)
     },
   };
 };
@@ -396,7 +397,7 @@ const HARNESS = () => {
     return { kills, wave: g.spawner.waveIndex + 1, overflow: window.__h.overflow(),
              entities: g.world.entities.length,
              enemyLasers: g.world.tagged('enemyProjectile').size,
-             bursts: g.fx.bursts.length, debris: g.fx.debris.length };
+             bursts: g.fx.sparkBursts.length + g.fx.boomBursts.length, debris: g.fx.debris.length };
   });
   check(bErrs.length === 0, 'B9 no console errors after 120s of simulated play',
         bErrs.slice(0, 3).join(' | ') || `clean (${soak.kills} kills, reached wave ${soak.wave})`);
@@ -420,7 +421,7 @@ const HARNESS = () => {
       enemies: g.world.tagged('enemy').size,
       asteroids: g.world.tagged('asteroid').size,
       lasers: g.world.tagged('projectile').size + g.world.tagged('enemyProjectile').size,
-      bursts: g.fx.bursts.length,
+      bursts: g.fx.sparkBursts.length + g.fx.boomBursts.length,
       wave: g.spawner.waveIndex,
     };
     return { dead, after };
@@ -648,6 +649,15 @@ const HARNESS = () => {
   // with the real radar. Reproducing the identical projection keeps this a
   // real test of the radar (an actually-dropped in-range contact still
   // fails it) without importing that flakiness.
+  //
+  // A later change (reported by game-feel-critic) pins the SELECTED target
+  // to the rim when it is out of dish range -- same treatment the Planatron
+  // already got -- so raw inRange undercounts by exactly one whenever the
+  // current tracker.target is alive, a REAL member of world.tagged('enemy')
+  // (a stale non-entity reference, like a synthetic test target, is never
+  // visited by the radar's own loop and cannot be pinned), and itself out of
+  // range. Derived live below, not assumed: this is exactly the projection
+  // Radar#draw performs on `this.tracker.target`.
   const radarCount = await dp.evaluate(() => {
     const g = window.__game;
     window.__h.godMode();
@@ -667,18 +677,70 @@ const HARNESS = () => {
     const fwd = new V(0, 0, -1).applyQuaternion(q);
     const right = new V(1, 0, 0).applyQuaternion(q);
     const rel = new V();
-    let inRange = 0;
-    for (const e of window.__h.enemies()) {
+    const inR = e => {
       rel.subVectors(e.position, g.player.position);
-      const px = rel.dot(right), pz = rel.dot(fwd);
-      if (Math.hypot(px, pz) <= g.radar.range) inRange++;
-    }
-    return { committedAlive, liveEnemies, inRange, radarCount: g.radar.counts.enemies, waitSeconds: wait.seconds };
+      return Math.hypot(rel.dot(right), rel.dot(fwd)) <= g.radar.range;
+    };
+    let inRange = 0;
+    for (const e of window.__h.enemies()) if (inR(e)) inRange++;
+
+    const sel = g.tracker.target;
+    const selIsRealEnemy = !!sel && window.__h.enemies().includes(sel);
+    const pinnedExtra = (selIsRealEnemy && sel.alive && !inR(sel)) ? 1 : 0;
+
+    return {
+      committedAlive, liveEnemies, inRange, pinnedExtra,
+      radarCount: g.radar.counts.enemies, waitSeconds: wait.seconds,
+    };
   });
   check(radarCount.committedAlive === 3 && radarCount.liveEnemies === 3 &&
-        radarCount.radarCount === radarCount.inRange,
-        'M3-5 radar draws one triangle per enemy within radar.range (post-jitter)',
+        radarCount.radarCount === radarCount.inRange + radarCount.pinnedExtra,
+        'M3-5 radar draws one triangle per enemy within radar.range, plus one if the SELECTED ' +
+        'target is out of range and pinned to the rim (post-jitter)',
         JSON.stringify(radarCount));
+
+  // --- M3-5b radar actually exercises the pin, not just tolerates it: the
+  // SELECTED target moved well beyond radar.range is drawn anyway (pinned to
+  // the rim, counted), while a second, non-selected fighter pushed equally
+  // far out is correctly dropped -- the dish "shows what is in range" for
+  // everyone except the one target SPEC 3 requires every indicator to name.
+  const pinned = await dp.evaluate(() => {
+    const g = window.__game;
+    const enemies = window.__h.enemies();
+    if (enemies.length < 2) return { error: 'need >=2 live enemies', count: enemies.length };
+    const V = g.player.position.constructor;
+    const q = g.player.object.quaternion;
+    const fwd = new V(0, 0, -1).applyQuaternion(q);
+    const right = new V(1, 0, 0).applyQuaternion(q);
+    const inR = e => {
+      const rel = e.position.clone().sub(g.player.position);
+      return Math.hypot(rel.dot(right), rel.dot(fwd)) <= g.radar.range;
+    };
+
+    const target = enemies[0], other = enemies[1];
+    const far = g.radar.range * 1.5 + 200;             // well past the rim either way
+    target.position.copy(g.player.position).addScaledVector(fwd, far);
+    other.position.copy(g.player.position).addScaledVector(fwd, far).addScaledVector(right, 40);
+    g.world.rebuildHash();
+    g.tracker.target = target;
+
+    let inRange = 0;
+    for (const e of window.__h.enemies()) if (inR(e)) inRange++;
+    const targetInRange = inR(target), otherInRange = inR(other);
+
+    g.radar.acc = 0;                                   // ignore the 20Hz accumulator
+    g.radar.tick(1);                                    // dt=1 forces an immediate draw
+
+    return { count: enemies.length, inRange, targetInRange, otherInRange, radarCount: g.radar.counts.enemies };
+  });
+  check(!pinned.error, 'M3-5b setup: at least two live enemies to work with', JSON.stringify(pinned));
+  check(!pinned.targetInRange && !pinned.otherInRange,
+        'M3-5b setup: both the selected target and the other fighter are genuinely out of radar.range',
+        JSON.stringify(pinned));
+  check(pinned.radarCount === pinned.inRange + 1,
+        'M3-5b radar pins the SELECTED out-of-range target to the rim (counted) but still drops ' +
+        'the non-selected out-of-range fighter (not counted)',
+        JSON.stringify(pinned));
 
   // --- M3-6 Tab cycles target (SPEC 3/8: tracker.cycle) ---
   // SPEC v1.6 (§6): wave 1 on MEDIUM is now 3 fighters (see M3-5), not 2, so
@@ -880,24 +942,57 @@ const HARNESS = () => {
   // page.keyboard press), then drives the ship with a REAL page.mouse.move and a REAL held W
   // key and reads back observable state -- all within roughly a 1s wall-clock budget, per the
   // user's report ("ship responds to mouse and W within 1 s").
+  //
+  // NOTE on the *d checks (H1d/H2d/H3d/H4d) -- rescoped, not just re-numbered:
+  // the previous version started `t0`, triggered, then unconditionally slept
+  // 120ms + 450ms = 570ms and made ~10 CDP round-trips (4 evaluates, 7 mouse
+  // moves, a keypress) before stopping the clock. That measured the harness'
+  // own fixed padding and CDP latency, not the ship's response -- and once M3.5
+  // added per-frame cost (core update/magnet, weapon HUD readout) each of those
+  // round-trips got slower under SwiftShader, pushing a pass at 826ms (170ms of
+  // headroom) to 1113-1167ms with no change in how fast the SHIP actually
+  // responds. Fixed here by polling for the real observable events (pointer
+  // lock landing, then yaw+speed actually changing) instead of sleeping a fixed
+  // duration and hoping: the clock now stops the instant a poll observes the
+  // response, so elapsedMs measures "time to observed response," the same
+  // thing H1b/H1c/H1c already assert boolean-style, just timed. This also
+  // removes the 120ms "let pointerlockchange land" guess -- CFG.ship.accel (90
+  // u/s^2 into an exponential damp) reaches +5 speed in ~40ms of real ticks
+  // once W is actually held, so the true budget is dominated by CDP/browser
+  // event latency, not sim speed, and a fixed sleep either wastes it or races
+  // it depending on machine load. Mouse deltas are only accumulated by the
+  // game while pointer-locked (Input#mousemove, gated on `this.locked`), so
+  // waiting for lock before sending them is a real precondition, not padding.
   const realFlyCheck = async (page, trigger) => {
     await page.evaluate(() => window.__game.renderer.setAnimationLoop(() => window.__game.frame()));
-    const t0 = Date.now();
-    await trigger();
-    await page.waitForTimeout(120);           // let pointerlockchange land
-    const locked = await page.evaluate(() => document.pointerLockElement !== null);
     const before = await page.evaluate(() => ({
       yaw: window.__game.player.object.quaternion.y, speed: window.__game.player.speed,
     }));
+    const t0 = Date.now();
+    await trigger();
+    const deadline = t0 + 950;    // ~50ms slack inside the SPEC 1s budget for the post-timing reads below
+    let locked = false;
+    while (Date.now() < deadline) {
+      locked = await page.evaluate(() => document.pointerLockElement !== null);
+      if (locked) break;
+      await page.waitForTimeout(10);
+    }
+    // Real cursor movement and a real held key, sent as soon as lock lands
+    // (not after a fixed hold) -- delivering them is itself part of the
+    // response being timed, not harness overhead.
     await page.mouse.move(640, 400);                                     // cursor origin
     for (let i = 1; i <= 6; i++) await page.mouse.move(640 + i * 30, 400);  // real movementX deltas
     await page.keyboard.down('w');
-    await page.waitForTimeout(450);
-    const after = await page.evaluate(() => ({
-      yaw: window.__game.player.object.quaternion.y, speed: window.__game.player.speed,
-    }));
+    let after = before;
+    while (Date.now() < deadline) {
+      after = await page.evaluate(() => ({
+        yaw: window.__game.player.object.quaternion.y, speed: window.__game.player.speed,
+      }));
+      if (Math.abs(after.yaw - before.yaw) > 1e-4 && after.speed > before.speed + 5) break;
+      await page.waitForTimeout(10);
+    }
+    const elapsedMs = Date.now() - t0;      // stopped the instant the response was observed (or the budget ran out)
     await page.keyboard.up('w');
-    const elapsedMs = Date.now() - t0;
     const diffHud = await page.evaluate(() => document.getElementById('diffhud').textContent);
     const deadOn = await page.evaluate(() => document.getElementById('dead').classList.contains('on'));
     return {
@@ -1013,6 +1108,401 @@ const HARNESS = () => {
     check(errs.length === 0, 'H4g no console errors on the R-key (death) route', errs.slice(0, 3).join(' | ') || 'clean');
     await ctx.close();
   }
+
+  /* ================= I. M3.5: pause, cores, weapon upgrades (SPEC 18) =================
+   * I1 uses REAL input end-to-end (the same rationale as the H-series above): pause is
+   * driven off a real keydown ('p') and pointerlockchange, and Resume is gated to the
+   * button/P/Esc/background-click (SPEC 18.1) rather than any-input, so synthetic
+   * dispatch would not exercise the shipped path. I2-I9 use the deterministic g.tick()
+   * harness, per the pattern used throughout sections B/D/G, since cores/weapon math
+   * does not depend on real browser input timing.
+   */
+
+  // --- I1 P pauses the sim; Resume restores lock and input within 1s (SPEC 18.1) ---
+  {
+    const { ctx, page, errs } = await routeCtx();
+    const locked = await realLaunch(page);
+    check(locked, 'I1-0 precondition: real launch click genuinely engages pointer lock',
+          `document.pointerLockElement !== null: ${locked}` +
+          (locked ? '' : '  -- NOT exercising the bug; I1 below would be meaningless'));
+
+    await page.keyboard.press('p');
+    await page.waitForTimeout(150);
+    const paused = await page.evaluate(() => ({
+      pausedFlag: window.__game.paused,
+      pausedOn: document.getElementById('paused').classList.contains('on'),
+      locked: document.pointerLockElement !== null,
+    }));
+    check(paused.pausedFlag && paused.pausedOn,
+          'I1a real P keypress pauses the sim and shows the PAUSED overlay (SPEC 18.1)', JSON.stringify(paused));
+    // SPEC 18.1: the pause overlay releases pointer lock when it appears -- it carries
+    // buttons, and under lock every click goes to the canvas, making the menu unreachable
+    // (the same class of fix already applied to the win/dead overlays).
+    check(!paused.locked,
+          'I1b PAUSED releases pointer lock so its menu buttons are clickable (SPEC 18.1)',
+          `pointerLockElement !== null: ${paused.locked}`);
+
+    const t1 = await page.evaluate(() => document.getElementById('tgt').textContent);
+    await page.waitForTimeout(400);
+    const t2 = await page.evaluate(() => document.getElementById('tgt').textContent);
+    check(t1 === t2, 'I1c manual PAUSED halts the sim', `tgt ${t1} -> ${t2}`);
+
+    // Real click on #pm-resume -- SPEC 18.1 item 2: resume is the Resume button, P, Esc,
+    // or a click on the overlay BACKGROUND, not any input, so this must be the actual button.
+    const resumeResult = await realFlyCheck(page, () => page.click('#pm-resume'));
+    check(resumeResult.locked, 'I1d real click #pm-resume re-acquires pointer lock (resumeFlight path, SPEC 18.1)',
+          `document.pointerLockElement !== null: ${resumeResult.locked}`);
+    check(resumeResult.yawMoved, 'I1e Resume: ship yaws to a real mouse move within 1s',
+          `quaternion.y ${resumeResult.before.yaw.toFixed(5)} -> ${resumeResult.after.yaw.toFixed(5)}`);
+    check(resumeResult.accelerated, 'I1f Resume: ship accelerates to a real held W within 1s',
+          `speed ${resumeResult.before.speed.toFixed(1)} -> ${resumeResult.after.speed.toFixed(1)}`);
+    check(resumeResult.elapsedMs < 1000, 'I1g Resume: response measured inside a 1s budget',
+          `elapsed ${resumeResult.elapsedMs}ms`);
+    check(errs.length === 0, 'I1h no console errors on the pause/resume route', errs.slice(0, 3).join(' | ') || 'clean');
+    await ctx.close();
+  }
+
+  const ctxI = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+  const ip = await ctxI.newPage();
+  const iErrs = [];
+  ip.on('console', m => { if (m.type() === 'error') iErrs.push(m.text()); });
+  ip.on('pageerror', e => iErrs.push('pageerror: ' + e.message.split('\n')[0]));
+  await ip.goto(URL, { waitUntil: 'load' });
+  await ip.waitForTimeout(1500);
+  await ip.evaluate(HARNESS);
+
+  // --- I2 a core spawns on enemy death (near the death point) and despawns at its
+  // measured life (CFG.cores.life, SPEC 18.2). The life value is read off the freshly
+  // spawned core itself rather than hardcoded, same reasoning as simUntil elsewhere in
+  // this file: a future CFG.cores.life retune cannot silently desync this from the game.
+  const coreDeath = await ip.evaluate(() => {
+    const g = window.__game;
+    g.relaunch(); window.__h.godMode();
+    g.diff.set('MEDIUM');
+    window.__h.sim(1.6);                                       // past the 1.5s wave-1 spawn timer
+    window.__h.simUntil(() => window.__h.enemies().length >= g.spawner.alive);  // let queued fighters materialise
+    const e = window.__h.enemies()[0];
+    const deathPos = e.position.clone();
+    const beforeCount = g.world.tagged('pickup').size;
+    e.health.cur = 1; e.hit(1);
+    window.__h.sim(0.02);
+    const core = [...g.world.tagged('pickup')].find(c => c.alive);
+    const afterCount = g.world.tagged('pickup').size;
+    const dist = core ? core.position.distanceTo(deathPos) : null;
+    const life = core ? core.life : null;
+    window.__h.sim(Math.max(0, life - 0.5));
+    const aliveBeforeExpiry = core.alive;
+    window.__h.sim(1.0);
+    const goneAfterExpiry = !core.alive;
+    return { beforeCount, afterCount, dist, life, aliveBeforeExpiry, goneAfterExpiry };
+  });
+  check(coreDeath.afterCount > coreDeath.beforeCount && coreDeath.dist !== null && coreDeath.dist < 5,
+        'I2a enemy death spawns a Core pickup at the death point (SPEC 18.2)',
+        `pickups ${coreDeath.beforeCount} -> ${coreDeath.afterCount}, distance from death point ${coreDeath.dist}`);
+  check(coreDeath.aliveBeforeExpiry && coreDeath.goneAfterExpiry,
+        'I2b core despawns at its measured life (CFG.cores.life, SPEC 18.2)',
+        `life=${coreDeath.life}s, alive just before expiry: ${coreDeath.aliveBeforeExpiry}, gone after: ${coreDeath.goneAfterExpiry}`);
+
+  // --- I3 magnet: a core ~40u out (inside the 45u magnetRange) homes in and is
+  // collected on contact (SPEC 18.2). ---
+  const magnet = await ip.evaluate(() => {
+    const g = window.__game;
+    g.relaunch(); window.__h.godMode();
+    const V = g.player.position.constructor;
+    const fwd = g.player._fwd.clone().normalize();
+    const pos = g.player.position.clone().addScaledVector(fwd, 40);
+    const core = g.cores.drop(pos, new V(0, 0, 0));
+    const startDist = core.position.distanceTo(g.player.position);
+    let collectedType = null;
+    const off = g.bus.on('core:collected', t => { collectedType = t; });
+    const wait = window.__h.simUntil(() => !core.alive, 6, 0.1);
+    off();
+    return { startDist, collectedType, alive: core.alive, seconds: wait.seconds };
+  });
+  check(magnet.startDist <= 45 && magnet.startDist > 30,
+        'I3 setup: core placed ~40u out, inside the 45u magnetRange', `startDist=${magnet.startDist}`);
+  check(!magnet.alive && magnet.collectedType !== null,
+        'I3 magnet pulls a core within 45u to the ship and it is collected on contact (SPEC 18.2)',
+        `collected after ${magnet.seconds}s, type=${magnet.collectedType}, alive=${magnet.alive}`);
+
+  // --- I4 shield core: +20 shield; overflow above max spills +5 to hull (SPEC 18.2) ---
+  const shieldCore = await ip.evaluate(() => {
+    const g = window.__game;
+    g.relaunch(); window.__h.godMode();
+    const p = g.player;
+    const V = p.position.constructor;
+    // case A: shield has room for the full +20, hull must stay untouched
+    p.shield = 10; p.health.max = 100; p.health.cur = 80;
+    const c1 = g.cores.pool.get();
+    c1.launch(p.position.clone(), new V(0, 0, 0), 'shield'); c1.ctxPlayer = p;
+    g.world.add(c1);
+    window.__h.sim(0.05);
+    const a = { shield: p.shield, hull: p.health.cur };
+    // case B: shield already at max -- the overflow must spill +5 to hull
+    p.shield = p.shieldMax; p.health.cur = 80;
+    const c2 = g.cores.pool.get();
+    c2.launch(p.position.clone(), new V(0, 0, 0), 'shield'); c2.ctxPlayer = p;
+    g.world.add(c2);
+    window.__h.sim(0.05);
+    const b = { shield: p.shield, hull: p.health.cur };
+    return { a, b, shieldMax: p.shieldMax };
+  });
+  check(shieldCore.a.shield === 30 && shieldCore.a.hull === 80,
+        'I4a Shield core raises shield by +20 with hull untouched when there is room (SPEC 18.2)',
+        JSON.stringify(shieldCore.a));
+  check(shieldCore.b.shield === shieldCore.shieldMax && shieldCore.b.hull === 85,
+        'I4b Shield core overflow above max spills +5 to hull (SPEC 18.2)', JSON.stringify(shieldCore.b));
+
+  // --- I5 weapon XP -> level thresholds, driven by whatever CFG.weapon.xpThresholds
+  // currently is, capped at whatever CFG.weapon.maxLevel currently is (SPEC 18.3, v1.11) ---
+  // I5a originally asserted xpForLevel === 4, a hardcoded copy of a SPEC constant the
+  // balance audit could (and did, v1.10: 4 -> 3) legitimately retune. The v1.10 fix read
+  // g.weapon.xpForLevel ONCE per test run and treated it as a constant span to re-grant --
+  // which broke again in v1.11, when the flat per-level cost was replaced by a rising
+  // curve (CFG.weapon.xpThresholds) and xpForLevel started returning a DIFFERENT span at
+  // every level (and 0 at max level, not "the same number forever"). Fixed here by
+  // re-reading g.weapon.xpForLevel fresh immediately before every single grant, treating
+  // xpForLevel === 0 as the cap signal (not "grant nothing forever"), and never comparing
+  // any result against a literal 2/3/4/5 -- only against other measured values. `Weapon`
+  // has no `g.weapon.maxLevel` getter and `CFG` itself is module-scoped (unreachable from
+  // page.evaluate), so maxLevel is discovered the same way, by behaviour.
+  const xpLevels = await ip.evaluate(() => {
+    const g = window.__game;
+    g.diff.set('MEDIUM');           // avoid EASY's weaponXpMul skewing XP amounts
+    g.weapon.reset();
+    const levelEvents = [];
+    const off = g.bus.on('weapon:level', lv => levelEvents.push(lv));  // attached before ANY XP grant below
+
+    // I5a/I5a2: whatever span the CURRENT level (level 1, fresh off reset()) reports,
+    // a shortfall of 1 XP against it must NOT advance the level, and the remaining 1 XP
+    // must advance exactly one level. Read once here deliberately -- this is testing "one
+    // specific level's span holds up", not the shape of the curve (that's I5b below).
+    const span1 = g.weapon.xpForLevel;
+    const levelBeforeSpan1 = g.weapon.level;
+    let shortOfLevel = levelBeforeSpan1;
+    if (span1 > 1) {
+      g.weapon.addXp(span1 - 1);
+      shortOfLevel = g.weapon.level;
+    }
+    g.weapon.addXp(span1 > 1 ? 1 : span1);   // completes exactly span1 XP granted in total
+    const afterExact = g.weapon.level;
+
+    // I5b/I5c/I5aCap: keep granting whatever xpForLevel CURRENTLY reports, re-read fresh
+    // on every iteration (the whole point of this rewrite -- the span changes level to
+    // level under the v1.11 curve). xpForLevel === 0 is the game's own cap signal; treat
+    // it as such rather than looping on a stale cached span. `stuck` catches the case a
+    // nonzero span is granted in full but the level fails to advance anyway -- a real bug,
+    // not a cap, so it must not be silently absorbed into `capped`. Hard-bounded so a
+    // curve that never reaches 0 (or a stuck level) cannot hang the loop.
+    const seen = [afterExact];
+    let capped = false, stuck = false, grants = 0;
+    const CAP_GRANTS = 40;
+    while (grants < CAP_GRANTS) {
+      const span = g.weapon.xpForLevel;      // fresh read, every iteration -- never cached
+      if (span === 0) { capped = true; break; }
+      const before = g.weapon.level;
+      g.weapon.addXp(span);
+      grants++;
+      const after = g.weapon.level;
+      if (after === before) { stuck = true; break; }
+      seen.push(after);
+    }
+    const maxLevel = g.weapon.level;
+    const spanAtCap = g.weapon.xpForLevel;   // expected 0 once capped
+    g.weapon.addXp(1);                       // one more grant past the discovered cap
+    const finalLevel = g.weapon.level;
+    off();
+    return { span1, shortOfLevel, afterExact, seen, levelEvents,
+             capped, stuck, grants, maxLevel, spanAtCap, finalLevel };
+  });
+  check(xpLevels.shortOfLevel === 1,
+        'I5a a shortfall of 1 XP against the current level\'s measured span does not advance the level',
+        `span1=${xpLevels.span1}, level held at ${xpLevels.shortOfLevel}`);
+  check(xpLevels.afterExact === xpLevels.shortOfLevel + 1,
+        'I5a2 granting the remaining 1 XP (total = the measured span) advances exactly one level',
+        `span1=${xpLevels.span1}, level ${xpLevels.shortOfLevel} -> ${xpLevels.afterExact}`);
+  check(!xpLevels.stuck,
+        'I5aStuck no grant of a nonzero measured span ever failed to advance the level (would indicate a real bug, not a cap)',
+        `stuck=${xpLevels.stuck} after ${xpLevels.grants} grants`);
+  check(xpLevels.capped,
+        'I5aCap xpForLevel actually reached 0 (the cap signal) within 40 grants, each re-read fresh',
+        `capped=${xpLevels.capped} after ${xpLevels.grants} grants, maxLevel=${xpLevels.maxLevel}`);
+  check(xpLevels.spanAtCap === 0,
+        'I5aSpan xpForLevel reads 0 once the level is at cap', `spanAtCap=${xpLevels.spanAtCap}`);
+  const expectedClimb = Array.from({ length: xpLevels.maxLevel - xpLevels.afterExact + 1 },
+                                     (_, i) => xpLevels.afterExact + i);
+  check(xpLevels.seen.join(',') === expectedClimb.join(','),
+        'I5b weapon level advances in lockstep with fresh-read xpForLevel-sized grants, all the way to maxLevel (any curve shape)',
+        JSON.stringify({ seen: xpLevels.seen, expectedClimb, maxLevel: xpLevels.maxLevel }));
+  check(xpLevels.finalLevel === xpLevels.maxLevel,
+        'I5c weapon level caps at maxLevel (measured) past the top threshold (SPEC 18.3)',
+        `finalLevel=${xpLevels.finalLevel}, measured maxLevel=${xpLevels.maxLevel}`);
+  check(xpLevels.levelEvents.join(',') === xpLevels.seen.join(','),
+        'I5d weapon:level fires exactly once per level-up, in the same order as the levels observed',
+        JSON.stringify({ levelEvents: xpLevels.levelEvents, seen: xpLevels.seen }));
+
+  // --- I6 weapon level 2 (Quad) fires 4 bolts in one shot (SPEC 18.3) ---
+  const l2fire = await ip.evaluate(() => {
+    const g = window.__game;
+    g.relaunch(); window.__h.godMode();
+    g.spawner.pending = false; g.spawner.clear();
+    g.weapon.reset(); g.weapon.level = 2;
+    for (const l of g.world.tagged('projectile')) l.destroy();
+    g.world.step(0);
+    const before = g.world.tagged('projectile').size;
+    g.player.fireCd = 0;
+    g.input.press('fire', true);
+    g.tick(1 / 60);
+    g.input.press('fire', false);
+    const after = g.world.tagged('projectile').size;
+    return { before, after, muzzles: g.weapon.stats.muzzles, name: g.weapon.stats.name };
+  });
+  check(l2fire.name === 'Quad' && l2fire.muzzles === 4 && (l2fire.after - l2fire.before) === 4,
+        'I6 weapon L2 (Quad) fires 4 bolts in a single shot (SPEC 18.3)', JSON.stringify(l2fire));
+
+  // --- I7 weapon level 4 (Heavy) splash damages a second enemy within 12u (SPEC 18.3) ---
+  const splash = await ip.evaluate(() => {
+    const g = window.__game;
+    g.relaunch(); window.__h.godMode();
+    g.spawner.pending = false; g.spawner.clear();
+    for (const e of window.__h.enemies()) e.destroy();
+    g.world.step(0);
+    g.weapon.reset(); g.weapon.level = 4;
+    const V = g.player.position.constructor;
+    const p0 = g.player.position.clone().addScaledVector(g.player._fwd, 100);
+    const e1 = g.spawner.pool.get(); e1.position.copy(p0); e1.reset(g.ctx, 10, 1, null, 0); g.world.add(e1);
+    const e2 = g.spawner.pool.get(); e2.position.copy(p0).add(new V(8, 0, 0)); e2.reset(g.ctx, 10, 1, null, 0); g.world.add(e2);
+    g.world.rebuildHash();
+    const before = { e1: e1.health.cur, e2: e2.health.cur };
+    // A stationary laser carrying the current weapon level's damage/splash -- same
+    // controlled-collision technique as the HARNESS's shootAt(), so the impact point
+    // cannot travel past e1 within this tick.
+    const l = g.lasers.pool.get().launch(p0, g.player._fwd.clone().normalize(), 0);
+    l.vel.set(0, 0, 0);
+    l.damage = g.weapon.stats.damage; l.splash = g.weapon.stats.splash;
+    g.world.add(l); g.world.rebuildHash();
+    g.tick(1 / 60);
+    return {
+      dist: e1.position.distanceTo(e2.position),
+      before, after: { e1: e1.health.cur, e2: e2.health.cur },
+      dmg: g.weapon.stats.damage, splashRadius: g.weapon.stats.splash, name: g.weapon.stats.name,
+    };
+  });
+  check(splash.name === 'Heavy' && splash.dist < splash.splashRadius,
+        'I7 setup: second enemy placed inside the L4 splash radius', JSON.stringify(splash));
+  check(splash.after.e1 === splash.before.e1 - splash.dmg,
+        'I7a directly-hit enemy takes the weapon\'s direct damage', JSON.stringify(splash));
+  check(splash.after.e2 === splash.before.e2 - splash.dmg,
+        'I7b weapon L4 (Heavy) splash damages a second enemy within 12u of the impact (SPEC 18.3)',
+        JSON.stringify(splash));
+
+  // --- I8 weapon level resets on relaunch (SPEC 18.3) ---
+  const weaponResetOnRelaunch = await ip.evaluate(() => {
+    const g = window.__game;
+    g.weapon.reset(); g.weapon.level = 5; g.weapon.xp = 999;
+    g.relaunch();
+    return { level: g.weapon.level, xp: g.weapon.xp };
+  });
+  check(weaponResetOnRelaunch.level === 1 && weaponResetOnRelaunch.xp === 0,
+        'I8 weapon level and XP reset on relaunch (SPEC 18.3)', JSON.stringify(weaponResetOnRelaunch));
+
+  // --- I9 cores pool: measured capacity matches window.__CFG.cores.pool (read live, not
+  // hardcoded -- it moved 32 -> 64 with the FX/core batching pass), and it is never
+  // exceeded across a full 5-wave campaign clear (many core drops at realistic kill
+  // pacing, SPEC 18.2) ---
+  const poolCap = await ip.evaluate(() => {
+    const g = window.__game;
+    g.relaunch(); window.__h.godMode();
+    g.diff.set('MEDIUM');
+    const capacity = g.cores.pool.capacity;
+    const cfgCapacity = window.__CFG.cores.pool;
+    let cleared = false, drops = 0, maxAlive = 0;
+    const offDied = g.bus.on('enemy:died', () => drops++);
+    const offClear = g.bus.on('campaign:clear', () => { cleared = true; });
+    let seconds = 0; const CAP = 90;
+    while (!cleared && seconds < CAP) {
+      window.__h.sim(1); seconds++;
+      for (const e of window.__h.enemies()) { e.health.cur = 1; e.hit(1); }
+      maxAlive = Math.max(maxAlive, g.world.tagged('pickup').size);
+    }
+    offDied(); offClear();
+    return { capacity, cfgCapacity, drops, maxAlive, overflow: g.cores.pool.overflow, seconds, cleared };
+  });
+  check(poolCap.capacity === poolCap.cfgCapacity,
+        'I9a measured cores pool capacity matches window.__CFG.cores.pool (SPEC 18.2, read live)',
+        `capacity=${poolCap.capacity}, window.__CFG.cores.pool=${poolCap.cfgCapacity}`);
+  check(poolCap.overflow === 0 && poolCap.maxAlive <= poolCap.capacity,
+        'I9b cores pool never overflows its capacity across a full 5-wave campaign clear',
+        `overflow=${poolCap.overflow}, max concurrently-alive cores ${poolCap.maxAlive}/${poolCap.capacity}, ` +
+        `${poolCap.drops} total drops over ${poolCap.seconds}s (campaign cleared=${poolCap.cleared})`);
+
+  // --- I9c cores pool SIZING: an ACE campaign that kills every fighter on sight, with
+  // every dropped core immediately pushed out of magnet/collision range so nothing is
+  // ever collected, is the load that broke the OLD 32 cap (measured peak 33 concurrent).
+  // Cap is read live from window.__CFG.cores.pool, per instruction not to hardcode 64
+  // (or assume any other round number) here.
+  const sizing = await ip.evaluate(() => {
+    const g = window.__game;
+    g.relaunch(); window.__h.godMode();
+    g.diff.set('ACE');
+    let cleared = false, drops = 0, maxAlive = 0;
+    const offDied = g.bus.on('enemy:died', () => drops++);
+    const offClear = g.bus.on('campaign:clear', () => { cleared = true; });
+    let seconds = 0; const CAP = 90;
+    while (!cleared && seconds < CAP) {
+      window.__h.sim(1); seconds++;
+      for (const e of window.__h.enemies()) { e.health.cur = 1; e.hit(1); }
+      // Kill on sight, collect nothing: every live pickup is pushed far out of magnet/
+      // collision range the instant it exists, so the count reflects concurrent load,
+      // not collection behaviour -- matching what was actually measured.
+      for (const c of g.world.tagged('pickup')) if (c.alive) c.position.y += 1e6;
+      maxAlive = Math.max(maxAlive, g.world.tagged('pickup').size);
+    }
+    offDied(); offClear();
+    return { cap: window.__CFG.cores.pool, drops, maxAlive, overflow: g.cores.pool.overflow, seconds, cleared };
+  });
+  check(sizing.cleared, 'I9c setup: the ACE kill-on-sight campaign actually clears (precondition)',
+        JSON.stringify(sizing));
+  check(sizing.overflow === 0,
+        'I9c cores pool overflow stays 0 under peak concurrent load (ACE, kill-on-sight, nothing ' +
+        'collected -- the SIZING load that broke the old 32 cap at a measured peak of 33)',
+        `overflow=${sizing.overflow}, cap=${sizing.cap} (window.__CFG.cores.pool), ` +
+        `peak concurrent ${sizing.maxAlive}, ${sizing.drops} total drops over ${sizing.seconds}s`);
+
+  // --- I9d cores pool RETURN PATH: N dropped cores, once destroyed, return exactly N
+  // entries to the free list after one world sweep -- so a future leak shows up as a
+  // short free list (a leak), not only as an eventual overflow under sustained load.
+  const returnPath = await ip.evaluate(() => {
+    const g = window.__game;
+    g.relaunch(); window.__h.godMode();
+    const V = g.player.position.constructor;
+    const N = 10;
+    const freeBefore = g.cores.pool.free.length;
+    const dropped = [];
+    for (let i = 0; i < N; i++) {
+      dropped.push(g.cores.drop(
+        g.player.position.clone().addScaledVector(g.player._fwd, 500 + i * 3), new V(0, 0, 0)));
+    }
+    const freeAfterDrop = g.cores.pool.free.length;
+    for (const c of dropped) c.destroy();          // marks dead; the world has not swept yet
+    const freeBeforeSweep = g.cores.pool.free.length;
+    g.tick(1 / 60);                                 // world.step() sweeps dead entities -> dispose() -> pool.put()
+    const freeAfterSweep = g.cores.pool.free.length;
+    return { N, freeBefore, freeAfterDrop, freeBeforeSweep, freeAfterSweep };
+  });
+  check(returnPath.freeBefore - returnPath.freeAfterDrop === returnPath.N,
+        'I9d setup: N drop() calls draw exactly N entries down from the free list', JSON.stringify(returnPath));
+  check(returnPath.freeBeforeSweep === returnPath.freeAfterDrop,
+        'I9d setup: destroy() alone, before the world sweep runs, does not yet return anything',
+        JSON.stringify(returnPath));
+  check(returnPath.freeAfterSweep === returnPath.freeBefore,
+        'I9d destroyed cores return exactly N to the free list after one world sweep (no leak)',
+        JSON.stringify(returnPath));
+
+  check(iErrs.length === 0, 'I10 no console errors during pause/core/weapon checks',
+        iErrs.slice(0, 3).join(' | ') || 'clean');
+
+  await ctxI.close();
 
   /* ================= F. M3.1: HUD layout editor (SPEC 16, SPEC 3 keep-out) ================= */
 
@@ -1235,6 +1725,568 @@ const HARNESS = () => {
   check(eErrs.length === 0, 'E3 no console errors during the 5-minute SpatialHash soak',
         eErrs.slice(0, 3).join(' | ') || 'clean');
   await ctxE.close();
+
+  /* ================= J. M3.5 targeting fixes: Tab moves every readout onto the
+   * newly selected target within one tick, the tracker never sticks on a dead
+   * target, and the approach-speed floor is now a continuous fade (SPEC 3, 5, 8, 18).
+   * Three landed changes under test here:
+   *   1. Tracker#arrow -- the selected target claims an off-screen arrow slot
+   *      before any other fighter (this._nArrow), so a full 6-slot arrow bank
+   *      cannot starve the actual selection (measured: no tagged arrow on 3/10
+   *      Tab presses at wave 4, 9 alive, before the fix).
+   *   2. Radar._lastSel forces an immediate redraw on the tick the selection
+   *      changes, instead of waiting up to 50ms for the next 20Hz slot.
+   *   3. HUD Data widget's "Target" row (data-row="nearest", #d-nearest/
+   *      #d-closure -- ids unchanged, only the label moved) follows
+   *      tracker.target, not the nearest fighter.
+   *   4. Game drops tracker.target on enemy:died so a pool-recycled object
+   *      cannot silently inherit the old selection.
+   *   5. Enemy#update's approach speed floor is now smoothstep-faded across
+   *      CFG.enemies.approachBlend instead of switched at ai.fireRange.
+   * CFG itself is module-scoped and unreachable from page.evaluate (see the
+   * E1 comment above), so every expectation below is read off the running
+   * game: THREE's own Vector3#project for screen position (the same call
+   * Tracker#ndc makes), and Aitken's delta-squared extrapolation of the
+   * exponential damp to recover Enemy#update's implied target speed without
+   * knowing CFG.enemies.accel.
+   */
+  const ctxJ = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+  const jp = await ctxJ.newPage();
+  const jErrs = [];
+  jp.on('console', m => { if (m.type() === 'error') jErrs.push(m.text()); });
+  jp.on('pageerror', e => jErrs.push('pageerror: ' + e.message.split('\n')[0]));
+  await jp.goto(URL, { waitUntil: 'load' });
+  await jp.waitForTimeout(1500);
+  await jp.evaluate(HARNESS);
+
+  // --- J1: bracket, lead ring, bracket->lead line, radar highlight and the HUD
+  // Data "Target" row all move onto the newly-Tabbed target within one post-
+  // render tracker pass. Two real fighters, A (nearer, dead-ahead-ish) and B
+  // (farther, well off to the other side, with lateral velocity so its lead
+  // point separates visibly from its bracket) -- both placed on screen so the
+  // bracket/lead machinery actually renders.
+  const j1 = await jp.evaluate(() => {
+    const g = window.__game;
+    g.relaunch(); window.__h.godMode();
+    g.diff.set('MEDIUM');
+    g.spawner.pending = false; g.spawner.clear();
+    const V = g.player.position.constructor;
+    const playerPos = g.player.position.clone();
+    const fwd = g.player._fwd.clone().normalize();
+    const right = new V(1, 0, 0).applyQuaternion(g.player.object.quaternion);
+
+    const mk = (df, dr, vel) => {
+      const e = g.spawner.pool.get();
+      e.position.copy(playerPos).addScaledVector(fwd, df).addScaledVector(right, dr);
+      e.reset(g.ctx, 3, 1, null, 0);
+      e.vel.copy(vel);
+      g.world.add(e);
+      return e;
+    };
+    const A = mk(260, 30, new V(0, 0, 0));                          // nearer
+    const B = mk(420, -80, right.clone().multiplyScalar(60));       // farther, moving laterally
+    g.world.rebuildHash();
+    g.player.object.updateMatrixWorld(true);
+
+    const proj = pos => {
+      const v = pos.clone().project(g.camera);
+      return { x: (v.x * 0.5 + 0.5) * innerWidth, y: (-v.y * 0.5 + 0.5) * innerHeight };
+    };
+    const parseXY = tf => {
+      const m = /translate\(([-\d.]+)px,\s*([-\d.]+)px\)/.exec(tf || '');
+      return m ? { x: +m[1], y: +m[2] } : null;
+    };
+
+    g.tracker.target = null;
+    dispatchEvent(new KeyboardEvent('keydown', { code: 'Tab', bubbles: true }));   // -> A (nearest)
+    const gotA = g.tracker.target === A;
+    g.player.object.updateMatrixWorld(true);
+    g.tracker.update(g.world, g.camera);
+    g.hud.update(g.player, g.env, g.spawner, 1 / 60);
+    const bracketAxy = parseXY(g.tracker.bracket.style.transform);
+
+    // Deterministic baseline for the radar-latency check below: pretend a
+    // draw JUST happened (acc=0) and poison lastMs, so any change to lastMs
+    // on the very next tick can only come from the selection-change path,
+    // not from dt alone.
+    g.radar.acc = 0; g.radar.lastMs = -999;
+
+    dispatchEvent(new KeyboardEvent('keydown', { code: 'Tab', bubbles: true }));   // -> B
+    const gotB = g.tracker.target === B;
+    g.player.object.updateMatrixWorld(true);
+    g.tracker.update(g.world, g.camera);
+    g.radar.tick(0.001);            // far below the 20Hz step -- would NOT draw on dt alone
+    g.hud.update(g.player, g.env, g.spawner, 1 / 60);
+
+    const bracketTf = g.tracker.bracket.style.transform;
+    const bracketBxy = parseXY(bracketTf);
+    const leadTf = g.tracker.lead.style.transform;
+    const leadBxy = parseXY(leadTf);
+    const lineTf = g.tracker.leadLine.style.transform;
+    const lineStart = parseXY(lineTf);
+    const projB = proj(B.position);
+    const projA = proj(A.position);
+
+    return {
+      gotA, gotB,
+      bracketAxy, bracketDisp: g.tracker.bracket.style.display, bracketBxy, projB, projA,
+      leadDisp: g.tracker.lead.style.display, leadBxy,
+      lineDisp: g.tracker.leadLine.style.display, lineStart,
+      radarDrewImmediately: g.radar.lastMs !== -999,
+      radarLastSelIsB: g.radar._lastSel === B,
+      dNearest: document.getElementById('d-nearest').textContent,
+      dRowLabel: document.querySelector('[data-row="nearest"] span').textContent,
+      distB: B.position.distanceTo(g.player.position),
+      distA: A.position.distanceTo(g.player.position),
+    };
+  });
+  check(j1.gotA && j1.gotB, 'J1 setup: two successive Tabs select A then B (precondition)',
+        `gotA=${j1.gotA}, gotB=${j1.gotB}`);
+  const bracketMoved = j1.bracketAxy && j1.bracketBxy &&
+        Math.hypot(j1.bracketBxy.x - j1.bracketAxy.x, j1.bracketBxy.y - j1.bracketAxy.y) > 5;
+  const bracketOnB = j1.bracketDisp === 'block' && j1.bracketBxy &&
+        Math.hypot(j1.bracketBxy.x - j1.projB.x, j1.bracketBxy.y - j1.projB.y) < 1 &&
+        Math.hypot(j1.bracketBxy.x - j1.projA.x, j1.bracketBxy.y - j1.projA.y) > 20;
+  check(bracketMoved && bracketOnB,
+        'J1a bracket moves onto the newly-Tabbed target B (matches THREE Vector3#project(B), not A) within one tick',
+        JSON.stringify({ bracketAxy: j1.bracketAxy, bracketBxy: j1.bracketBxy, projB: j1.projB, projA: j1.projA }));
+  const leadSeparatesFromBracket = j1.leadBxy && j1.bracketBxy &&
+        Math.hypot(j1.leadBxy.x - j1.bracketBxy.x, j1.leadBxy.y - j1.bracketBxy.y) > 8;
+  check(j1.leadDisp === 'block' && leadSeparatesFromBracket,
+        'J1b lead ring is shown for the new target B and leads its (laterally-moving) bracket position',
+        JSON.stringify({ leadDisp: j1.leadDisp, leadBxy: j1.leadBxy, bracketBxy: j1.bracketBxy }));
+  const lineOriginMatchesBracket = j1.lineStart && j1.bracketBxy &&
+        Math.hypot(j1.lineStart.x - j1.bracketBxy.x, j1.lineStart.y - j1.bracketBxy.y) < 0.15;
+  check(j1.lineDisp === 'block' && lineOriginMatchesBracket,
+        'J1c bracket->lead line originates at B\'s (updated) bracket position', JSON.stringify(j1));
+  check(j1.radarDrewImmediately,
+        'J1d radar forces an immediate redraw the tick the selection changes (dt=0.001, far below the 20Hz step)',
+        `lastMs after tiny-dt tick following Tab: ${j1.radarDrewImmediately} (poisoned at -999 beforehand)`);
+  check(j1.radarLastSelIsB, 'J1e radar._lastSel tracks the newly-Tabbed target B', `radarLastSelIsB=${j1.radarLastSelIsB}`);
+  check(j1.dNearest === Math.round(j1.distB) + ' m' && j1.dNearest !== Math.round(j1.distA) + ' m',
+        'J1f HUD Data "Target" row (#d-nearest) follows the SELECTED target B, not nearest-overall A',
+        `#d-nearest="${j1.dNearest}", distB=${j1.distB.toFixed(1)}, distA=${j1.distA.toFixed(1)}`);
+  check(j1.dRowLabel === 'Target', 'J1g Data widget row label reads "Target" (SPEC 18: renamed from "Nearest")',
+        `label="${j1.dRowLabel}"`);
+
+  // --- J2: off-screen arrow priority. Oversubscribe the 6 arrow slots (read
+  // live off tracker.arrows.length, never hardcoded) and Tab onto the LAST
+  // fighter added to the world -- the exact ordering the old bug lost, since
+  // slots used to fill in world-iteration order.
+  const j2 = await jp.evaluate(() => {
+    const g = window.__game;
+    g.relaunch(); window.__h.godMode();
+    g.diff.set('MEDIUM');
+    g.spawner.pending = false; g.spawner.clear();
+    const nSlots = g.tracker.arrows.length;
+    const V = g.player.position.constructor;
+    const pos = g.player.position.clone();
+    const back = g.player._fwd.clone().normalize().multiplyScalar(-1);   // behind: guaranteed off-screen
+    const up = new V(0, 1, 0);
+    let last = null;
+    const N = nSlots + 3;
+    for (let i = 0; i < N; i++) {
+      const e = g.spawner.pool.get();
+      e.position.copy(pos).addScaledVector(back, 200 + i * 5).addScaledVector(up, (i % 5) * 10);
+      e.reset(g.ctx, 3, 1, null, 0);
+      e.vel.set(0, 0, 0);
+      g.world.add(e);
+      last = e;
+    }
+    g.world.rebuildHash();
+    g.player.object.updateMatrixWorld(true);
+
+    g.tracker.target = last;               // simulate Tab landing on the last-iterated fighter
+    g.tracker.update(g.world, g.camera);
+
+    const visibleArrows = g.tracker.arrows.filter(a => a.style.display === 'block').length;
+    const tgtArrow = g.tracker.arrows.some(a => a.classList.contains('tgt') && a.style.display === 'block');
+    return { nSlots, aliveCount: window.__h.enemies().length, visibleArrows, tgtArrow };
+  });
+  check(j2.aliveCount > j2.nSlots,
+        'J2 setup: genuinely oversubscribed (alive fighters > off-screen arrow slots)',
+        `alive=${j2.aliveCount}, slots=${j2.nSlots}`);
+  check(j2.visibleArrows <= j2.nSlots, 'J2a visible arrows never exceed the slot count',
+        `visibleArrows=${j2.visibleArrows}, slots=${j2.nSlots}`);
+  check(j2.tgtArrow === true,
+        'J2b the selected target still claims an off-screen arrow slot when slots are oversubscribed (Tracker#arrow priority fix)',
+        JSON.stringify(j2));
+
+  // --- J3: aim assist follows the CURRENT (post-Tab) target, not whichever
+  // was selected before. A and B on opposite sides, both beyond the assist
+  // cone's reach (so the bolt cannot actually collide with either -- purely a
+  // directional measurement, same technique as M3-2 above), Tab past A onto
+  // B, then fire and confirm the bolt bends toward B's side.
+  const j3 = await jp.evaluate(() => {
+    const g = window.__game;
+    g.relaunch(); window.__h.godMode();
+    g.diff.set('MEDIUM');
+    g.spawner.pending = false; g.spawner.clear();
+    const V = g.player.position.constructor;
+    const fwd = g.player._fwd.clone().normalize();
+    const right = new V(1, 0, 0).applyQuaternion(g.player.object.quaternion);
+    const pos = g.player.position.clone();
+
+    const mk = (df, dr) => {
+      const e = g.spawner.pool.get();
+      e.position.copy(pos).addScaledVector(fwd, df).addScaledVector(right, dr);
+      e.reset(g.ctx, 3, 1, null, 0);
+      e.vel.set(0, 0, 0);
+      g.world.add(e);
+      return e;
+    };
+    const A = mk(300, 60);     // nearer, right
+    const B = mk(400, -140);   // farther, left
+    g.world.rebuildHash();
+    g.player.object.updateMatrixWorld(true);
+
+    g.tracker.target = null;
+    dispatchEvent(new KeyboardEvent('keydown', { code: 'Tab', bubbles: true }));   // -> A (nearest)
+    const gotA = g.tracker.target === A;
+    dispatchEvent(new KeyboardEvent('keydown', { code: 'Tab', bubbles: true }));   // -> B
+    const gotB = g.tracker.target === B;
+
+    const assistDeg = g.diff.p.assistDeg;
+    g.bus.emit('player:fire', { muzzles: [pos.clone()], dir: fwd.clone(), vel: 0 });
+    const l = [...g.world.tagged('projectile')].at(-1);
+    for (let i = 0; i < 30; i++) g.tick(1 / 60);
+    const finalDir = l.vel.clone().normalize();
+    // Bearings measured LIVE, post-flight: both A/B (real, autonomously-flying
+    // fighters) and the player itself move during the 30 ticks (SPEC 3: the
+    // ship always cruises), so re-reading g.player.position here -- rather
+    // than the stale pre-tick `pos` -- keeps this an honest "which side is
+    // the bolt actually pointed toward, right now" comparison.
+    const toA = A.position.clone().sub(g.player.position).normalize();
+    const toB = B.position.clone().sub(g.player.position).normalize();
+    const angTo = v => Math.acos(Math.max(-1, Math.min(1, finalDir.dot(v)))) * 180 / Math.PI;
+    return { gotA, gotB, assistDeg, angToA: angTo(toA), angToB: angTo(toB), lateral: finalDir.dot(right) };
+  });
+  check(j3.gotA && j3.gotB, 'J3 setup: Tab selects A then B (precondition)', `gotA=${j3.gotA}, gotB=${j3.gotB}`);
+  check(j3.assistDeg > 0, 'J3 precondition: MEDIUM has a nonzero assist cone (assistDeg read live from g.diff.p)',
+        `assistDeg=${j3.assistDeg}`);
+  check(j3.angToB < j3.angToA && j3.lateral < 0,
+        'J3a aim assist bends the bolt toward the CURRENTLY selected target B, not the previously-selected A',
+        `angToA=${j3.angToA.toFixed(2)}deg, angToB=${j3.angToB.toFixed(2)}deg, lateral(toward A side)=${j3.lateral.toFixed(3)}`);
+
+  // --- J4 (Task C): when the tracked target dies, the tracker drops the
+  // reference immediately (synchronously, inside the enemy:died handler) and
+  // the next post-render tracker pass re-acquires the nearest surviving
+  // fighter -- never left null while any enemy is alive. Kills the CURRENT
+  // selection each round (not always the same fighter A/B/C), so this holds
+  // regardless of which one #acquire happened to pick last round.
+  const j4 = await jp.evaluate(() => {
+    const g = window.__game;
+    g.relaunch(); window.__h.godMode();
+    g.diff.set('MEDIUM');
+    g.spawner.pending = false; g.spawner.clear();
+    const V = g.player.position.constructor;
+    const pos = g.player.position.clone();
+    const fwd = g.player._fwd.clone().normalize();
+    const right = new V(1, 0, 0).applyQuaternion(g.player.object.quaternion);
+
+    const mk = (df, dr) => {
+      const e = g.spawner.pool.get();
+      e.position.copy(pos).addScaledVector(fwd, df).addScaledVector(right, dr);
+      e.reset(g.ctx, 3, 1, null, 0);
+      e.vel.set(0, 0, 0);
+      g.world.add(e);
+      return e;
+    };
+    const A = mk(200, -50), B = mk(350, 0), C = mk(500, 60);
+    g.world.rebuildHash();
+    g.player.object.updateMatrixWorld(true);
+    // These three fighters are spawned directly, outside Spawner's own wave
+    // bookkeeping (spawner.alive/waveIndex), so Spawner's global 'enemy:died'
+    // listener must not see alive hit 0 and treat it as a real wave clear
+    // (CFG.waves[-1] after relaunch's spawner.reset() -> waveIndex=-1, which
+    // would throw). pending=true short-circuits that path without triggering
+    // an actual auto-spawn, since this test never calls g.tick().
+    g.spawner.pending = true;
+
+    // Deliberately select the MIDDLE one first, not the nearest, so a naive
+    // "just re-pick nearest" that ignores the drop-on-death event can't
+    // accidentally look right by coincidence.
+    g.tracker.target = B;
+
+    const nearestAliveOf = list => {
+      let best = null, bd = Infinity;
+      for (const e of list) if (e.alive) {
+        const d = e.position.distanceToSquared(g.player.position);
+        if (d < bd) { bd = d; best = e; }
+      }
+      return best;
+    };
+
+    const order = [B, A, C];   // kill the current selection first, then the rest
+    const steps = [];
+    for (const victim of order) {
+      const wasTarget = g.tracker.target === victim;
+      victim.health.cur = 1; victim.hit(1);                 // -> #onDeath -> enemy:died (synchronous)
+      const droppedImmediately = wasTarget ? g.tracker.target === null : null;
+      const aliveBefore = [A, B, C].filter(e => e.alive);
+      const expectedNearest = nearestAliveOf(aliveBefore);
+      g.player.object.updateMatrixWorld(true);
+      g.tracker.update(g.world, g.camera);                  // one post-render tracker pass
+      steps.push({
+        wasTarget, droppedImmediately,
+        aliveCount: aliveBefore.length,
+        targetIsAlive: !!g.tracker.target && g.tracker.target.alive,
+        targetMatchesExpected: g.tracker.target === expectedNearest,
+        nullWhileAliveExist: aliveBefore.length > 0 && g.tracker.target === null,
+      });
+    }
+
+    // Pool-recycle hole: relaunch a new fighter (the pool very likely hands
+    // back the just-freed C instance) and confirm the tracker does NOT
+    // silently point at it -- selection is only ever set by cycle()/#acquire.
+    const D = mk(300, 0);
+    g.world.rebuildHash();
+    const targetStillNullAfterRespawn = g.tracker.target === null;
+    const recycledSameObject = D === C;
+
+    return { steps, targetStillNullAfterRespawn, recycledSameObject };
+  });
+  j4.steps.forEach((s, i) => {
+    check(!s.wasTarget || s.droppedImmediately === true,
+          `J4a-${i} tracker.target is dropped to null synchronously the instant its current selection dies`,
+          JSON.stringify(s));
+    check(!s.nullWhileAliveExist,
+          `J4b-${i} tracker never sits null while an enemy is alive (after one post-render pass)`, JSON.stringify(s));
+    if (s.aliveCount > 0) {
+      check(s.targetIsAlive, `J4c-${i} re-acquired target is alive`, JSON.stringify(s));
+      check(s.targetMatchesExpected, `J4d-${i} re-acquired target is the nearest surviving fighter`, JSON.stringify(s));
+    }
+  });
+  check(j4.targetStillNullAfterRespawn,
+        'J4e pool-recycle hole: a fighter relaunched into a freed (possibly reused) object does not silently ' +
+        'inherit the dropped selection', JSON.stringify(j4));
+
+  // --- J5 (Task D): the approach speed floor is continuous across the blend
+  // band -- no single-tick/step jump anywhere in the rising portion -- and
+  // still reaches (and holds at) the floor well beyond it. Measured by
+  // Aitken's delta-squared extrapolation of 3 consecutive ticks of the
+  // exponential damp toward a target held fixed by pinning distance/state
+  // each tick, which recovers Enemy#update's implied target speed exactly
+  // without needing CFG.enemies.accel (module-scoped, unreachable here).
+  const j5 = await jp.evaluate(() => {
+    const g = window.__game;
+    g.relaunch(); window.__h.godMode();
+    g.diff.set('MEDIUM');
+    g.spawner.pending = false; g.spawner.clear();
+    const fwd = g.player._fwd.clone().normalize();
+
+    const e = g.spawner.pool.get();
+    e.position.copy(g.player.position).addScaledVector(fwd, 1000);
+    e.reset(g.ctx, 1e9, 1, null, 0);
+    e.health.max = 1e9; e.health.cur = 1e9;
+    g.world.add(e);
+    g.world.rebuildHash();
+
+    // Re-read g.player.position LIVE every tick (never a stale snapshot): the
+    // player cruises forward every tick even at rest (SPEC 3), so a captured
+    // position drifts out from under a multi-tick loop like this one and
+    // silently corrupts "dist" for every sample after the first.
+    const targetAt = dist => {
+      const s = [];
+      for (let i = 0; i < 3; i++) {
+        e.setState('APPROACH');
+        e.position.copy(g.player.position).addScaledVector(fwd, dist);
+        g.tick(1 / 60);
+        s.push(e.speed);
+      }
+      const denom = s[0] - 2 * s[1] + s[2];
+      return Math.abs(denom) < 1e-9 ? s[2] : (s[0] * s[2] - s[1] * s[1]) / denom;
+    };
+
+    // Coarse geometric bracket for the rising band (avoids d<~10, which would
+    // put the fixed test position inside the player/enemy collision radius).
+    const coarseDists = [50, 100, 200, 400, 800, 1600, 3200, 6400, 12800];
+    const coarse = coarseDists.map(d => ({ d, t: targetAt(d) }));
+    const lo = Math.min(...coarse.map(c => c.t)), hi = Math.max(...coarse.map(c => c.t));
+    const tol = Math.max(0.05, (hi - lo) * 0.01);
+    let dLow = coarse[0].d, dHigh = coarse[coarse.length - 1].d;
+    for (const c of coarse) if (c.t <= lo + tol) dLow = c.d;
+    for (let i = coarse.length - 1; i >= 0; i--) if (coarse[i].t >= hi - tol) dHigh = coarse[i].d;
+
+    // Fine linear sweep across (and a little past) the discovered band.
+    const N = 40, span = dHigh - dLow, pad = Math.max(20, span * 0.1);
+    const fine = [];
+    for (let i = 0; i <= N; i++) {
+      const d = Math.max(1, dLow - pad + (span + 2 * pad) * (i / N));
+      fine.push({ d, t: targetAt(d) });
+    }
+    let maxStep = 0, monotoneViolation = 0;
+    for (let i = 1; i < fine.length; i++) {
+      const step = fine[i].t - fine[i - 1].t;
+      if (step > maxStep) maxStep = step;
+      if (step < -tol) monotoneViolation++;
+    }
+    const range = hi - lo;
+
+    // Well beyond the band: must sit at the floor and stay there.
+    const farD = dHigh + span + 2000;
+    const farTarget = targetAt(farD);
+
+    // Independent live measurement of the floor: reset() sets a FRESH
+    // enemy's speed directly to the floor ("spawn already closing"), so read
+    // it straight off reset() before any tick touches it.
+    const e2 = g.spawner.pool.get();
+    e2.reset(g.ctx, 1, 1, null, 0);
+    const freshFloor = e2.speed;
+    e2.dispose();
+    e.dispose();
+
+    return { coarse, lo, hi, range, dLow, dHigh, maxStep, monotoneViolation, farD, farTarget, freshFloor };
+  });
+  check(j5.range > 1,
+        'J5 setup: the coarse sweep found a real rising band between a low and a high plateau',
+        JSON.stringify({ lo: j5.lo, hi: j5.hi, dLow: j5.dLow, dHigh: j5.dHigh }));
+  check(j5.monotoneViolation === 0,
+        'J5a approach floor target speed is non-decreasing with distance across the fine sweep',
+        `monotoneViolation=${j5.monotoneViolation}`);
+  check(j5.maxStep <= j5.range * 0.25 + 0.1,
+        'J5b approach floor is continuous across the blend band -- no single-tick/step jump anywhere in the fine sweep',
+        `maxStep=${j5.maxStep.toFixed(3)}, range=${j5.range.toFixed(3)} (cap = 25% of range = ${(j5.range * 0.25).toFixed(3)})`);
+  const farTol = Math.max(0.5, j5.range * 0.02);
+  check(Math.abs(j5.farTarget - j5.hi) < farTol,
+        'J5c approach floor target speed reaches (and holds at) the floor well beyond fireRange+approachBlend',
+        `farTarget=${j5.farTarget.toFixed(3)} at d=${j5.farD.toFixed(0)}, plateau hi=${j5.hi.toFixed(3)} (tol ${farTol.toFixed(3)})`);
+  check(Math.abs(j5.freshFloor - j5.hi) < farTol,
+        'J5d sweep-measured floor matches a freshly-reset enemy\'s own spawn-time floor speed (cross-check, no hardcoded CFG literal)',
+        `freshFloor=${j5.freshFloor.toFixed(3)}, sweep hi=${j5.hi.toFixed(3)} (tol ${farTol.toFixed(3)})`);
+
+  check(jErrs.length === 0, 'J6 no console errors during the M3.5 targeting-fix checks',
+        jErrs.slice(0, 3).join(' | ') || 'clean');
+
+  await ctxJ.close();
+
+  /* ================= K. FX/core batching regression guard + radar counts (post-refactor) =====
+   * FX and core rendering are now batched (ParticleBatch for sparks/booms, one InstancedMesh
+   * per debris shard, one InstancedMesh per core type) specifically because the PREVIOUS
+   * per-effect Points/Mesh design pushed real combat past the SPEC 11 120 draw-call cap
+   * (measured mean 121.5, p95 155, max 165). Draw-call NUMBERS are perf-gatekeeper's job on
+   * real Chrome -- SwiftShader is not valid for that -- but the underlying scene-graph
+   * property IS checkable headlessly: only objects with actual renderable geometry
+   * (Mesh/Points/InstancedMesh/Sprite) cost a draw call, and that subset must stay CONSTANT
+   * as live bursts/debris/cores rise, however many are on screen.
+   *
+   * Note on scope, found while building this: raw scene.children.length is NOT that
+   * property, and DOES grow with core count -- every Core, alive or not, is still added to
+   * World.entities via World.add(), which unconditionally does scene.add(e.object); Core's
+   * object is an empty, non-rendering THREE.Object3D transform node (matrixAutoUpdate=false),
+   * so it costs zero draw calls but IS one more scene.children entry. Measured directly: 60
+   * core drops -> scene.children +60, but the Mesh/Points/InstancedMesh/Sprite subset +0.
+   * K1 below filters to that drawable subset rather than asserting on raw children, which
+   * would be a false requirement for cores (bursts and debris, having no Entity/scene
+   * presence at all, contribute 0 to either count).
+   */
+  const ctxK = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+  const kp = await ctxK.newPage();
+  const kErrs = [];
+  kp.on('console', m => { if (m.type() === 'error') kErrs.push(m.text()); });
+  kp.on('pageerror', e => kErrs.push('pageerror: ' + e.message.split('\n')[0]));
+  await kp.goto(URL, { waitUntil: 'load' });
+  await kp.waitForTimeout(1500);
+  await kp.evaluate(HARNESS);
+
+  // --- K1: drawable scene-graph size does not grow with live burst/debris/core count ---
+  const drawGraph = await kp.evaluate(() => {
+    const g = window.__game;
+    g.relaunch(); window.__h.godMode();
+    g.spawner.pending = false; g.spawner.clear();
+    const drawableCount = () =>
+      g.scene.children.filter(o => o.isMesh || o.isPoints || o.isInstancedMesh || o.isSprite).length;
+    const before = { children: g.scene.children.length, drawable: drawableCount() };
+
+    const pos = g.player.position.clone().addScaledVector(g.player._fwd, 200);
+    const V = g.player.position.constructor;
+    for (let i = 0; i < 60; i++) g.fx.spark(pos);             // beyond CFG.fx.spark.pool -- pools overflow-tolerate
+    for (let i = 0; i < 30; i++) g.fx.explode(pos);           // each also drops several debris chunks
+    for (let i = 0; i < 60; i++) g.cores.drop(pos, new V(0, 0, 0));
+    g.fx.sync(); g.cores.sync(g.camera);                       // the once-per-render-frame batch build
+
+    const after = { children: g.scene.children.length, drawable: drawableCount() };
+    return {
+      before, after,
+      liveBursts: g.fx.sparkBursts.length + g.fx.boomBursts.length,
+      liveDebris: g.fx.debris.length,
+      livePickups: g.world.tagged('pickup').size,
+    };
+  });
+  check(drawGraph.liveBursts >= 60 && drawGraph.liveDebris > 0 && drawGraph.livePickups >= 60,
+        'K1 setup: genuinely many live bursts/debris/cores exist at once (not a vacuous check)',
+        JSON.stringify(drawGraph));
+  check(drawGraph.after.drawable === drawGraph.before.drawable,
+        'K1 drawable scene children (Mesh/Points/InstancedMesh/Sprite -- the SPEC 11 draw-call ' +
+        'proxy) do not grow with live burst/debris/core count: batching cannot silently regress ' +
+        'to one object per effect',
+        JSON.stringify(drawGraph));
+  check(drawGraph.after.children - drawGraph.before.children === drawGraph.livePickups,
+        'K1 note: raw scene.children DOES grow, by exactly the live pickup count -- each Core ' +
+        'is still its own (non-rendering) transform node added via World.add(); expected, and ' +
+        'why K1 above filters to the drawable subset instead of raw children.length',
+        JSON.stringify(drawGraph));
+
+  // --- K2: radar reports the same in-range contact counts as before the FX/core batching
+  // pass (SPEC 8) -- drawing moved to baked/instanced canvases and batched fillRect calls,
+  // but the underlying counting logic (world.tagged(...) + the local-frame in-range test)
+  // is untouched. One of each contact type, all deliberately well within radar.range.
+  const radarPost = await kp.evaluate(() => {
+    const g = window.__game;
+    g.relaunch(); window.__h.godMode();
+    g.spawner.pending = false; g.spawner.clear();
+    const V = g.player.position.constructor;
+    const fwd = g.player._fwd.clone().normalize();
+    const right = new V(1, 0, 0).applyQuaternion(g.player.object.quaternion);
+    const inR = 300;   // comfortably inside the default radar.range
+
+    for (let i = 0; i < 3; i++) {
+      const e = g.spawner.pool.get();
+      e.position.copy(g.player.position).addScaledVector(fwd, inR).addScaledVector(right, i * 20);
+      e.reset(g.ctx, 3, 1, null, 0);
+      e.vel.set(0, 0, 0);
+      g.world.add(e);
+    }
+    window.__h.enemyShootPlayer();     // parks one enemy bolt right at the player -- well in range
+    for (let i = 0; i < 3; i++) {
+      g.cores.drop(g.player.position.clone().addScaledVector(fwd, inR + i * 5), new V(0, 0, 0));
+    }
+    g.world.rebuildHash();
+    g.radar.acc = 0; g.radar.tick(1);   // force an immediate draw
+
+    const q = g.player.object.quaternion;
+    const rfwd = new V(0, 0, -1).applyQuaternion(q), rright = new V(1, 0, 0).applyQuaternion(q);
+    const inRange = e => {
+      const rel = e.position.clone().sub(g.player.position);
+      return Math.hypot(rel.dot(rright), rel.dot(rfwd)) <= g.radar.range;
+    };
+    let expectEnemies = 0; for (const e of window.__h.enemies()) if (inRange(e)) expectEnemies++;
+    let expectAst = 0; for (const a of g.world.tagged('asteroid')) if (a.alive && inRange(a)) expectAst++;
+    let expectBolt = 0; for (const b of g.world.tagged('enemyProjectile')) if (b.alive && inRange(b)) expectBolt++;
+    let expectCore = 0; for (const c of g.world.tagged('pickup')) if (c.alive && inRange(c)) expectCore++;
+
+    return {
+      counts: { ...g.radar.counts },
+      expected: { enemies: expectEnemies, asteroids: expectAst, bolts: expectBolt, cores: expectCore },
+    };
+  });
+  check(radarPost.expected.enemies > 0 && radarPost.expected.asteroids > 0 &&
+        radarPost.expected.bolts > 0 && radarPost.expected.cores > 0,
+        'K2 setup: genuine in-range contacts of all four kinds exist (not a vacuous check)',
+        JSON.stringify(radarPost));
+  check(radarPost.counts.enemies === radarPost.expected.enemies &&
+        radarPost.counts.asteroids === radarPost.expected.asteroids &&
+        radarPost.counts.bolts === radarPost.expected.bolts &&
+        radarPost.counts.cores === radarPost.expected.cores,
+        'K2 radar.counts (enemies/asteroids/bolts/cores) still matches the same in-range ' +
+        'projection test post-batching (SPEC 8) -- drawing moved to baked/instanced canvases ' +
+        'but the contact-counting logic did not',
+        JSON.stringify(radarPost));
+
+  check(kErrs.length === 0, 'K3 no console errors during the FX/core batching + radar checks',
+        kErrs.slice(0, 3).join(' | ') || 'clean');
+
+  await ctxK.close();
 
   console.log('\n================ SOLAR SAVERS ================');
   pass.forEach(p => console.log('  PASS  ' + p));
