@@ -22,6 +22,9 @@ interface Props {
     coDriver: CoDriverMode;
     onCoDriver: (m: CoDriverMode) => void;
     speechAvailable: boolean;
+    touch: boolean;
+    steerStyle: 'stick' | 'buttons';
+    onSteerStyle: (next: 'stick' | 'buttons') => void;
     chapters: boolean;
     onChapters: (on: boolean) => void;
     director: boolean;
@@ -56,6 +59,9 @@ export const SettingsPanel = ({
     coDriver,
     onCoDriver,
     speechAvailable,
+    touch,
+    steerStyle,
+    onSteerStyle,
     chapters,
     onChapters,
     director,
@@ -143,7 +149,34 @@ export const SettingsPanel = ({
                     </em>
                 </p>
 
-                <h3>Director</h3>
+                {touch && (
+                <>
+                    <h3>Steering</h3>
+                    <div className="segmented">
+                        <button
+                            type="button"
+                            className={steerStyle === 'stick' ? 'segment selected' : 'segment'}
+                            onClick={() => onSteerStyle('stick')}
+                        >
+                            Thumbstick
+                        </button>
+                        <button
+                            type="button"
+                            className={steerStyle === 'buttons' ? 'segment selected' : 'segment'}
+                            onClick={() => onSteerStyle('buttons')}
+                        >
+                            Buttons
+                        </button>
+                    </div>
+                    <p className="setting-note">
+                        The thumbstick appears wherever your thumb lands and steers by how far you
+                        move it, so you can hold a small correction instead of only full lock. The
+                        buttons are on or off, which is steadier in rough going but blunt at speed.
+                    </p>
+                </>
+            )}
+
+            <h3>Director</h3>
                 <button type="button" className="toggle-row" onClick={() => onDirector(!director)}>
                     <span>Let something choose the road</span>
                     <span className={director ? 'switch on' : 'switch'} />

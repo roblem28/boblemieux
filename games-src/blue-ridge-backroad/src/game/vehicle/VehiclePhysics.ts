@@ -128,7 +128,9 @@ const makeWheel = (x: number, z: number): WheelState => ({
 const frameA = createFrame();
 const projA = createProjectResult();
 const collisionOut = new Float32Array(4);
-const targets: InputTargets = { throttle: 0, brake: 0, steer: 0 };
+const targets: InputTargets = { throttle: 0, brake: 0, steer: 0, analog: false };
+/** How fast `steerInput` follows a continuous control. Smoothing, not ramping. */
+const STEER_ANALOG_RATE = 9;
 
 /**
  * Pacejka-shaped tire curve, and the load sensitivity that makes weight
@@ -274,11 +276,19 @@ export class VehiclePhysics {
         // scales only the wind-on rate, so the Sharp setting is quicker to
         // respond rather than capable of more lock.
         const steerWant = targets.steer;
-        const windingOn =
-            steerWant !== 0 &&
-            (Math.abs(steerWant) > Math.abs(this.steerInput) ||
-                Math.sign(steerWant) !== Math.sign(this.steerInput));
-        const inputRate = windingOn ? STEER_IN_RATE * this.steerSensitivity : STEER_RETURN_RATE;
+        let inputRate: number;
+        if (targets.analog) {
+            // The thumb is the intent, so this only takes the jitter out of it.
+            // Running a stick through the key wind-on rate makes a control the
+            // player is already modulating feel like it is lagging them.
+            inputRate = STEER_ANALOG_RATE;
+        } else {
+            const windingOn =
+                steerWant !== 0 &&
+                (Math.abs(steerWant) > Math.abs(this.steerInput) ||
+                    Math.sign(steerWant) !== Math.sign(this.steerInput));
+            inputRate = windingOn ? STEER_IN_RATE * this.steerSensitivity : STEER_RETURN_RATE;
+        }
         this.steerInput = moveTowards(this.steerInput, steerWant, dt * inputRate);
 
         const speed = Math.abs(this.u);

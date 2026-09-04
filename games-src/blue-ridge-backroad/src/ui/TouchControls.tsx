@@ -27,6 +27,8 @@ type Control = 'left' | 'right' | 'gas' | 'brake';
 interface Props {
     input: InputState;
     visible: boolean;
+    /** When false the left cluster is gone and `ThumbStick` owns steering. */
+    steerButtons: boolean;
 }
 
 const apply = (input: InputState, control: Control, down: boolean): void => {
@@ -105,7 +107,7 @@ const useControlButton = (
     );
 };
 
-export const TouchControls = ({ input, visible }: Props): JSX.Element | null => {
+export const TouchControls = ({ input, visible, steerButtons }: Props): JSX.Element | null => {
     const leftRef = useControlButton(input, 'left');
     const rightRef = useControlButton(input, 'right');
     const gasRef = useControlButton(input, 'gas');
@@ -136,14 +138,16 @@ export const TouchControls = ({ input, visible }: Props): JSX.Element | null => 
 
     return (
         <div className="touch-layer">
-            <div className="touch-cluster touch-left">
-                <button ref={leftRef} className="touch-btn steer" type="button" aria-label="Steer left">
-                    <span>&#10094;</span>
-                </button>
-                <button ref={rightRef} className="touch-btn steer" type="button" aria-label="Steer right">
-                    <span>&#10095;</span>
-                </button>
-            </div>
+            {steerButtons && (
+                <div className="touch-cluster touch-left">
+                    <button ref={leftRef} className="touch-btn steer" type="button" aria-label="Steer left">
+                        <span>&#10094;</span>
+                    </button>
+                    <button ref={rightRef} className="touch-btn steer" type="button" aria-label="Steer right">
+                        <span>&#10095;</span>
+                    </button>
+                </div>
+            )}
             <div className="touch-cluster touch-right">
                 <button ref={brakeRef} className="touch-btn brake" type="button" aria-label="Brake and reverse">
                     <span>BRAKE</span>

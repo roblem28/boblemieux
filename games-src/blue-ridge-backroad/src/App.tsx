@@ -9,6 +9,8 @@ import { Hud } from './ui/Hud';
 import { TouchControls } from './ui/TouchControls';
 import { SettingsPanel } from './ui/SettingsPanel';
 import { StagePicker } from './ui/StagePicker';
+import { ThumbStick } from './ui/ThumbStick';
+import { createInputState } from './game/input';
 import { telemetry, publishTelemetry } from './ui/telemetry';
 import { formatTime } from './game/splits';
 
@@ -44,6 +46,19 @@ export const App = (): JSX.Element => {
             return localStorage.getItem('brb.director.url') ?? '';
         } catch {
             return '';
+        }
+    });
+
+    /**
+     * Thumbstick by default on touch. The buttons stay available because they
+     * are steadier in rough going — there is nothing to lose track of — and
+     * some people simply prefer them.
+     */
+    const [steerStyle, setSteerStyle] = useState<'stick' | 'buttons'>(() => {
+        try {
+            return localStorage.getItem('brb.steerStyle') === 'buttons' ? 'buttons' : 'stick';
+        } catch {
+            return 'stick';
         }
     });
 
@@ -203,6 +218,15 @@ export const App = (): JSX.Element => {
         gameRef.current?.setDirectorEndpoint(url);
     }, []);
 
+    const handleSteerStyle = useCallback((next: 'stick' | 'buttons') => {
+        setSteerStyle(next);
+        try {
+            localStorage.setItem('brb.steerStyle', next);
+        } catch {
+            /* private mode */
+        }
+    }, []);
+
     const handleRecover = useCallback(() => {
         gameRef.current?.recover();
     }, []);
@@ -290,7 +314,15 @@ export const App = (): JSX.Element => {
                         muted={muted}
                         showFps={showFps}
                     />
-                    <TouchControls input={gameRef.current?.input ?? FALLBACK_INPUT} visible={touch} />
+                    <TouchControls
+                        input={gameRef.current?.input ?? FALLBACK_INPUT}
+                        visible={touch}
+                        steerButtons={steerStyle === 'buttons'}
+                    />
+                    <ThumbStick
+                        input={gameRef.current?.input ?? FALLBACK_INPUT}
+                        visible={touch && steerStyle === 'stick'}
+                    />
                 </>
             )}
             {pickerOpen && gameRef.current && (
@@ -313,6 +345,9 @@ export const App = (): JSX.Element => {
                     coDriver={coDriver}
                     onCoDriver={handleCoDriver}
                     speechAvailable={speechAvailable}
+                    touch={touch}
+                    steerStyle={steerStyle}
+                    onSteerStyle={handleSteerStyle}
                     chapters={chapters}
                     onChapters={handleChapters}
                     director={director}
@@ -337,16 +372,10 @@ export const App = (): JSX.Element => {
 
 // Only ever used if the canvas failed before the controls mounted; keeps the
 // touch layer from having to deal with a null input object.
-const FALLBACK_INPUT = {
-    cycleCameraRequested: false,
-    recoverRequested: false,
-    restartRequested: false,
-    keyThrottle: false,
-    keyBrake: false,
-    keyLeft: false,
-    keyRight: false,
-    touchThrottle: false,
-    touchBrake: false,
-    touchLeft: false,
-    touchRight: false
-};
+/**
+ * Stands in for the game's own input record for the frame or two before the
+ * game exists. Built by the factory rather than written out again here: the
+ * hand-written copy fell out of date the moment a field was added, and a
+ * missing field on this path is a control that silently does nothing.
+ */
+const FALLBACK_INPUT = createInputState();

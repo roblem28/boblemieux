@@ -838,3 +838,48 @@ visible) before being kept.
 The general lesson is narrower than "test the UI". It is that a test asserting on
 a pure function tells you nothing about a feature whose failure mode is
 presentation, and the scout's whole value to a player is presentation.
+
+## D12 — The thumbstick
+
+**D12.1 — The phone had no steering angle, only a direction.** `resolveInputTargets`
+computed `steer = right - left`, so on touch it could only ever be -1, 0 or +1.
+Every correction was full lock until you let go, which is survivable at 30 mph
+and hopeless at 100. The stick adds the missing middle: measured, a quarter of
+the throw turns the truck 0.244 rad over 1.5 s against 0.716 rad at full lock.
+
+**D12.2 — Floating, not fixed.** A fixed stick has to be found before it can be
+used, and where a left thumb naturally rests is different in portrait and
+landscape and different between two people. The stick's centre is wherever the
+thumb lands; only travel from that point matters afterwards.
+
+**D12.3 — Analogue input is a different kind of number, and the physics has to
+know.** A key is a request to keep winding lock on for as long as it is held, so
+`steerInput` ramps toward it at `STEER_IN_RATE`. A thumb is already holding a
+position, so running it through the same ramp adds lag to a control the player is
+modulating directly. `InputTargets` now carries an `analog` flag and the ramp
+becomes light smoothing (9/s) when it is set. Travel is shaped by a centre-weighted
+curve rather than mapped linearly: the millimetres either side of centre are the
+hardest part of the throw to hold still and exactly where a car at speed needs
+the finest control.
+
+**D12.4 — Pointer capture must never gate the input state.** The first version
+called `setPointerCapture` before setting `touchSteerHeld`. It throws if the
+pointer is already gone, and the throw took the state writes with it — the stick
+drew itself, tracked the thumb, and steered nothing, because
+`resolveInputTargets` fell through to the digital path. Capture is now last and
+wrapped; `pointercancel` still releases the stick, which is what actually matters
+for a call arriving mid-corner.
+
+**D12.5 — A `useEffect` keyed on the wrong thing broke it after a mode switch.**
+The listener effect had deps `[input]`, and `input` never changes. Hiding the
+stick (choosing Buttons) unmounts the elements, so on coming back the listeners
+were still bound to a detached node: the stick rendered and did nothing at all.
+It is keyed on `visible` now. Worth recording because the standalone probe passed
+— it only ever loaded the page with the stick already active, and never toggled.
+The suite caught it because the suite has to switch modes to test both.
+
+**D12.6 — The four-button layout is kept, not replaced.** It is steadier in rough
+going, there is nothing to lose track of, and some people prefer it. Sections
+B1-B5 now select it through the real setting before asserting on it, so the
+non-default mode keeps its coverage instead of being deleted along with the
+default.

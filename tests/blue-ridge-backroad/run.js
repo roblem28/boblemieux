@@ -2093,8 +2093,25 @@ const startDriving = async (page) => {
     await waitForGame(mp);
     await startDriving(mp);
 
+    // Sections B1-B5 are about the four-button layout, which is still offered
+    // and is now the non-default choice — so switch to it through the real
+    // setting rather than deleting coverage of a mode people can still pick.
+    // Section N covers the thumbstick that replaced it as the default.
+    await mp.evaluate(async () => {
+        for (const b of document.querySelectorAll('button')) if (/Settings/.test(b.textContent)) b.click();
+        await new Promise((r) => setTimeout(r, 150));
+        for (const b of document.querySelectorAll('.segment')) if (b.textContent.trim() === 'Buttons') b.click();
+        await new Promise((r) => setTimeout(r, 120));
+        for (const b of document.querySelectorAll('button')) {
+            if (/^(Close|Back to the road)$/.test(b.textContent.trim())) b.click();
+        }
+        await new Promise((r) => setTimeout(r, 120));
+    });
+
     const touchCount = await mp.locator('.touch-btn').count();
     check(touchCount === 4, 'B1 four touch controls are present on a phone', `count=${touchCount}`);
+    const stickGone = await mp.evaluate(() => !document.querySelector('.thumb-zone'));
+    check(stickGone, 'B1a choosing Buttons removes the thumbstick');
 
     const layout = await mp.evaluate(() => {
         const rects = [...document.querySelectorAll('.touch-btn')].map((el) => {
@@ -2251,6 +2268,176 @@ const startDriving = async (page) => {
     // B7 — auto-detection picks the mobile preset on a phone UA.
     const autoQuality = await mp.evaluate(() => window.brb.game.quality);
     check(autoQuality === 'mobile', 'B7 a phone auto-detects the mobile preset', autoQuality);
+
+    // ----------------------------------------------------- N: the thumbstick
+
+    // Back to the default control for this section.
+    await mp.evaluate(async () => {
+        for (const b of document.querySelectorAll('button')) if (/Settings/.test(b.textContent)) b.click();
+        await new Promise((r) => setTimeout(r, 150));
+        for (const b of document.querySelectorAll('.segment')) if (b.textContent.trim() === 'Thumbstick') b.click();
+        await new Promise((r) => setTimeout(r, 120));
+        for (const b of document.querySelectorAll('button')) {
+            if (/^(Close|Back to the road)$/.test(b.textContent.trim())) b.click();
+        }
+        await new Promise((r) => setTimeout(r, 150));
+    });
+
+    // The steering buttons could only ever ask for -1, 0 or +1, so every
+    // correction on a phone was full lock until you let go. These check the one
+    // thing that fixes: a steering angle between straight and all of it.
+
+    const stickState = await mp.evaluate(() => ({
+        zone: !!document.querySelector('.thumb-zone'),
+        steerButtons: document.querySelectorAll('.touch-btn.steer').length,
+        gas: !!document.querySelector('.touch-btn.gas'),
+        brake: !!document.querySelector('.touch-btn.brake')
+    }));
+    check(stickState.zone, 'N1 the thumbstick is the default steering control on a phone');
+    check(stickState.steerButtons === 0, 'N1b and it replaces the left/right buttons', `${stickState.steerButtons} button(s) left`);
+    check(stickState.gas && stickState.brake, 'N1c gas and brake are untouched');
+
+    // N2 — travel maps to a steering angle, and the rim is the end of it.
+    const travel = await mp.evaluate(async () => {
+        const zone = document.querySelector('.thumb-zone');
+        const b = zone.getBoundingClientRect();
+        const x = Math.round(b.x + b.width / 2);
+        const y = Math.round(b.y + b.height * 0.6);
+        const send = (type, cx, cy) =>
+            zone.dispatchEvent(
+                new PointerEvent(type, { pointerId: 21, pointerType: 'touch', clientX: cx, clientY: cy, bubbles: true, cancelable: true, isPrimary: true })
+            );
+        const inp = window.brb.game.input;
+        const out = {};
+        send('pointerdown', x, y);
+        out.heldOnDown = inp.touchSteerHeld;
+        out.zeroOnDown = inp.touchSteer;
+        for (const [tag, dx] of [['quarter', 16], ['half', 31], ['rim', 62], ['past', 140], ['left', -31]]) {
+            send('pointermove', x + dx, y);
+            await new Promise((r) => setTimeout(r, 20));
+            out[tag] = +inp.touchSteer.toFixed(3);
+        }
+        out.knob = document.querySelector('.thumb-knob').style.transform;
+        out.baseLive = document.querySelector('.thumb-base').classList.contains('live');
+        send('pointerup', x - 31, y);
+        out.afterRelease = inp.touchSteer;
+        out.heldAfterRelease = inp.touchSteerHeld;
+        out.baseHidden = !document.querySelector('.thumb-base').classList.contains('live');
+        return out;
+    });
+    check(travel.heldOnDown === true && travel.zeroOnDown === 0, 'N2 pressing engages the stick at centre', JSON.stringify({ held: travel.heldOnDown, steer: travel.zeroOnDown }));
+    check(
+        travel.quarter > 0 && travel.quarter < travel.half && travel.half < travel.rim,
+        'N2b travel maps to proportional steering, not on/off',
+        `quarter ${travel.quarter}, half ${travel.half}, rim ${travel.rim}`
+    );
+    check(travel.rim === 1 && travel.past === 1, 'N2c the rim is full lock and past it is still full lock', `${travel.rim} / ${travel.past}`);
+    check(travel.left === -0.5, 'N2d the other way is negative', `${travel.left}`);
+    check(travel.baseLive, 'N2e the stick shows itself while held');
+    check(
+        travel.afterRelease === 0 && travel.heldAfterRelease === false && travel.baseHidden,
+        'N2f and releasing centres it, drops the hold and hides it',
+        JSON.stringify(travel)
+    );
+
+    // N3 — the thing that actually matters: a partial hold turns the truck less
+    // than a full one. Buttons could not express this at all.
+    const proportional = await mp.evaluate(async () => {
+        const g = window.brb.game;
+        const zone = document.querySelector('.thumb-zone');
+        const b = zone.getBoundingClientRect();
+        const x = Math.round(b.x + b.width / 2);
+        const y = Math.round(b.y + b.height * 0.6);
+        const send = (type, cx, cy) =>
+            zone.dispatchEvent(
+                new PointerEvent(type, { pointerId: 22, pointerType: 'touch', clientX: cx, clientY: cy, bubbles: true, cancelable: true, isPrimary: true })
+            );
+        const run = (dx) => {
+            g.restartFree();
+            for (let i = 0; i < 200; i++) { g.input.keyThrottle = true; g.tick(1 / 60); }
+            send('pointerdown', x, y);
+            send('pointermove', x + dx, y);
+            const y0 = g.physics.yaw;
+            for (let i = 0; i < 90; i++) g.tick(1 / 60);
+            const turned = Math.abs(g.physics.yaw - y0);
+            send('pointerup', x + dx, y);
+            g.input.keyThrottle = false;
+            return turned;
+        };
+        return { quarter: +run(16).toFixed(3), full: +run(62).toFixed(3) };
+    });
+    check(
+        proportional.quarter > 0.02 && proportional.full > proportional.quarter * 1.8,
+        'N3 a partial hold turns the truck markedly less than full lock',
+        `${proportional.quarter} rad vs ${proportional.full} rad over 1.5 s`
+    );
+
+    // N4 — losing the pointer must release the stick. A capture stolen by an
+    // incoming call would otherwise leave the truck steering itself with no
+    // finger on the screen.
+    const cancelled = await mp.evaluate(async () => {
+        const g = window.brb.game;
+        const zone = document.querySelector('.thumb-zone');
+        const b = zone.getBoundingClientRect();
+        const x = Math.round(b.x + b.width / 2);
+        const y = Math.round(b.y + b.height * 0.6);
+        const send = (type, cx, cy) =>
+            zone.dispatchEvent(
+                new PointerEvent(type, { pointerId: 23, pointerType: 'touch', clientX: cx, clientY: cy, bubbles: true, cancelable: true, isPrimary: true })
+            );
+        send('pointerdown', x, y);
+        send('pointermove', x + 62, y);
+        const held = g.input.touchSteer;
+        send('pointercancel', x + 62, y);
+        return { held, after: g.input.touchSteer, stillHeld: g.input.touchSteerHeld };
+    });
+    check(
+        cancelled.held === 1 && cancelled.after === 0 && cancelled.stillHeld === false,
+        'N4 a cancelled pointer releases the stick',
+        JSON.stringify(cancelled)
+    );
+
+    // N5 — the stick's zone must not swallow the pedals or the HUD.
+    const reach = await mp.evaluate(() => {
+        const hit = (sel) => {
+            const el = document.querySelector(sel);
+            if (!el) return 'missing';
+            const b = el.getBoundingClientRect();
+            const top = document.elementFromPoint(b.x + b.width / 2, b.y + b.height / 2);
+            return top === el || el.contains(top) ? 'ok' : 'blocked';
+        };
+        const hudButtons = [...document.querySelectorAll('.hud-btn')].map((el) => {
+            const b = el.getBoundingClientRect();
+            const top = document.elementFromPoint(b.x + b.width / 2, b.y + b.height / 2);
+            return top === el || el.contains(top) ? 'ok' : 'blocked';
+        });
+        return { gas: hit('.touch-btn.gas'), brake: hit('.touch-btn.brake'), hud: hudButtons };
+    });
+    check(reach.gas === 'ok' && reach.brake === 'ok', 'N5 the steering zone does not swallow the pedals', JSON.stringify(reach));
+    check(
+        reach.hud.length > 0 && reach.hud.every((r) => r === 'ok'),
+        'N5b nor the HUD buttons',
+        reach.hud.join(',')
+    );
+
+    // N6 — a key still beats the stick when the stick is not held, so a tablet
+    // with a keyboard is not left with a control that ignores it.
+    const keysStillWork = await mp.evaluate(() => {
+        const g = window.brb.game;
+        g.restartFree();
+        for (let i = 0; i < 200; i++) { g.input.keyThrottle = true; g.tick(1 / 60); }
+        const y0 = g.physics.yaw;
+        g.input.keyLeft = true;
+        for (let i = 0; i < 90; i++) g.tick(1 / 60);
+        g.input.keyLeft = false;
+        g.input.keyThrottle = false;
+        return { held: g.input.touchSteerHeld, turned: +Math.abs(g.physics.yaw - y0).toFixed(3) };
+    });
+    check(
+        keysStillWork.held === false && keysStillWork.turned > 0.05,
+        'N6 the keyboard still steers when no thumb is on the stick',
+        `${keysStillWork.turned} rad`
+    );
 
     check(mobileErrors.length === 0, 'B8 no console errors on mobile', mobileErrors.slice(0, 3).join(' | '));
 

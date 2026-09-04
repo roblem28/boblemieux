@@ -1385,3 +1385,73 @@
 .profile-blurb {
     margin-top: 6px;
 }
+
+/* ------------------------------------------------------------ thumbstick */
+
+/*
+ * The zone is the whole lower-left quadrant, not a drawn control. A floating
+ * stick has no fixed place to hit, so the target is "roughly where your left
+ * thumb already is" — which is the point of it.
+ */
+.thumb-zone {
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    width: 46%;
+    height: 62%;
+    touch-action: none;
+    pointer-events: auto;
+    z-index: 8;
+}
+
+.thumb-hint {
+    position: absolute;
+    left: 26px;
+    bottom: 22px;
+    font-size: 10px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.28);
+    pointer-events: none;
+}
+
+/* Centred on the touch point, so `left`/`top` are the thumb's own position. */
+.thumb-base {
+    position: absolute;
+    width: 132px;
+    height: 132px;
+    margin: -66px 0 0 -66px;
+    border: 1.5px solid rgba(255, 255, 255, 0.22);
+    border-radius: 50%;
+    background: rgba(0, 0, 0, 0.22);
+    opacity: 0;
+    transition: opacity 120ms ease-out;
+    pointer-events: none;
+}
+
+.thumb-base.live {
+    opacity: 1;
+}
+
+.thumb-knob {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 62px;
+    height: 62px;
+    margin: -31px 0 0 -31px;
+    border: 1.5px solid rgba(255, 255, 255, 0.5);
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.16);
+    /*
+     * No transition on transform. The knob is repainted from a pointermove
+     * handler at the touch rate, and easing it would put the visible knob
+     * behind the thumb and behind the steering it is reporting.
+     */
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .thumb-base {
+        transition: none;
+    }
+}

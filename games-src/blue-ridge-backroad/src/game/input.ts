@@ -19,6 +19,17 @@ export interface InputState {
     touchBrake: boolean;
     touchLeft: boolean;
     touchRight: boolean;
+    /**
+     * Analogue steering from the thumbstick, -1 (left) .. 1 (right).
+     *
+     * Separate from `touchLeft`/`touchRight` rather than replacing them,
+     * because the two controls coexist: a player can prefer buttons, and the
+     * keyboard is always digital. `touchSteerHeld` says whether a thumb is
+     * actually on the stick — a stick resting at dead centre reads 0, which is
+     * indistinguishable from no stick at all unless it is tracked separately.
+     */
+    touchSteer: number;
+    touchSteerHeld: boolean;
 }
 
 export const createInputState = (): InputState => ({
@@ -32,7 +43,9 @@ export const createInputState = (): InputState => ({
     touchThrottle: false,
     touchBrake: false,
     touchLeft: false,
-    touchRight: false
+    touchRight: false,
+    touchSteer: 0,
+    touchSteerHeld: false
 });
 
 export interface InputTargets {
@@ -40,6 +53,15 @@ export interface InputTargets {
     brake: number;
     /** -1 (left) .. 1 (right), in UI terms. */
     steer: number;
+    /**
+     * Whether `steer` came from a continuous control.
+     *
+     * It changes what the number *means*. A key is a request to keep winding
+     * lock on for as long as it is held, so the physics ramps toward it. A
+     * thumb is already holding a position, so ramping toward it a second time
+     * adds lag to a control the player is modulating directly.
+     */
+    analog: boolean;
 }
 
 /**
@@ -54,8 +76,30 @@ export const resolveInputTargets = (input: InputState, out: InputTargets): Input
     out.brake = input.keyBrake || input.touchBrake ? 1 : 0;
     const left = input.keyLeft || input.touchLeft ? 1 : 0;
     const right = input.keyRight || input.touchRight ? 1 : 0;
-    out.steer = right - left;
+    const digital = right - left;
+    // A key beats the stick while it is held: on a tablet with a keyboard both
+    // exist, and the one being actively pressed is the one meant.
+    if (digital !== 0 || !input.touchSteerHeld) {
+        out.steer = digital;
+        out.analog = false;
+    } else {
+        out.steer = steerCurve(input.touchSteer);
+        out.analog = true;
+    }
     return out;
+};
+
+/**
+ * Shape the stick's travel.
+ *
+ * Linear is wrong for a thumb: the first few millimetres either side of centre
+ * are the hardest part of the throw to hold still, and they are exactly where a
+ * car at speed needs the finest control. Weighting the curve toward the centre
+ * makes small corrections small and still reaches full lock at the rim.
+ */
+export const steerCurve = (x: number): number => {
+    const c = Math.max(-1, Math.min(1, x));
+    return c * (0.4 + 0.6 * c * c);
 };
 
 export interface KeyboardBinding {
