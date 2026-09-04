@@ -295,12 +295,16 @@ const terrainColor = (frame: RoadFrame, l: number, out: Float32Array): void => {
     const up = clamp((a - lip) / 40, 0, 1);
     const side = l > 0 ? 1 : -1;
     const bank = clamp(frame.sideBias * side, -1, 1);
+    // Two noise scales rather than one: a single frequency aligned with the
+    // terrain rows reads as banding across the hillside.
     const patch = fbm1((frame.s + l * 4) / 26, 2, 613);
-    const dry = clamp(0.5 + 0.5 * patch + bank * 0.25, 0, 1);
-    // Green undergrowth near the road, drier leaf litter further up.
-    out[0] = 0.78 + dry * 0.34 + up * 0.14;
-    out[1] = 0.84 + dry * 0.18 - up * 0.04;
-    out[2] = 0.7 + dry * 0.16 - up * 0.06;
+    const broad = fbm1((frame.s * 0.35 - l * 1.7) / 95, 3, 617);
+    const dry = clamp(0.5 + 0.34 * patch + 0.3 * broad + bank * 0.2, 0, 1);
+    // Green undergrowth near the road, drier leaf litter and bare dirt as the
+    // bank climbs away from it.
+    out[0] = 0.62 + dry * 0.42 + up * 0.2;
+    out[1] = 0.68 + dry * 0.22 - up * 0.02;
+    out[2] = 0.54 + dry * 0.18 - up * 0.08;
 };
 
 export const buildRoadChunk = (

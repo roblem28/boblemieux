@@ -175,10 +175,12 @@ export class VehicleModel {
             metalness: 0.1
         });
         const taillight = new MeshStandardMaterial({
-            color: new Color(0.35, 0.03, 0.03),
-            emissive: new Color(0.9, 0.08, 0.05),
-            emissiveIntensity: 0.5,
-            roughness: 0.3
+            color: new Color(0.3, 0.045, 0.04),
+            emissive: new Color(0.7, 0.07, 0.04),
+            // Low enough that the lenses read as dark red glass in daylight
+            // rather than as two glowing decals stuck on the tailgate.
+            emissiveIntensity: 0.22,
+            roughness: 0.35
         });
         this.owned.push(paint, paintDark, glass, chrome, rubber, trim, interior, headlight, taillight);
 
@@ -356,7 +358,9 @@ export class VehicleModel {
         for (const x of [-0.64, 0.64]) {
             this.add(g, boxAt(0.36, 0.24, 0.1, x, 1.2, 2.52), m.headlight, false);
             this.add(g, boxAt(0.42, 0.3, 0.06, x, 1.2, 2.49), m.trim, false);
-            this.add(g, boxAt(0.3, 0.32, 0.09, x * 1.28, 1.3, -2.66), m.taillight, false);
+            // Lens plus a dark bezel, at a plausible size for the tailgate.
+            this.add(g, boxAt(0.3, 0.19, 0.07, x * 1.24, 1.29, -2.66), m.taillight, false);
+            this.add(g, boxAt(0.36, 0.25, 0.05, x * 1.24, 1.29, -2.63), m.trim, false);
         }
 
         if (!detailed) return g;

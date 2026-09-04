@@ -265,7 +265,15 @@ const startDriving = async (page) => {
     check(postRight.yaw < preRight.yaw - 0.02, 'A9b D/Right steers right', `dyaw=${(postRight.yaw - preRight.yaw).toFixed(3)}`);
 
     // A10 — arrow keys are bound too (real key events, not the input object).
-    await page.evaluate(() => window.__h.recover());
+    // Slow right down first. Starting this check at whatever speed recovery
+    // happened to end at makes it a race between the throttle and the drag of
+    // whatever corner the truck is in — it has to accelerate from near rest.
+    await page.evaluate(() => {
+        window.__h.recover();
+        window.__h.hold({ keyBrake: true }, 5);
+        window.__h.release();
+        window.__h.sim(0.3);
+    });
     const beforeArrow = await page.evaluate(() => window.__h.state());
     await page.keyboard.down('ArrowUp');
     await page.evaluate(() => window.__h.sim(3));
