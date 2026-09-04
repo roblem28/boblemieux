@@ -1143,3 +1143,31 @@
     color: var(--ink-dim);
     letter-spacing: 0.14em;
 }
+
+/* ------------------------------------------------------------ pace notes */
+
+.pace-note {
+    position: absolute;
+    left: 50%;
+    bottom: calc(16% + var(--safe-b));
+    transform: translateX(-50%);
+    padding: 9px 20px;
+    border: 1px solid var(--edge);
+    border-left: 3px solid var(--accent);
+    border-radius: 9px;
+    background: var(--panel);
+    backdrop-filter: blur(7px);
+    font: 700 17px/1.1 ui-sans-serif, system-ui, sans-serif;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    white-space: nowrap;
+    transition: opacity 200ms ease;
+}
+
+@media (max-width: 720px) {
+    .pace-note {
+        bottom: calc(24% + var(--safe-b));
+        padding: 7px 14px;
+        font-size: 14px;
+    }
+}

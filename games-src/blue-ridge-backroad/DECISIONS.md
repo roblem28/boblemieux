@@ -533,3 +533,57 @@ sheet. Two causes, both about a surface seen at a grazing angle:
 Worth recording that the first hypothesis — dust particles filling the lower
 screen — was wrong, and cheap to disprove: hiding the particle systems changed
 the bottom strip's mean brightness by 0.5 out of 255.
+
+---
+
+## The co-driver
+
+Step one of the AI-director design (`docs/blue-ridge-backroad/AI-DIRECTOR.md`),
+and deliberately the step with no model in it.
+
+**D7.1 — Pace notes are a pure function, not a model feature.** The first draft of
+the director design had them as the flagship use for a language model. That was
+wrong: a pace note is a closed grammar over data the game already computes ten
+times a second. A model in this path would add latency, nondeterminism and cost
+for nothing, and would stop working the moment it was unreachable. It is now
+deterministic, unit-testable, and the fallback layer the rest of the design leans
+on.
+
+**D7.2 — Severity bands are calibrated to the road that exists, not the textbook.**
+The generator clamps to a 115 m minimum radius, but measurement showed it rarely
+goes below ~140 m and most corners fall between 140 m and 560 m. Textbook rally
+bands would have called almost every corner on this road a 6, which carries no
+information. The bands now spread over the measured range, and the calls come out
+as a mix of 3s through 6s.
+
+**D7.3 — There are no crest calls, because there are no crests.** The design
+called for "over crest" and the first implementation detected turning points in
+the elevation profile. Then measuring the road showed the largest turn-over inside
+the 360 m preview window is typically *zero* and never more than about 0.3 m: the
+grade noise works on 140-430 m wavelengths, so what this road has is long smooth
+gradients, not brows. Announcing "over crest" for a 0.2 m rise would be calling a
+feature the player cannot feel.
+
+Gradient is called instead — "downhill", "uphill" — which is both real (6-18 m of
+elevation change across a 360 m window) and useful, since a downhill corner needs
+braking earlier. A designed feature was cut on measurement rather than shipped
+because it was in the plan.
+
+**D7.4 — A corner already under way is not a corner to call.** Runs that begin at
+the first preview sample are skipped. Their "entry" is just the near edge of the
+window, which tracks the vehicle, so calling them re-announced the same corner
+every few metres the whole way through it — which is exactly what the first
+version did.
+
+**D7.5 — Timing is keyed to absolute road distance.** Calls go out a fixed 3.2 s
+ahead, so the trigger distance moves with speed, with a 30 m floor. Corners are
+remembered by their absolute distance along the road, so the same one is never
+called twice however many times the preview is recomputed on the way in.
+
+**D7.6 — Spoken notes accept the synthetic voice.** Web Speech output does not
+surface as an `AudioNode` in Chrome or Safari, so it cannot be routed through the
+game's AudioContext — no bandpass, no radio treatment, no ducking against the
+engine. That, rather than timbre, is the real constraint. It turns out not to
+matter much: real pace notes are delivered flat, fast and clipped, so a dry read
+at rate 1.35 and pitch 0.85 is closer to authentic than dramatic voice acting
+would be. Three modes: off, on screen, or spoken.

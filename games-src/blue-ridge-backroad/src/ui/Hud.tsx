@@ -114,6 +114,12 @@ export const Hud = ({
 
             <CourseAhead t={t} />
 
+            {t.paceNoteAge > 0 && (
+                <div className="pace-note" style={{ opacity: Math.min(1, t.paceNoteAge / 0.9) }}>
+                    {t.paceNote}
+                </div>
+            )}
+
             {t.stuck && !finished && (
                 <button className="recover-btn" type="button" onClick={onRecover}>
                     <span className="recover-key">R</span>

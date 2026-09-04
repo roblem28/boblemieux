@@ -3,6 +3,7 @@ import { Game, type GameMode } from './game/Game';
 import { detectQuality, initialQuality, saveQualityOverride, type QualityName } from './game/quality';
 import { loadSteerLevel, multiplierFor, saveSteerLevel, type SteerLevel } from './game/steering';
 import { loadDifficulty, saveDifficulty, type DifficultyName } from './game/difficulty';
+import { loadCoDriverMode, saveCoDriverMode, type CoDriverMode } from './game/codriver/CoDriver';
 import { TitleScreen } from './ui/TitleScreen';
 import { Hud } from './ui/Hud';
 import { TouchControls } from './ui/TouchControls';
@@ -28,6 +29,8 @@ export const App = (): JSX.Element => {
     const [steering, setSteering] = useState<SteerLevel>(() => loadSteerLevel());
     const [mode, setMode] = useState<GameMode>('free');
     const [difficulty, setDifficulty] = useState<DifficultyName>(() => loadDifficulty());
+    const [coDriver, setCoDriver] = useState<CoDriverMode>(() => loadCoDriverMode());
+    const [speechAvailable, setSpeechAvailable] = useState(true);
     const [stageBest, setStageBest] = useState(0);
     const [detected] = useState<QualityName>(() => detectQuality());
     const [touch] = useState(() => isTouchDevice());
@@ -46,6 +49,7 @@ export const App = (): JSX.Element => {
                 quality,
                 steerSensitivity: multiplierFor(steering),
                 difficulty,
+                coDriver,
                 // Only for the automated checks, which sample the rendered frame.
                 preserveDrawingBuffer: new URLSearchParams(window.location.search).has('debug')
             });
@@ -56,6 +60,7 @@ export const App = (): JSX.Element => {
         gameRef.current = game;
         game.startPreview();
         setStageBest(telemetry.stageBest);
+        setSpeechAvailable(game.speechAvailable);
         setReady(true);
         return () => {
             game?.dispose();
@@ -118,6 +123,12 @@ export const App = (): JSX.Element => {
         saveDifficulty(next);
         gameRef.current?.setDifficulty(next);
         setStageBest(telemetry.stageBest);
+    }, []);
+
+    const handleCoDriver = useCallback((next: CoDriverMode) => {
+        setCoDriver(next);
+        saveCoDriverMode(next);
+        gameRef.current?.setCoDriverMode(next);
     }, []);
 
     const handleRecover = useCallback(() => {
@@ -216,6 +227,9 @@ export const App = (): JSX.Element => {
                     onMode={handleMode}
                     difficulty={difficulty}
                     onDifficulty={handleDifficulty}
+                    coDriver={coDriver}
+                    onCoDriver={handleCoDriver}
+                    speechAvailable={speechAvailable}
                     quality={quality}
                     detected={detected}
                     steering={steering}

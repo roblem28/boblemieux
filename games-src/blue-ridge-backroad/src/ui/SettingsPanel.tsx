@@ -2,12 +2,16 @@ import type { JSX } from 'react';
 import { PRESETS, type QualityName } from '../game/quality';
 import { STEER_LEVELS, type SteerLevel } from '../game/steering';
 import { DIFFICULTIES, difficultyFor, type DifficultyName } from '../game/difficulty';
+import type { CoDriverMode } from '../game/codriver/CoDriver';
 
 interface Props {
     mode: 'free' | 'stage';
     onMode: (mode: 'free' | 'stage') => void;
     difficulty: DifficultyName;
     onDifficulty: (d: DifficultyName) => void;
+    coDriver: CoDriverMode;
+    onCoDriver: (m: CoDriverMode) => void;
+    speechAvailable: boolean;
     quality: QualityName;
     detected: QualityName;
     steering: SteerLevel;
@@ -32,6 +36,9 @@ export const SettingsPanel = ({
     onMode,
     difficulty,
     onDifficulty,
+    coDriver,
+    onCoDriver,
+    speechAvailable,
     quality,
     detected,
     steering,
@@ -85,6 +92,40 @@ export const SettingsPanel = ({
             <p className="setting-note">{difficultyFor(difficulty).detail}</p>
             <p className="setting-note setting-quiet">
                 Best times are kept separately for each difficulty.
+            </p>
+
+            <h3>Co-driver</h3>
+            <div className="segmented">
+                <button
+                    type="button"
+                    className={coDriver === 'off' ? 'segment selected' : 'segment'}
+                    onClick={() => onCoDriver('off')}
+                >
+                    Off
+                </button>
+                <button
+                    type="button"
+                    className={coDriver === 'text' ? 'segment selected' : 'segment'}
+                    onClick={() => onCoDriver('text')}
+                >
+                    Notes
+                </button>
+                <button
+                    type="button"
+                    className={coDriver === 'voice' ? 'segment selected' : 'segment'}
+                    onClick={() => onCoDriver('voice')}
+                    disabled={!speechAvailable}
+                >
+                    Spoken
+                </button>
+            </div>
+            <p className="setting-note">
+                {coDriver === 'off'
+                    ? 'No calls.'
+                    : coDriver === 'voice'
+                      ? 'Corners called aloud about three seconds ahead. Lower numbers are tighter.'
+                      : 'Corners called on screen about three seconds ahead. Lower numbers are tighter.'}
+                {!speechAvailable && ' Spoken notes need a browser with speech synthesis.'}
             </p>
 
             <h3>Steering</h3>

@@ -769,6 +769,129 @@ const startDriving = async (page) => {
         check(st.mean > 12 && st.mean < 235, `E1c the ${view} view is neither black nor blown out`, JSON.stringify(st));
     }
 
+    // ------------------------------------------------------ H: the co-driver
+
+    // H1 — the analysis finds corners where the road turns and nothing where it
+    // does not. Scanned over real road rather than a contrived case.
+    const scan = await page.evaluate(() => {
+        const g = window.brb.game;
+        const rows = [];
+        for (let s = 600; s < 6000; s += 60) {
+            const f = g.paceNotesForTest(s);
+            const st = g.previewStatsForTest(s);
+            rows.push({ s, n: f.length, kappaMax: st.kappaMax, phrases: f.map((x) => x.phrase) });
+        }
+        return rows;
+    });
+    const straightRows = scan.filter((r) => r.kappaMax < 0.0015);
+    const bendyRows = scan.filter((r) => r.kappaMax > 0.005);
+    check(
+        straightRows.length > 0 && straightRows.every((r) => r.n === 0),
+        'H1 straight road produces no calls',
+        `${straightRows.filter((r) => r.n > 0).length} of ${straightRows.length} straight samples called something`
+    );
+    check(
+        bendyRows.length > 0 && bendyRows.some((r) => r.n > 0),
+        'H1b corners do produce calls',
+        `${bendyRows.filter((r) => r.n > 0).length} of ${bendyRows.length} bendy samples called something`
+    );
+
+    // H2 — every phrase fits the grammar. A pace note is a closed language; if
+    // this ever fails, something is emitting free text.
+    const GRAMMAR =
+        /^(long )?(left|right) [3-6]( tightens| opens)?( narrows)?( downhill| uphill)?( into (long )?(left|right) [3-6]( tightens| opens)?( narrows)?( downhill| uphill)?)?$/;
+    const allPhrases = scan.flatMap((r) => r.phrases);
+    const bad = allPhrases.filter((p) => !GRAMMAR.test(p));
+    check(allPhrases.length > 20, 'H2 the scan produced a decent sample of calls', `${allPhrases.length} phrases`);
+    check(bad.length === 0, 'H2b every call fits the closed grammar', bad.slice(0, 3).join(' | '));
+
+    // H3 — direction matches the sign of curvature, and tighter is a lower number.
+    const shape = await page.evaluate(() => {
+        const g = window.brb.game;
+        const out = [];
+        for (let s = 600; s < 8000; s += 30) {
+            for (const f of g.paceNotesForTest(s)) {
+                out.push({ direction: f.direction, severity: f.severity, safeSpeed: f.safeSpeed });
+            }
+        }
+        return out;
+    });
+    check(
+        shape.some((f) => f.direction > 0) && shape.some((f) => f.direction < 0),
+        'H3 both left and right corners are called',
+        `left=${shape.filter((f) => f.direction > 0).length} right=${shape.filter((f) => f.direction < 0).length}`
+    );
+    const bySeverity = {};
+    for (const f of shape) {
+        bySeverity[f.severity] = bySeverity[f.severity] ?? [];
+        bySeverity[f.severity].push(f.safeSpeed);
+    }
+    const mean = (a) => a.reduce((x, y) => x + y, 0) / a.length;
+    const severities = Object.keys(bySeverity).map(Number).sort((a, b) => a - b);
+    let monotonic = true;
+    for (let i = 1; i < severities.length; i++) {
+        if (mean(bySeverity[severities[i]]) <= mean(bySeverity[severities[i - 1]])) monotonic = false;
+    }
+    check(
+        severities.length >= 3 && monotonic,
+        'H3b a lower severity number means a slower corner',
+        severities.map((sv) => `${sv}:${mean(bySeverity[sv]).toFixed(0)}m/s`).join(' ')
+    );
+
+    // H4 — driving calls each corner once, ahead of time, and never repeats.
+    const drive = await page.evaluate(() => {
+        const g = window.brb.game;
+        const p = g.physics;
+        g.setCoDriverMode('text');
+        window.__h.hardReset();
+        const seen = [];
+        let last = '';
+        let repeats = 0;
+        g.setRenderEnabled(false);
+        for (let i = 0; i < 60 * 90; i++) {
+            const speed = Math.abs(p.u);
+            const ahead = Math.max(11, speed * 1.7);
+            const t = g.roadPointAt(p.s + ahead);
+            let err = Math.atan2(t.x - p.position.x, t.z - p.position.z) - p.yaw;
+            while (err > Math.PI) err -= Math.PI * 2;
+            while (err < -Math.PI) err += Math.PI * 2;
+            const want = Math.max(-1, Math.min(1, -(err * 2.6 + p.lateral * 0.06)));
+            g.input.keyLeft = p.steerInput > want + 0.06;
+            g.input.keyRight = p.steerInput < want - 0.06;
+            g.input.keyThrottle = speed < 30;
+            g.tick(1 / 60);
+            const note = window.brb.telemetry.paceNote;
+            if (note && note !== last) {
+                if (seen.includes(note) && seen[seen.length - 1] === note) repeats += 1;
+                seen.push(note);
+                last = note;
+            }
+        }
+        window.__h.release();
+        g.setRenderEnabled(true);
+        return { seen, repeats, miles: p.odometer / 1609.344 };
+    });
+    check(drive.seen.length >= 2, 'H4 notes are called while driving', `${drive.seen.length} calls over ${drive.miles.toFixed(2)} mi`);
+    check(drive.repeats === 0, 'H4b no corner is announced twice in a row', `${drive.repeats} repeats`);
+    check(
+        drive.seen.every((n) => GRAMMAR.test(n)),
+        'H4c live calls fit the grammar too',
+        drive.seen.filter((n) => !GRAMMAR.test(n)).slice(0, 2).join(' | ')
+    );
+
+    // H5 — switching the co-driver off silences it.
+    const silenced = await page.evaluate(() => {
+        const g = window.brb.game;
+        g.setCoDriverMode('off');
+        window.__h.hardReset();
+        window.__h.autopilot(40, { keyThrottle: true });
+        window.__h.release();
+        const quiet = window.brb.telemetry.paceNote;
+        g.setCoDriverMode('text');
+        return quiet;
+    });
+    check(silenced === '', 'H5 turning the co-driver off stops the calls', `got "${silenced}"`);
+
     // ------------------------------------------- G: the foggy hollow, and grip
 
     // G1 — a hollow is a stretch of road, not a landmark you pass in a second.

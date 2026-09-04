@@ -22,6 +22,8 @@ import { CoursePreview, PREVIEW_STEP } from './road/CoursePreview';
 import { SplitTimer } from './splits';
 import { Stage, STAGE_LENGTH, STAGE_NAME, STAGE_START_S } from './stage';
 import { DEFAULT_DIFFICULTY, difficultyFor, type DifficultyName } from './difficulty';
+import { CoDriver, type CoDriverMode } from './codriver/CoDriver';
+import { analysePreview, createFeature, phrase, shouldLink, type RoadFeature } from './codriver/PaceNotes';
 import { bindKeyboard, createInputState, type InputState, type KeyboardBinding } from './input';
 import { telemetry, publishTelemetry } from '../ui/telemetry';
 import { MPS_TO_MPH, M_TO_MILES, clamp } from './util/mathx';
@@ -44,6 +46,7 @@ export interface GameOptions {
     seed?: number;
     steerSensitivity?: number;
     difficulty?: DifficultyName;
+    coDriver?: CoDriverMode;
     /**
      * Keeps the drawing buffer readable after compositing, so tests can sample
      * what was actually rendered. Off in normal play — it costs a copy per
@@ -98,6 +101,7 @@ export class Game {
     private readonly preview: CoursePreview;
     private readonly splits: SplitTimer;
     private readonly stage: Stage;
+    private readonly coDriver = new CoDriver();
     private difficultyName: DifficultyName;
     private mode: GameMode = 'free';
 
@@ -138,6 +142,7 @@ export class Game {
         this.physics.steerSensitivity = options.steerSensitivity ?? 1;
         this.physics.difficulty = difficultyFor(this.difficultyName);
         telemetry.difficulty = this.physics.difficulty.label;
+        this.coDriver.setMode(options.coDriver ?? 'text');
         telemetry.previewOffset = this.preview.offset;
         telemetry.previewSeverity = this.preview.severity;
         telemetry.previewCount = this.preview.offset.length;
@@ -256,6 +261,19 @@ export class Game {
         this.physics.steerSensitivity = value;
     }
 
+    setCoDriverMode(mode: CoDriverMode): void {
+        this.coDriver.setMode(mode);
+        if (mode === 'off') {
+            telemetry.paceNote = '';
+            telemetry.paceNoteAge = 0;
+            publishTelemetry();
+        }
+    }
+
+    get speechAvailable(): boolean {
+        return this.coDriver.speechAvailable;
+    }
+
     get currentDifficulty(): DifficultyName {
         return this.difficultyName;
     }
@@ -331,6 +349,7 @@ export class Game {
      * built under the player.
      */
     private teleportTo(s: number): void {
+        this.coDriver.reset();
         // The sample ring prunes behind the vehicle, so jumping back to a
         // distance it has discarded would silently clamp to whatever the oldest
         // live sample happens to be. Regenerate first; it is deterministic, so
@@ -457,8 +476,12 @@ export class Game {
             telemetry.splitFlash = Math.max(0, telemetry.splitFlash - 0.1);
             telemetry.stuck = this.physics.stuckTime > 1.4;
 
-            // The road ahead only needs refreshing at the HUD's rate.
+            // The road ahead only needs refreshing at the HUD's rate, and the
+            // co-driver reads the same data — a note is a pure function of it.
             this.preview.update(this.physics.s, Math.abs(this.physics.u));
+            this.coDriver.update(0.1, this.physics.s, Math.abs(this.physics.u), this.preview);
+            telemetry.paceNote = this.coDriver.note;
+            telemetry.paceNoteAge = this.coDriver.noteAge;
             telemetry.advisoryMph = this.preview.advisorySpeed * MPS_TO_MPH;
             telemetry.braking = this.preview.braking && this.driving;
             telemetry.advisoryCurvature = this.preview.advisoryCurvature;
@@ -540,6 +563,66 @@ export class Game {
 
     get anisotropyForTest(): number {
         return this.assets.gravel.map.anisotropy;
+    }
+
+    /**
+     * Run the pace-note analysis at an arbitrary distance and return what it
+     * found. Used by the suite; the notes are a pure function, so this is the
+     * whole of their behaviour.
+     */
+    paceNotesForTest(s: number, speed = 25): unknown {
+        this.preview.update(s, speed);
+        const pool: RoadFeature[] = [];
+        for (let i = 0; i < 12; i++) pool.push(createFeature());
+        const n = analysePreview(
+            this.preview.curvature,
+            this.preview.rise,
+            this.preview.width,
+            this.preview.offset.length,
+            this.preview.step,
+            pool
+        );
+        const features = [];
+        for (let i = 0; i < n; i++) {
+            const f = pool[i];
+            features.push({
+                distance: +f.distance.toFixed(1),
+                length: +f.length.toFixed(1),
+                direction: f.direction,
+                severity: f.severity,
+                trend: +f.trend.toFixed(3),
+                safeSpeed: +f.safeSpeed.toFixed(1),
+                gradient: +f.gradient.toFixed(2),
+                narrows: f.narrows,
+                phrase: phrase(f, shouldLink(f, i + 1 < n ? pool[i + 1] : null) ? pool[i + 1] : null)
+            });
+        }
+        return features;
+    }
+
+    /** Raw preview statistics, for tuning the pace-note thresholds. */
+    previewStatsForTest(s: number): unknown {
+        this.preview.update(s, 25);
+        const rise = this.preview.rise;
+        const k = this.preview.curvature;
+        let lo = Infinity;
+        let hi = -Infinity;
+        let kappaMax = 0;
+        for (let i = 0; i < rise.length; i++) {
+            if (rise[i] < lo) lo = rise[i];
+            if (rise[i] > hi) hi = rise[i];
+            kappaMax = Math.max(kappaMax, Math.abs(k[i]));
+        }
+        // Largest turn-over in the elevation profile across a 3-sample reach.
+        let maxTurn = 0;
+        for (let i = 3; i < rise.length - 3; i++) {
+            maxTurn = Math.max(maxTurn, Math.min(rise[i] - rise[i - 3], rise[i] - rise[i + 3]));
+        }
+        return {
+            riseRange: +(hi - lo).toFixed(2),
+            maxTurn: +maxTurn.toFixed(2),
+            kappaMax: +kappaMax.toFixed(5)
+        };
     }
 
     /** Fog density from the schedule at a distance, for the suite. */
@@ -680,6 +763,7 @@ export class Game {
         this.options.canvas.removeEventListener('webglcontextlost', this.onContextLost);
         this.options.canvas.removeEventListener('webglcontextrestored', this.onContextRestored);
         this.keys.dispose();
+        this.coDriver.dispose();
         this.audio.dispose();
         this.particles.dispose();
         this.chunks.dispose();

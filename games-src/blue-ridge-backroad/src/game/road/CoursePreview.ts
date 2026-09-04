@@ -34,6 +34,13 @@ export class CoursePreview {
     readonly severity = new Float32Array(PREVIEW_SAMPLES);
     /** Elevation change ahead, metres, relative to the vehicle. */
     readonly rise = new Float32Array(PREVIEW_SAMPLES);
+    /** Signed curvature ahead, rad/m. Positive is a left-hand corner. */
+    readonly curvature = new Float32Array(PREVIEW_SAMPLES);
+    /** Carriageway width ahead, metres. */
+    readonly width = new Float32Array(PREVIEW_SAMPLES);
+
+    /** Metres between samples, so consumers do not have to import the constant. */
+    readonly step = PREVIEW_STEP;
 
     /** Highest speed the road ahead allows right now, m/s. */
     advisorySpeed = 0;
@@ -72,6 +79,8 @@ export class CoursePreview {
             lateral -= Math.sin(heading) * PREVIEW_STEP;
             this.offset[i] = lateral;
             this.rise[i] = this.frame.pos.y - baseY;
+            this.curvature[i] = k;
+            this.width[i] = this.frame.width;
 
             const absK = Math.abs(k);
             // Speed this corner can actually be carried through.

@@ -55,6 +55,9 @@ export interface Telemetry {
     mode: string;
     /** Label of the current difficulty, shown beside any time. */
     difficulty: string;
+    /** The co-driver's current call, and how long it has left on screen. */
+    paceNote: string;
+    paceNoteAge: number;
     stageName: string;
     stageState: string;
     stageElapsed: number;
@@ -104,6 +107,8 @@ export const telemetry: Telemetry = {
 
     mode: 'free',
     difficulty: 'Medium',
+    paceNote: '',
+    paceNoteAge: 0,
     stageName: '',
     stageState: 'armed',
     stageElapsed: 0,
