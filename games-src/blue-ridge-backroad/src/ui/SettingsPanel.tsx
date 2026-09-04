@@ -14,6 +14,7 @@ interface Props {
     speechAvailable: boolean;
     chapters: boolean;
     onChapters: (on: boolean) => void;
+    onFindStage: () => void;
     quality: QualityName;
     detected: QualityName;
     steering: SteerLevel;
@@ -43,6 +44,7 @@ export const SettingsPanel = ({
     speechAvailable,
     chapters,
     onChapters,
+    onFindStage,
     quality,
     detected,
     steering,
@@ -76,9 +78,13 @@ export const SettingsPanel = ({
             </div>
             <p className="setting-note">
                 {mode === 'stage'
-                    ? 'A fixed two miles of the same road, timed. Enter restarts it from the line.'
+                    ? 'A fixed stretch of the same road, timed. Enter restarts it from the line.'
                     : 'The endless road, timed per mile against your own best for that mile.'}
             </p>
+            <button type="button" className="toggle-row" onClick={onFindStage}>
+                <span>Find a stage</span>
+                <span className="row-action">Search</span>
+            </button>
 
             <h3>Difficulty</h3>
             <div className="segmented segmented-4">

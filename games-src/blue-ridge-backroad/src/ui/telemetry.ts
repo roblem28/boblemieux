@@ -61,6 +61,7 @@ export interface Telemetry {
     /** Label of the road chapter in force, or '' when chapters are off. */
     chapter: string;
     stageName: string;
+    stageMiles: number;
     stageState: string;
     stageElapsed: number;
     stageProgress: number;
@@ -113,6 +114,7 @@ export const telemetry: Telemetry = {
     paceNoteAge: 0,
     chapter: '',
     stageName: '',
+    stageMiles: 2,
     stageState: 'armed',
     stageElapsed: 0,
     stageProgress: 0,

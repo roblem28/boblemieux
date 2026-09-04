@@ -1197,3 +1197,47 @@
     font-style: normal;
     opacity: 0.75;
 }
+
+/* ------------------------------------------------------------ stage picker */
+
+.profile-list,
+.candidate-list {
+    display: grid;
+    gap: 8px;
+}
+
+.candidate {
+    display: grid;
+    gap: 5px;
+    padding: 12px 14px;
+    border: 1px solid var(--edge);
+    border-radius: 11px;
+    background: rgba(255, 255, 255, 0.03);
+    color: var(--ink);
+    text-align: left;
+    cursor: pointer;
+    min-height: 44px;
+}
+
+.candidate.selected {
+    border-color: var(--accent);
+    background: rgba(217, 164, 65, 0.12);
+}
+
+.candidate-name {
+    font: 700 14px/1.2 ui-sans-serif, system-ui, sans-serif;
+}
+
+.candidate-stats {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 14px;
+    font: 500 11px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace;
+    color: var(--ink-dim);
+}
+
+.quality-name em {
+    font-style: normal;
+    font-weight: 500;
+    color: var(--ink-dim);
+}

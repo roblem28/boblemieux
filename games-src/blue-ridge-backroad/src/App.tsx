@@ -8,6 +8,7 @@ import { TitleScreen } from './ui/TitleScreen';
 import { Hud } from './ui/Hud';
 import { TouchControls } from './ui/TouchControls';
 import { SettingsPanel } from './ui/SettingsPanel';
+import { StagePicker } from './ui/StagePicker';
 import { telemetry, publishTelemetry } from './ui/telemetry';
 import { formatTime } from './game/splits';
 
@@ -25,6 +26,7 @@ export const App = (): JSX.Element => {
     const [muted, setMuted] = useState(false);
     const [showFps, setShowFps] = useState(false);
     const [settingsOpen, setSettingsOpen] = useState(false);
+    const [pickerOpen, setPickerOpen] = useState(false);
     const [quality, setQuality] = useState<QualityName>(() => initialQuality());
     const [steering, setSteering] = useState<SteerLevel>(() => loadSteerLevel());
     const [mode, setMode] = useState<GameMode>('free');
@@ -91,6 +93,11 @@ export const App = (): JSX.Element => {
         gameRef.current?.startDriving();
         setMode('stage');
         setScreen('driving');
+    }, []);
+
+    const handleFindStage = useCallback(() => {
+        setSettingsOpen(false);
+        setPickerOpen(true);
     }, []);
 
     const handleRestartStage = useCallback(() => {
@@ -239,6 +246,17 @@ export const App = (): JSX.Element => {
                     <TouchControls input={gameRef.current?.input ?? FALLBACK_INPUT} visible={touch} />
                 </>
             )}
+            {pickerOpen && gameRef.current && (
+                <StagePicker
+                    game={gameRef.current}
+                    onClose={() => setPickerOpen(false)}
+                    onPicked={() => {
+                        setPickerOpen(false);
+                        setMode('stage');
+                        setScreen('driving');
+                    }}
+                />
+            )}
             {settingsOpen && (
                 <SettingsPanel
                     mode={mode}
@@ -250,6 +268,7 @@ export const App = (): JSX.Element => {
                     speechAvailable={speechAvailable}
                     chapters={chapters}
                     onChapters={handleChapters}
+                    onFindStage={handleFindStage}
                     quality={quality}
                     detected={detected}
                     steering={steering}

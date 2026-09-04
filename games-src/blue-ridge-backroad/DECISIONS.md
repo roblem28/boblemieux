@@ -645,3 +645,53 @@ holds, so sampling a distance already pruned silently returns the wrong frame �
 and a test that had walked 56 km ahead was then reading garbage for the whole
 baseline. Worth noting as a foot-gun: the clamp is correct behaviour for the
 game and a trap for any diagnostic that reads backwards.
+
+## D9 — The scout
+
+**D9.1 — The road is searched, not perturbed.** A stage is a start distance and
+a length on a road that is already infinite, deterministic and free. Nothing has
+to be generated to get a stage with a particular character; it only has to be
+*found*. That keeps the property everything else depends on: a found stage is the
+same road on every run, so its times are as comparable as the built-in one's, and
+it needs no storage beyond two numbers.
+
+This is also the honest answer to "where does the AI go". Ranking three hundred
+windows of road by four measured traits is arithmetic — it takes four
+milliseconds and a model would only make it slower and less reliable. What a
+model could add is naming and justifying a pick, which is why `scout()` returns a
+ranked shortlist rather than a single answer, and why `nameFor()` is deliberately
+a small, replaceable heuristic.
+
+**D9.2 — Width is measured but not searchable.** It was a fifth trait until it
+was measured. Carriageway width varies on a 300 m wavelength, so averaged over
+two to four miles it converges to the same number everywhere: across the whole
+70 km search range, every candidate scored between 0.42 and 0.57 on a 0-1 scale.
+"A narrow stage" is not something this road has at stage scale, and scoring
+against it added nothing but noise to the other four traits. The profile that
+asked for it ("The Narrows") was replaced by one that asks for set-piece density
+("Sightseeing"), which does discriminate. Width is still measured and shown,
+because it is true; it just cannot be requested.
+
+**D9.3 — Two normalisers were saturating and hiding the answer.** Progression
+divided by `MAX_KAPPA * 0.25`, so every stage that tightened at all pinned at
+exactly 1.0 and the search could not order them; the divisor is now twice that.
+Elevation assumed 45 m of range per mile, when the hilliest road on offer manages
+about 34, so nothing ever approached 1.0 and the trait barely moved the score. A
+normaliser that clips is a trait that has been quietly switched off — worth
+checking by printing the distribution, not by reasoning about the generator.
+
+**D9.4 — The survey is cached; the windows are not.** Measuring per candidate
+would resample the same road twenty times over. One pass samples the neutral road
+every 25 m across the search range into three typed arrays, and every candidate
+window is a sum over a slice of those. Cold search 9.7 ms, cached 4.2 ms — cheap
+enough to run during a React render, which is why the stage picker has no loading
+state.
+
+**D9.5 — The scout reads the neutral road.** `neutralShapeAt()` exists so the
+search can read the road a stage will actually run on without touching the sample
+ring or the chapter flag. A found stage ignores chapters for the same reason the
+built-in one does, and the test asserts it.
+
+**D9.6 — The built-in stage keeps its old storage key.** Records are keyed per
+stage now, but `hollow-creek` still writes `brb.stage.v3.<difficulty>` rather
+than a suffixed key, so times set before any of this existed still count.

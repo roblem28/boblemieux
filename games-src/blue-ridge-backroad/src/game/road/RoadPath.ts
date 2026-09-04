@@ -230,14 +230,34 @@ export class RoadPath {
 
     // ---------------------------------------------------------------- shape
 
+    /**
+     * The shape of the road at a distance, ignoring chapters and without
+     * touching the sample ring.
+     *
+     * The scout needs to evaluate stretches of road it is nowhere near, and both
+     * of the obvious ways to do that are traps: going through `sample()` clamps
+     * to whatever the ring still holds, and toggling the chapter flag to read
+     * the neutral road would invalidate the road the player is currently on.
+     * These are pure functions of distance, so they can simply be asked
+     * directly.
+     */
+    neutralShapeAt(s: number, out: { curvature: number; grade: number; width: number }): void {
+        out.curvature = this.curvatureFrom(s, -1);
+        out.grade = this.gradeFrom(s, 1);
+        out.width = this.widthFrom(s, -1);
+    }
+
     /** Signed curvature at s, rad/m. Pure function of s — no state. */
     private curvatureAt(s: number): number {
+        return this.curvatureFrom(s, this.chapters.paramsAt(s).twistiness);
+    }
+
+    private curvatureFrom(s: number, twist: number): number {
         // A slow envelope opens genuine straights and closes twisty sections, so
         // the road has rhythm and there are places to reach top speed.
         const noiseEnv = 0.22 + 0.78 * smoothstep(-0.4, 0.5, fbm1(s / 1100, 2, this.seed + 3));
         // A chapter replaces the envelope; the noise then only adds local
         // variety within it, so the chapter's character always dominates.
-        const twist = this.chapters.paramsAt(s).twistiness;
         const env = twist < 0 ? noiseEnv : twist * (0.55 + 0.45 * noiseEnv);
         const k =
             0.66 * fbm1(s / 340, 1, this.seed + 11) +
@@ -248,21 +268,27 @@ export class RoadPath {
 
     /** Longitudinal grade (rise/run) at s. */
     private gradeAt(s: number): number {
+        return this.gradeFrom(s, this.chapters.paramsAt(s).gradeScale);
+    }
+
+    private gradeFrom(s: number, scale: number): number {
         const g =
             0.72 * fbm1(s / 430, 1, this.seed + 61) +
             0.28 * fbm1(s / 155, 1, this.seed + 71) +
             0.07 * fbm1(s / 48, 1, this.seed + 83);
-        const scale = this.chapters.paramsAt(s).gradeScale;
         return clamp(g * scale * MAX_GRADE * 1.35, -MAX_GRADE, MAX_GRADE) * this.flatten(s);
     }
 
     private widthAt(s: number): number {
+        return this.widthFrom(s, this.chapters.paramsAt(s).widthTarget);
+    }
+
+    private widthFrom(s: number, target: number): number {
         // 24 ft .. 31 ft. Wider than a real single-track mountain road, which
         // the original spec asked for at 16-22 ft — but at 90 mph on gravel
         // that left no room to place the truck, and playing it is the test that
         // matters. See DECISIONS D5.1.
         const n01 = 0.5 + 0.5 * fbm1(s / 300, 2, this.seed + 101);
-        const target = this.chapters.paramsAt(s).widthTarget;
         // A chapter sets the width and the noise varies it by half a metre or
         // so; with no chapter the noise owns the whole 24-31 ft range.
         return target < 0 ? 7.3 + 2.1 * n01 : target + (n01 - 0.5) * 0.9;

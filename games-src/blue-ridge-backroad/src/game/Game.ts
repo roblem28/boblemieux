@@ -20,7 +20,8 @@ import { AudioEngine } from './audio/AudioEngine';
 import { PRESETS, type QualityName, type QualityPreset } from './quality';
 import { CoursePreview, PREVIEW_STEP } from './road/CoursePreview';
 import { SplitTimer } from './splits';
-import { Stage, STAGE_LENGTH, STAGE_NAME, STAGE_START_S } from './stage';
+import { Stage, DEFAULT_STAGE, type StageDefinition } from './stage';
+import { PROFILES, profileFor, scout, type StageCandidate } from './scout/Scout';
 import { DEFAULT_DIFFICULTY, difficultyFor, type DifficultyName } from './difficulty';
 import { CoDriver, type CoDriverMode } from './codriver/CoDriver';
 import { analysePreview, createFeature, phrase, shouldLink, type RoadFeature } from './codriver/PaceNotes';
@@ -161,7 +162,7 @@ export class Game {
         telemetry.previewSeverity = this.preview.severity;
         telemetry.previewCount = this.preview.offset.length;
         telemetry.previewStep = PREVIEW_STEP;
-        telemetry.stageName = STAGE_NAME;
+        telemetry.stageName = this.stage.name;
         telemetry.stageBest = this.stage.best;
 
         // Well clear of s = 0: RoadPath clamps below its start, so a chunk built
@@ -378,21 +379,50 @@ export class Game {
         this.mode = 'stage';
         // Switching between chaptered and neutral road changes the generator.
         if (this.path.chapters.enabled) this.worldDirty = true;
-        // The stage is always the same two miles of neutral road. Chapters
-        // would make one run's road different from the next, and the whole
-        // point of a stage time is that it is comparable.
+        // A stage always runs on neutral road. Chapters would make one run's
+        // road different from the next, and the whole point of a stage time is
+        // that it is comparable.
         this.path.chapters.enabled = false;
-        this.teleportTo(STAGE_START_S);
+        this.teleportTo(this.stage.start);
         this.stage.arm();
         this.physics.handbrake = true;
         telemetry.mode = 'stage';
+        telemetry.stageName = this.stage.name;
         telemetry.stageState = 'armed';
         telemetry.stageElapsed = 0;
         telemetry.stageProgress = 0;
-        telemetry.stageRemainingMiles = STAGE_LENGTH / 1609.344;
+        telemetry.stageRemainingMiles = this.stage.length / 1609.344;
         telemetry.stageBest = this.stage.best;
         telemetry.stageDelta = NaN;
         publishTelemetry();
+    }
+
+    /**
+     * Rank stretches of road against a named profile. Pure search over the
+     * neutral road — no model, no side effects, a couple of milliseconds.
+     */
+    findStages(profileId: string, limit = 5): StageCandidate[] {
+        return scout(this.path, profileFor(profileId), limit);
+    }
+
+    get stageProfiles(): readonly { id: string; label: string; blurb: string; lengthMiles: number }[] {
+        return PROFILES;
+    }
+
+    /** Adopt a scouted stretch as the stage and start it from the line. */
+    useStage(definition: StageDefinition): void {
+        this.stage.setDefinition(definition);
+        telemetry.stageName = definition.name;
+        this.restartStage();
+    }
+
+    /** Back to the stage that ships with the game. */
+    useDefaultStage(): void {
+        this.useStage(DEFAULT_STAGE);
+    }
+
+    get currentStage(): StageDefinition {
+        return { id: this.stage.id, name: this.stage.name, start: this.stage.start, length: this.stage.length };
     }
 
     restartFree(): void {

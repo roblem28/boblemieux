@@ -769,6 +769,173 @@ const startDriving = async (page) => {
         check(st.mean > 12 && st.mean < 235, `E1c the ${view} view is neither black nor blown out`, JSON.stringify(st));
     }
 
+    // ------------------------------------------------------------- K: the scout
+
+    // K1 - the search runs, is fast, and returns a spread-out shortlist.
+    const scoutBasics = await page.evaluate(() => {
+        const g = window.brb.game;
+        const t0 = performance.now();
+        const found = g.findStages('flowing', 5);
+        const ms = performance.now() - t0;
+        let minGap = Infinity;
+        for (let i = 1; i < found.length; i++) {
+            minGap = Math.min(minGap, Math.abs(found[i].start - found[i - 1].start));
+        }
+        return {
+            ms,
+            count: found.length,
+            profiles: g.stageProfiles.length,
+            minGap,
+            named: found.every((c) => typeof c.name === 'string' && c.name.length > 3),
+            ordered: found.every((c, i) => i === 0 || c.score >= found[i - 1].score)
+        };
+    });
+    check(scoutBasics.profiles >= 5, 'K1 the scout offers a set of profiles', String(scoutBasics.profiles));
+    check(scoutBasics.count === 5, 'K1b it returns a shortlist', `${scoutBasics.count} candidates`);
+    check(scoutBasics.ms < 400, 'K1c the search is fast enough to run during a render', `${scoutBasics.ms.toFixed(1)} ms`);
+    check(scoutBasics.ordered, 'K1d candidates come back best-first');
+    check(scoutBasics.named, 'K1e every candidate is named');
+    check(
+        scoutBasics.minGap > 1000,
+        'K1f the shortlist is spread along the road, not five overlapping windows',
+        `${scoutBasics.minGap.toFixed(0)} m apart`
+    );
+
+    // K2 - the profiles actually select different road. This is the whole point:
+    // if every request returned similar stretches, the search would be theatre.
+    const picks = await page.evaluate(() => {
+        const g = window.brb.game;
+        const mean = (a) => a.reduce((x, y) => x + y, 0) / a.length;
+        const of = (id, field) => mean(g.findStages(id, 3).map((c) => c[field]));
+        return {
+            flowingTwist: of('flowing', 'twistiness'),
+            technicalTwist: of('technical', 'twistiness'),
+            stingProg: of('sting', 'progression'),
+            releaseProg: of('release', 'progression'),
+            mountainElev: of('mountain', 'elevation'),
+            flowingElev: of('flowing', 'elevation'),
+            sightEvents: mean(g.findStages('sightseeing', 3).map((c) => c.eventCount)),
+            technicalEvents: mean(g.findStages('technical', 3).map((c) => c.eventCount))
+        };
+    });
+    check(
+        picks.technicalTwist > picks.flowingTwist * 1.5,
+        'K2 technical finds markedly twistier road than flowing',
+        `${picks.technicalTwist.toFixed(2)} vs ${picks.flowingTwist.toFixed(2)}`
+    );
+    check(
+        picks.stingProg > 0.3 && picks.releaseProg < -0.3,
+        'K2b sting in the tail tightens, late release opens out',
+        `sting ${picks.stingProg.toFixed(2)}, release ${picks.releaseProg.toFixed(2)}`
+    );
+    check(
+        picks.mountainElev > picks.flowingElev,
+        'K2c mountain road finds hillier road',
+        `${picks.mountainElev.toFixed(2)} vs ${picks.flowingElev.toFixed(2)}`
+    );
+    check(
+        picks.sightEvents >= picks.technicalEvents,
+        'K2d sightseeing finds road with at least as much on it',
+        `${picks.sightEvents.toFixed(1)} vs ${picks.technicalEvents.toFixed(1)} set-pieces`
+    );
+
+    // K3 - searching twice gives the same answer. A found stage is only worth
+    // timing if it is the same stage tomorrow.
+    const scoutRepeatable = await page.evaluate(() => {
+        const g = window.brb.game;
+        const a = g.findStages('sting', 5).map((c) => `${c.id}:${c.name}`);
+        const b = g.findStages('sting', 5).map((c) => `${c.id}:${c.name}`);
+        return { same: JSON.stringify(a) === JSON.stringify(b), a: a[0] };
+    });
+    check(scoutRepeatable.same, 'K3 the same request returns the same stages', scoutRepeatable.a);
+
+    // K4 - a found stage can be adopted and started.
+    const adopted = await page.evaluate(async () => {
+        const g = window.brb.game;
+        const pick = g.findStages('technical', 1)[0];
+        g.useStage({ id: pick.id, name: pick.name, start: pick.start, length: pick.length });
+        window.__h.sim(0.4);
+        const t = window.brb.telemetry;
+        const p = g.physics;
+        await new Promise((r) => setTimeout(r, 50));
+        return {
+            wantedId: pick.id,
+            wantedName: pick.name,
+            wantedMiles: pick.length / 1609.344,
+            loaded: g.currentStage.id,
+            atStart: Math.abs(p.s - pick.start),
+            lateral: Math.abs(p.lateral),
+            state: t.stageState,
+            shownName: t.stageName,
+            remaining: t.stageRemainingMiles
+        };
+    });
+    check(adopted.loaded === adopted.wantedId, 'K4 a found stage becomes the loaded stage', adopted.loaded);
+    check(
+        adopted.atStart < 2 && adopted.lateral < 1.5,
+        'K4b it starts you on its own start line',
+        `${adopted.atStart.toFixed(1)} m off, lateral ${adopted.lateral.toFixed(2)}`
+    );
+    check(
+        adopted.state === 'armed' && adopted.shownName === adopted.wantedName,
+        'K4c armed, and named on the HUD',
+        adopted.shownName
+    );
+    check(
+        Math.abs(adopted.remaining - adopted.wantedMiles) < 0.05,
+        'K4d its length is the length that was asked for',
+        `${adopted.remaining.toFixed(2)} vs ${adopted.wantedMiles.toFixed(2)} mi`
+    );
+
+    // K5 - each stage keeps its own records, and the built-in one keeps the key
+    // it has always used, so times set before this existed still count.
+    const records = await page.evaluate(() => {
+        const g = window.brb.game;
+        localStorage.setItem(
+            'brb.stage.v3.medium',
+            JSON.stringify({ best: 111.1, splits: new Array(25).fill(0).map((_, i) => i * 4) })
+        );
+        g.useDefaultStage();
+        window.__h.sim(0.3);
+        const defaultBest = window.brb.telemetry.stageBest;
+        const pick = g.findStages('flowing', 1)[0];
+        g.useStage({ id: pick.id, name: pick.name, start: pick.start, length: pick.length });
+        window.__h.sim(0.3);
+        const foundBest = window.brb.telemetry.stageBest;
+        g.useDefaultStage();
+        window.__h.sim(0.3);
+        return { defaultBest, foundBest, backAgain: window.brb.telemetry.stageBest };
+    });
+    check(
+        Math.abs(records.defaultBest - 111.1) < 0.01,
+        'K5 the built-in stage still reads its existing records',
+        String(records.defaultBest)
+    );
+    check(records.foundBest === 0, 'K5b a found stage starts with no time of its own', String(records.foundBest));
+    check(Math.abs(records.backAgain - 111.1) < 0.01, 'K5c switching back restores the original records');
+
+    // K6 - a found stage runs on neutral road, whatever the chapter setting.
+    const neutralStage = await page.evaluate(() => {
+        const g = window.brb.game;
+        g.setChaptersEnabled(true);
+        const pick = g.findStages('mountain', 1)[0];
+        g.useStage({ id: pick.id, name: pick.name, start: pick.start, length: pick.length });
+        window.__h.sim(0.3);
+        const c = g.chapterAtForTest(g.physics.s);
+        // Leave the game as this section found it: default stage, free drive,
+        // chapters off. Section J sets chapters up for itself and cannot do that
+        // from inside a stage.
+        g.useDefaultStage();
+        g.setChaptersEnabled(false);
+        g.restartFree();
+        return { twist: c.twistiness, label: window.brb.telemetry.chapter };
+    });
+    check(
+        neutralStage.twist < 0 && neutralStage.label === '',
+        'K6 a found stage ignores chapters too',
+        JSON.stringify(neutralStage)
+    );
+
     // -------------------------------------------------------- J: road chapters
 
     // J1 — off by default, and off means the road is exactly as it was.

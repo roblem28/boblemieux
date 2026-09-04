@@ -15,6 +15,22 @@ import { clamp } from './util/mathx';
 export const STAGE_START_S = 1000; // metres along the road
 export const STAGE_LENGTH = 2 * 1609.344; // exactly two miles
 export const STAGE_NAME = 'Hollow Creek Stage';
+/** Identity of the stage that ships with the game. */
+export const DEFAULT_STAGE_ID = 'hollow-creek';
+
+export interface StageDefinition {
+    id: string;
+    name: string;
+    start: number;
+    length: number;
+}
+
+export const DEFAULT_STAGE: StageDefinition = {
+    id: DEFAULT_STAGE_ID,
+    name: STAGE_NAME,
+    start: STAGE_START_S,
+    length: STAGE_LENGTH
+};
 
 /** Times are recorded at each of these fractions, for the live delta. */
 const CHECKPOINTS = 24;
@@ -31,9 +47,17 @@ interface StoredStage {
     splits: number[];
 }
 
-const loadStored = (difficulty: string): StoredStage | null => {
+/**
+ * Records are per difficulty *and* per stage. The stage that ships with the game
+ * keeps the bare difficulty key it has always used, so existing times survive;
+ * scouted stages get their identity appended.
+ */
+const keyFor = (difficulty: string, stageId: string): string =>
+    stageId === DEFAULT_STAGE_ID ? STORE_PREFIX + difficulty : `${STORE_PREFIX}${difficulty}.${stageId}`;
+
+const loadStored = (key: string): StoredStage | null => {
     try {
-        const raw = localStorage.getItem(STORE_PREFIX + difficulty);
+        const raw = localStorage.getItem(key);
         if (!raw) return null;
         const parsed: unknown = JSON.parse(raw);
         if (!parsed || typeof parsed !== 'object') return null;
@@ -72,10 +96,34 @@ export class Stage {
     private nextCheckpoint = 0;
 
     private difficulty: string;
+    private definition: StageDefinition = DEFAULT_STAGE;
 
     constructor(difficulty = 'medium') {
         this.difficulty = difficulty;
         this.load();
+    }
+
+    get id(): string {
+        return this.definition.id;
+    }
+
+    get name(): string {
+        return this.definition.name;
+    }
+
+    get start(): number {
+        return this.definition.start;
+    }
+
+    get length(): number {
+        return this.definition.length;
+    }
+
+    /** Switch to a different stretch of road, with its own records. */
+    setDefinition(definition: StageDefinition): void {
+        this.definition = definition;
+        this.load();
+        this.arm();
     }
 
     /** Switch to another difficulty's records. */
@@ -87,7 +135,7 @@ export class Stage {
     }
 
     private load(): void {
-        const stored = loadStored(this.difficulty);
+        const stored = loadStored(keyFor(this.difficulty, this.definition.id));
         this.best = stored ? stored.best : 0;
         this.bestSplits = stored ? Float64Array.from(stored.splits) : null;
     }
@@ -109,7 +157,7 @@ export class Stage {
     }
 
     get distanceRemaining(): number {
-        return Math.max(0, STAGE_LENGTH * (1 - this.progress));
+        return Math.max(0, this.definition.length * (1 - this.progress));
     }
 
     /**
@@ -128,7 +176,7 @@ export class Stage {
         }
 
         this.elapsed += dt;
-        this.progress = clamp((s - STAGE_START_S) / STAGE_LENGTH, 0, 1);
+        this.progress = clamp((s - this.definition.start) / this.definition.length, 0, 1);
 
         // Record the time at every checkpoint passed since the last frame, so a
         // fast run cannot skip one and leave a hole in the trace.
@@ -175,7 +223,10 @@ export class Stage {
     private save(): void {
         try {
             const splits = this.bestSplits ? Array.from(this.bestSplits) : [];
-            localStorage.setItem(STORE_PREFIX + this.difficulty, JSON.stringify({ best: this.best, splits }));
+            localStorage.setItem(
+                keyFor(this.difficulty, this.definition.id),
+                JSON.stringify({ best: this.best, splits })
+            );
         } catch {
             /* private mode — the stage still runs, it just forgets */
         }
@@ -186,7 +237,7 @@ export class Stage {
         this.bestSplits = null;
         this.delta = NaN;
         try {
-            localStorage.removeItem(STORE_PREFIX + this.difficulty);
+            localStorage.removeItem(keyFor(this.difficulty, this.definition.id));
         } catch {
             /* nothing to do */
         }
