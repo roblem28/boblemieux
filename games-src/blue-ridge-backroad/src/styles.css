@@ -1098,3 +1098,48 @@
         font-size: 38px;
     }
 }
+
+/* ----------------------------------------------------------- difficulty */
+
+.segmented-4 {
+    gap: 4px;
+}
+
+.segmented-4 .segment {
+    padding: 0 6px;
+    font-size: 12px;
+    letter-spacing: 0.02em;
+}
+
+.setting-quiet {
+    opacity: 0.72;
+    font-size: 11px;
+}
+
+.title-difficulty {
+    display: grid;
+    gap: 7px;
+    justify-items: center;
+    width: min(420px, 100%);
+    margin: 0 auto 22px;
+}
+
+.title-difficulty-label {
+    font-size: 10px;
+    letter-spacing: 0.28em;
+    text-transform: uppercase;
+    color: var(--ink);
+    /* It sits over the scene rather than over the vignette, so it needs its own
+       contrast or it disappears against a sunlit road. */
+    text-shadow: 0 1px 8px rgba(0, 0, 0, 0.9), 0 0 22px rgba(0, 0, 0, 0.7);
+}
+
+.title-difficulty .segmented {
+    width: 100%;
+}
+
+.stage-name em {
+    font-style: normal;
+    color: var(--ink-dim);
+    letter-spacing: 0.14em;
+}

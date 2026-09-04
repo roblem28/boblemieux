@@ -53,6 +53,8 @@ export interface Telemetry {
 
     /** 'free' for the endless drive, 'stage' for the timed two-mile run. */
     mode: string;
+    /** Label of the current difficulty, shown beside any time. */
+    difficulty: string;
     stageName: string;
     stageState: string;
     stageElapsed: number;
@@ -101,6 +103,7 @@ export const telemetry: Telemetry = {
     stuck: false,
 
     mode: 'free',
+    difficulty: 'Medium',
     stageName: '',
     stageState: 'armed',
     stageElapsed: 0,

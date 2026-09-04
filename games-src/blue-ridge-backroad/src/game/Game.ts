@@ -21,6 +21,7 @@ import { PRESETS, type QualityName, type QualityPreset } from './quality';
 import { CoursePreview, PREVIEW_STEP } from './road/CoursePreview';
 import { SplitTimer } from './splits';
 import { Stage, STAGE_LENGTH, STAGE_NAME, STAGE_START_S } from './stage';
+import { DEFAULT_DIFFICULTY, difficultyFor, type DifficultyName } from './difficulty';
 import { bindKeyboard, createInputState, type InputState, type KeyboardBinding } from './input';
 import { telemetry, publishTelemetry } from '../ui/telemetry';
 import { MPS_TO_MPH, M_TO_MILES, clamp } from './util/mathx';
@@ -42,6 +43,7 @@ export interface GameOptions {
     quality: QualityName;
     seed?: number;
     steerSensitivity?: number;
+    difficulty?: DifficultyName;
     /**
      * Keeps the drawing buffer readable after compositing, so tests can sample
      * what was actually rendered. Off in normal play — it costs a copy per
@@ -94,8 +96,9 @@ export class Game {
     private readonly options: GameOptions;
     private readonly probeFrame = createFrame();
     private readonly preview: CoursePreview;
-    private readonly splits = new SplitTimer();
-    private readonly stage = new Stage();
+    private readonly splits: SplitTimer;
+    private readonly stage: Stage;
+    private difficultyName: DifficultyName;
     private mode: GameMode = 'free';
 
     constructor(options: GameOptions) {
@@ -117,6 +120,9 @@ export class Game {
         this.renderer.shadowMap.enabled = this.preset.shadows;
         this.renderer.shadowMap.type = PCFSoftShadowMap;
 
+        this.difficultyName = options.difficulty ?? DEFAULT_DIFFICULTY;
+        this.splits = new SplitTimer(this.difficultyName);
+        this.stage = new Stage(this.difficultyName);
         this.path = new RoadPath(options.seed ?? 20260904);
         this.assets = new Assets(this.preset);
         this.vegetation = new Vegetation(this.scene, this.assets, this.preset.chunksAhead + this.preset.chunksBehind + 4);
@@ -130,6 +136,8 @@ export class Game {
         this.preview = new CoursePreview(this.path);
         this.keys = bindKeyboard(this.input);
         this.physics.steerSensitivity = options.steerSensitivity ?? 1;
+        this.physics.difficulty = difficultyFor(this.difficultyName);
+        telemetry.difficulty = this.physics.difficulty.label;
         telemetry.previewOffset = this.preview.offset;
         telemetry.previewSeverity = this.preview.severity;
         telemetry.previewCount = this.preview.offset.length;
@@ -246,6 +254,26 @@ export class Game {
 
     setSteerSensitivity(value: number): void {
         this.physics.steerSensitivity = value;
+    }
+
+    get currentDifficulty(): DifficultyName {
+        return this.difficultyName;
+    }
+
+    /**
+     * Change how forgiving the truck is. Records are kept per difficulty, so
+     * the timers swap to that level's bests rather than comparing an Expert run
+     * against an Easy one.
+     */
+    setDifficulty(name: DifficultyName): void {
+        this.difficultyName = name;
+        this.physics.difficulty = difficultyFor(name);
+        this.splits.setDifficulty(name);
+        this.stage.setDifficulty(name);
+        telemetry.difficulty = this.physics.difficulty.label;
+        telemetry.stageBest = this.stage.best;
+        telemetry.mileBest = this.splits.currentMileBest;
+        publishTelemetry();
     }
 
     /**
@@ -497,6 +525,12 @@ export class Game {
 
     get roadMinS(): number {
         return this.path.minS;
+    }
+
+    /** Carriageway width at a distance, for diagnostics and the suite. */
+    roadWidthAt(s: number): number {
+        this.path.sample(s, this.probeFrame);
+        return this.probeFrame.width;
     }
 
     get sceneObjectCount(): number {

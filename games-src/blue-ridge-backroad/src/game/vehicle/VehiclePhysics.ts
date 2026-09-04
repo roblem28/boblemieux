@@ -13,6 +13,7 @@ import { clamp, damp, lerp, moveTowards, smoothstep, DEG } from '../util/mathx';
 import type { InputState, InputTargets } from '../input';
 import { resolveInputTargets } from '../input';
 import type { ChunkManager } from '../world/ChunkManager';
+import { DEFAULT_DIFFICULTY, difficultyFor, type Difficulty } from '../difficulty';
 
 /**
  * Heavy, responsive, believable — not a hardcore simulator.
@@ -67,7 +68,14 @@ const SURFACE_MU = [0.98, 0.72, 0.52, 0.47];
 // Rolling resistance. Off the carriageway it is deliberately punishing: the
 // spec asks for leaving the road to cost you a lot of speed, and bogging down
 // in the weeds is a far better way to express that than a scripted penalty.
-const SURFACE_ROLL = [0.016, 0.05, 0.18, 0.15];
+const SURFACE_ROLL = [0.016, 0.06, 0.32, 0.28];
+/**
+ * Extra quadratic drag per surface, as a multiple of the aerodynamic term.
+ * Rolling resistance is a constant force, and against 300 kW a constant force
+ * barely dents 100 mph — ploughing through grass and ruts has to cost more the
+ * faster you go, or off-road is no slower than the road in a straight line.
+ */
+const SURFACE_DRAG = [0, 0.6, 4.6, 4.0];
 const SURFACE_ROUGH = [0.35, 0.75, 1, 0.9];
 
 /**
@@ -82,7 +90,7 @@ const STEER_RETURN_RATE = 3.8; // ...and how fast it unwinds
 const STEER_RATE_LOW = 3.0; // road-wheel slew at a standstill, rad/s
 const STEER_RATE_HIGH = 1.35; // ...and at 45 m/s
 const STEER_MAX_LOW = 30; // degrees of lock at a standstill
-const STEER_MAX_HIGH = 7.5; // ...and at 55 m/s
+const STEER_MAX_HIGH = 6.5; // ...and at 38 m/s and above
 
 const GEAR_RATIOS = [3.4, 2.05, 1.38, 1.0];
 const FINAL_DRIVE = 3.9;
@@ -197,6 +205,8 @@ export class VehiclePhysics {
     handbrake = false;
     /** Seconds spent off the road and barely moving — the HUD offers a recovery. */
     stuckTime = 0;
+    /** How forgiving the truck is. Set from the settings panel. */
+    difficulty: Difficulty = difficultyFor(DEFAULT_DIFFICULTY);
     private reverseHold = 0;
     private prevWheelY = [0, 0, 0, 0];
 
@@ -266,7 +276,10 @@ export class VehiclePhysics {
         const speed = Math.abs(this.u);
         // Steering authority falls off with speed, so the truck is placid at
         // 100 mph and darty at walking pace.
-        let steerMax = (STEER_MAX_LOW - (STEER_MAX_LOW - STEER_MAX_HIGH) * smoothstep(0, 55, speed)) * DEG;
+        // Lock falls away faster than it used to. Nineteen degrees of road-wheel
+        // angle at 58 mph — what the old curve allowed — is a hairpin input, and
+        // holding it will put any vehicle round.
+        let steerMax = (STEER_MAX_LOW - (STEER_MAX_LOW - STEER_MAX_HIGH) * smoothstep(0, 38, speed)) * DEG;
         // HANDEDNESS. This is a right-handed, Y-up world, so a positive rotation
         // about +Y takes forward (+Z) toward +X — which is the driver's LEFT.
         // Every angular quantity here follows that same rule: yaw, yawRate and
@@ -283,7 +296,8 @@ export class VehiclePhysics {
         // deepens the slide, which unlocks more lock; the truck then spins
         // itself every time it steps out.
         if (this.rearSlip !== 0 && Math.sign(steerCmd) === Math.sign(this.rearSlip)) {
-            steerMax = Math.min(steerMax + clamp(this.slipAmount * 0.8, 0, 10 * DEG), 30 * DEG);
+            const catchLock = this.difficulty.catchLock * DEG;
+            steerMax = Math.min(steerMax + clamp(this.slipAmount * 0.8, 0, catchLock), 32 * DEG);
         }
         const steerTarget = steerCmd * steerMax;
         const steerRate = lerp(STEER_RATE_LOW, STEER_RATE_HIGH, smoothstep(0, 45, speed));
@@ -309,6 +323,7 @@ export class VehiclePhysics {
 
         let muSum = 0;
         let rollSum = 0;
+        let dragSum = 0;
         let roughSum = 0;
         let groundSum = 0;
         for (let i = 0; i < 4; i++) {
@@ -322,11 +337,16 @@ export class VehiclePhysics {
             w.surface = this.path.surfaceAt(frameA, wl);
             muSum += SURFACE_MU[w.surface];
             rollSum += SURFACE_ROLL[w.surface];
+            dragSum += SURFACE_DRAG[w.surface];
             roughSum += SURFACE_ROUGH[w.surface];
             groundSum += w.groundY;
         }
-        const mu = muSum * 0.25;
-        const rollCoef = rollSum * 0.25;
+        const mu = muSum * 0.25 * this.difficulty.gripScale;
+        // Off the carriageway the drag penalty is scaled too, so Easy does not
+        // bog down the moment a wheel touches grass and Expert really does.
+        const offRoadScale = this.offRoad ? this.difficulty.offRoadDrag : 1;
+        const rollCoef = rollSum * 0.25 * offRoadScale;
+        const surfaceDrag = dragSum * 0.25 * offRoadScale;
         this.surfaceRoughness = roughSum * 0.25;
         const groundY = groundSum * 0.25;
 
@@ -359,7 +379,9 @@ export class VehiclePhysics {
         this.wheels[3].load = Math.max(0, fzRear * 0.5 + latTransfer * 0.5);
 
         const muFront = mu * loadSens(fzFront, axleFront);
-        const muRear = mu * loadSens(fzRear, axleRear);
+        // Extra rear grip biases the truck toward understeer, which is a slide
+        // you can drive out of rather than a spin you cannot.
+        const muRear = mu * loadSens(fzRear, axleRear) * this.difficulty.rearBias;
 
         // 4. Longitudinal ------------------------------------------------------
         this.updateGear(speed);
@@ -382,7 +404,7 @@ export class VehiclePhysics {
             }
         }
         // Drag, rolling resistance and the grade.
-        fx -= DRAG_K * this.u * Math.abs(this.u);
+        fx -= DRAG_K * (1 + surfaceDrag) * this.u * Math.abs(this.u);
         // Rolling resistance eases off at walking pace. At speed it is what
         // makes leaving the road cost you; at a crawl, applied in full, it is
         // what makes a truck in a ditch unable to dig itself out.
@@ -444,6 +466,29 @@ export class VehiclePhysics {
             this.yawRate += (rKin - this.yawRate) * kin * clamp(dt * 12, 0, 1);
             this.v *= Math.exp(-9 * kin * dt);
         }
+        // Stability assistance. Pulls the yaw rate toward what the steering
+        // angle alone would produce and bleeds off sideways velocity — the same
+        // job as electronic stability control, and the single biggest reason a
+        // truck on Easy does not spin. Zero on Expert, which leaves the raw
+        // tire model exactly as it is.
+        const assist = this.difficulty.stability;
+        if (assist > 0 && Math.abs(this.u) > 3) {
+            const rKinematic = (this.u * Math.tan(this.steer)) / WHEELBASE;
+            // The fastest the truck can rotate on the grip it actually has:
+            // lateral acceleration is u * r, and that cannot exceed mu * g.
+            const rLimit = (mu * G) / Math.max(Math.abs(this.u), 5);
+            const magnitude = Math.min(Math.abs(rKinematic), rLimit);
+            const rTarget = rKinematic < 0 ? -magnitude : magnitude;
+            // Only ever *reduce* rotation. The first version pulled the yaw rate
+            // toward the kinematic ideal in both directions, and at 58 mph with
+            // lock applied that ideal is over 3 rad/s — so the "assist" was
+            // spinning the truck faster than the tires ever would have.
+            if (Math.abs(this.yawRate) > Math.abs(rTarget)) {
+                this.yawRate += (rTarget - this.yawRate) * assist * clamp(dt * 7, 0, 1);
+            }
+            this.v *= Math.exp(-assist * 2.4 * dt);
+        }
+
         // Hard sanity clamps. Nothing physical should reach these, but a single
         // bad frame delta must not be able to launch the truck into orbit.
         this.v = clamp(this.v, -35, 35);
@@ -479,11 +524,15 @@ export class VehiclePhysics {
                 // *adds* speed here compounds every substep the truck stays in
                 // contact, and a tree ends up launching it sideways.
                 const j = -(1 + 0.15) * approach;
-                const nvx = (worldVX + nx * j) * 0.8;
-                const nvz = (worldVZ + nz * j) * 0.8;
+                const keep = this.difficulty.collisionKeep;
+                const nvx = (worldVX + nx * j) * keep;
+                const nvz = (worldVZ + nz * j) * keep;
                 this.u = nvx * fwdX + nvz * fwdZ;
                 this.v = nvx * rgtX + nvz * rgtZ;
-                this.yawRate = clamp(this.yawRate + (nx * fwdZ - nz * fwdX) * 0.3, -2.2, 2.2);
+                // The spin a glancing blow imparts is scaled too: on Easy a
+                // clipped tree should cost you speed, not the whole run.
+                const kick = 0.3 * (1.2 - this.difficulty.stability);
+                this.yawRate = clamp(this.yawRate + (nx * fwdZ - nz * fwdX) * kick, -2.2, 2.2);
                 this.impact = Math.max(this.impact, clamp(-approach / 18, 0.15, 1));
             }
         }

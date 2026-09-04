@@ -1,10 +1,13 @@
 import type { JSX } from 'react';
 import { PRESETS, type QualityName } from '../game/quality';
 import { STEER_LEVELS, type SteerLevel } from '../game/steering';
+import { DIFFICULTIES, difficultyFor, type DifficultyName } from '../game/difficulty';
 
 interface Props {
     mode: 'free' | 'stage';
     onMode: (mode: 'free' | 'stage') => void;
+    difficulty: DifficultyName;
+    onDifficulty: (d: DifficultyName) => void;
     quality: QualityName;
     detected: QualityName;
     steering: SteerLevel;
@@ -27,6 +30,8 @@ const SUMMARY: Record<QualityName, string> = {
 export const SettingsPanel = ({
     mode,
     onMode,
+    difficulty,
+    onDifficulty,
     quality,
     detected,
     steering,
@@ -64,6 +69,24 @@ export const SettingsPanel = ({
                     : 'The endless road, timed per mile against your own best for that mile.'}
             </p>
 
+            <h3>Difficulty</h3>
+            <div className="segmented segmented-4">
+                {DIFFICULTIES.map((d) => (
+                    <button
+                        key={d.name}
+                        type="button"
+                        className={d.name === difficulty ? 'segment selected' : 'segment'}
+                        onClick={() => onDifficulty(d.name)}
+                    >
+                        {d.label}
+                    </button>
+                ))}
+            </div>
+            <p className="setting-note">{difficultyFor(difficulty).detail}</p>
+            <p className="setting-note setting-quiet">
+                Best times are kept separately for each difficulty.
+            </p>
+
             <h3>Steering</h3>
             <div className="segmented">
                 {STEER_LEVELS.map((level) => (
@@ -99,7 +122,7 @@ export const SettingsPanel = ({
 
             <h3>Times</h3>
             <button type="button" className="toggle-row" onClick={onClearTimes}>
-                <span>Clear best mile times</span>
+                <span>Clear best times for {difficultyFor(difficulty).label}</span>
                 <span className="row-action">Reset</span>
             </button>
 

@@ -1,14 +1,25 @@
 import type { JSX } from 'react';
+import { DIFFICULTIES, type DifficultyName } from '../game/difficulty';
 
 interface Props {
     onStart: () => void;
     onStartStage: () => void;
+    difficulty: DifficultyName;
+    onDifficulty: (d: DifficultyName) => void;
     ready: boolean;
     touch: boolean;
     stageBest: string;
 }
 
-export const TitleScreen = ({ onStart, onStartStage, ready, touch, stageBest }: Props): JSX.Element => (
+export const TitleScreen = ({
+    onStart,
+    onStartStage,
+    difficulty,
+    onDifficulty,
+    ready,
+    touch,
+    stageBest
+}: Props): JSX.Element => (
     <div className="title">
         <div className="title-vignette" />
         <div className="title-inner">
@@ -18,9 +29,25 @@ export const TitleScreen = ({ onStart, onStartStage, ready, touch, stageBest }: 
                 <span>Backroad</span>
             </h1>
             <p className="title-blurb">
-                Gravel, switchbacks and a hundred miles of ridgeline. No race, no finish line — just
-                the road, the woods, and whatever is out there in them.
+                Gravel, switchbacks and a hundred miles of ridgeline. Drive it for its own sake —
+                or put two miles of it against the clock.
             </p>
+
+            <div className="title-difficulty">
+                <span className="title-difficulty-label">Difficulty</span>
+                <div className="segmented segmented-4">
+                    {DIFFICULTIES.map((d) => (
+                        <button
+                            key={d.name}
+                            type="button"
+                            className={d.name === difficulty ? 'segment selected' : 'segment'}
+                            onClick={() => onDifficulty(d.name)}
+                        >
+                            {d.label}
+                        </button>
+                    ))}
+                </div>
+            </div>
 
             <div className="title-actions">
                 <button className="start-btn" type="button" onClick={onStart} disabled={!ready}>

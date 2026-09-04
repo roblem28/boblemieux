@@ -4,7 +4,9 @@ import type { VehiclePhysics } from '../vehicle/VehiclePhysics';
 import type { VehicleModel } from '../vehicle/VehicleModel';
 
 export type CameraMode = 'chase' | 'hood' | 'cockpit';
-export const CAMERA_MODES: readonly CameraMode[] = ['chase', 'hood', 'cockpit'];
+// Chase, then cockpit, then hood: cockpit is the one people reach for after
+// the chase view, so it comes next.
+export const CAMERA_MODES: readonly CameraMode[] = ['chase', 'cockpit', 'hood'];
 export const CAMERA_LABELS: Record<CameraMode, string> = {
     chase: 'Chase',
     hood: 'Hood',

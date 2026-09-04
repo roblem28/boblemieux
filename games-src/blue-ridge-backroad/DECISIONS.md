@@ -446,3 +446,49 @@ only under the debug flag.
 so a check inherited whatever ditch the previous one finished in — which
 produced several failures that looked exactly like physics regressions and were
 not. State-sensitive checks now start from a defined spawn.
+
+---
+
+## Play-test feedback, round two
+
+**D5.1 — The road is wider than the spec asked for.** The original brief said
+16–22 ft; it is now 24–31 ft, with a wider shoulder to match. At 90 mph on
+gravel the narrower road left no room to place the truck, and how it plays is
+the test that matters. Recorded as a deliberate deviation rather than a drift.
+
+**D5.2 — Camera order is chase, cockpit, hood.** Cockpit is what people reach
+for after the chase view.
+
+**D5.3 — Four difficulty levels, and they change forgiveness, not speed.**
+Engine, brakes, top speed and the road are identical at every level. What varies
+is grip, rear-axle bias, how hard leaving the road hurts, how much a collision
+costs, and the stability assistance.
+
+**D5.4 — The stability assist may only ever *reduce* rotation.** The first
+version pulled the yaw rate toward the kinematic ideal `u·tan(δ)/L` in both
+directions. At 58 mph with lock applied that ideal is over 3 rad/s — a rate no
+tire could produce — so the "assist" was actively spinning the truck, and Easy
+was measurably worse than Expert. It now computes the rotation grip can support
+(`μg/u`, since lateral acceleration is `u·r`), takes the smaller of that and the
+kinematic rate, and only pulls the yaw rate down toward it.
+
+Measured under a deliberately abusive input — full lock and full throttle at
+58 mph — peak sideways velocity is now 2.9 m/s on Easy, 4.9 on Medium, 11.2 on
+Hard and 26.8 on Expert, which spins. That is the spread the levels are for.
+
+**D5.5 — Steering lock falls away faster with speed.** The old curve still gave
+19 degrees of road-wheel angle at 58 mph. That is a hairpin input; holding it
+will put any vehicle round, and it was a large part of "wipes out way too easy".
+Lock now reaches its 6.5-degree floor by 38 m/s instead of 55.
+
+**D5.6 — Off-road needs a speed-dependent penalty, not just rolling
+resistance.** Rolling resistance is a constant force, and against 300 kW a
+constant force barely dents 100 mph — the truck was doing 102 mph through open
+grass. Each surface now carries a quadratic drag multiplier as well, which caps
+off-road speed around 65–70 mph while leaving the low-speed crawl-out from
+D3.2 untouched.
+
+**D5.7 — Best times are per difficulty.** An Expert time and an Easy time are
+not the same achievement, and one leaderboard for both is worse than none. The
+storage keys carry the level, and the version moved with the road widening,
+which changed every time anyway.

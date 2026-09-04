@@ -26,7 +26,7 @@ const MAX_GRADE = 0.085;
 const MAX_BANK = 0.091; // ~5.2 degrees
 
 /** Cross-section geometry, shared by the mesh builders and the physics. */
-export const SHOULDER_W = 1.05; // gravel shoulder beyond the carriageway
+export const SHOULDER_W = 1.35; // gravel shoulder beyond the carriageway
 export const DITCH_W = 2.6; // drainage ditch beyond the shoulder
 export const DITCH_DEPTH = 0.85;
 export const TERRAIN_HALF_WIDTH = 62; // how far the conforming terrain skirt reaches
@@ -210,8 +210,11 @@ export class RoadPath {
     }
 
     private widthAt(s: number): number {
-        // 16 ft .. 22 ft
-        return 5.0 + 1.7 * (0.5 + 0.5 * fbm1(s / 300, 2, this.seed + 101));
+        // 24 ft .. 31 ft. Wider than a real single-track mountain road, which
+        // the original spec asked for at 16-22 ft — but at 90 mph on gravel
+        // that left no room to place the truck, and playing it is the test that
+        // matters. See DECISIONS D5.1.
+        return 7.3 + 2.1 * (0.5 + 0.5 * fbm1(s / 300, 2, this.seed + 101));
     }
 
     // ------------------------------------------------------------- generate

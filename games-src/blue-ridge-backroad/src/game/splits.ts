@@ -11,15 +11,16 @@
  */
 
 export const MILE_METRES = 1609.344;
-const STORE_KEY = 'brb.splits.v1';
+// Per difficulty, for the same reason as the stage records.
+const STORE_PREFIX = 'brb.splits.v2.';
 /** Keep bests for the first stretch of road; beyond that it is all new ground. */
 const MAX_TRACKED_MILE = 200;
 
 export type BestTimes = Record<number, number>;
 
-export const loadBests = (): BestTimes => {
+export const loadBests = (difficulty: string): BestTimes => {
     try {
-        const raw = localStorage.getItem(STORE_KEY);
+        const raw = localStorage.getItem(STORE_PREFIX + difficulty);
         if (!raw) return {};
         const parsed: unknown = JSON.parse(raw);
         if (!parsed || typeof parsed !== 'object') return {};
@@ -36,17 +37,17 @@ export const loadBests = (): BestTimes => {
     }
 };
 
-export const saveBests = (bests: BestTimes): void => {
+export const saveBests = (difficulty: string, bests: BestTimes): void => {
     try {
-        localStorage.setItem(STORE_KEY, JSON.stringify(bests));
+        localStorage.setItem(STORE_PREFIX + difficulty, JSON.stringify(bests));
     } catch {
         /* private mode, or storage full — the timer still works, it just forgets */
     }
 };
 
-export const clearBests = (): void => {
+export const clearBests = (difficulty: string): void => {
     try {
-        localStorage.removeItem(STORE_KEY);
+        localStorage.removeItem(STORE_PREFIX + difficulty);
     } catch {
         /* nothing to do */
     }
@@ -70,7 +71,8 @@ const NONE: SplitResult = { completedMile: -1, time: 0, delta: NaN, isBest: fals
  * Allocation-free in the steady state: the result object is reused.
  */
 export class SplitTimer {
-    private bests: BestTimes = loadBests();
+    private difficulty: string;
+    private bests: BestTimes;
     private mileStart = 0;
     private lastMile = 0;
     private dirty = false;
@@ -78,6 +80,18 @@ export class SplitTimer {
 
     /** Seconds spent driving so far. */
     elapsed = 0;
+
+    constructor(difficulty = 'medium') {
+        this.difficulty = difficulty;
+        this.bests = loadBests(difficulty);
+    }
+
+    /** Switch to another difficulty's records. */
+    setDifficulty(difficulty: string): void {
+        if (difficulty === this.difficulty) return;
+        this.difficulty = difficulty;
+        this.bests = loadBests(difficulty);
+    }
 
     reset(): void {
         this.elapsed = 0;
@@ -128,7 +142,7 @@ export class SplitTimer {
         const isBest = eligible && (previous === 0 || time < previous);
         if (isBest) {
             this.bests[completed] = time;
-            saveBests(this.bests);
+            saveBests(this.difficulty, this.bests);
         }
 
         this.result.completedMile = completed;
@@ -144,7 +158,7 @@ export class SplitTimer {
 
     forgetBests(): void {
         this.bests = {};
-        clearBests();
+        clearBests(this.difficulty);
     }
 }
 

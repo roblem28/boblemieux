@@ -20,7 +20,9 @@ export const StagePanel = ({ t, onRestart }: Props): JSX.Element => {
     return (
         <div className="stage">
             <div className="stage-head">
-                <span className="stage-name">{t.stageName}</span>
+                <span className="stage-name">
+                    {t.stageName} <em>{t.difficulty}</em>
+                </span>
                 <button className="stage-restart" type="button" onClick={onRestart}>
                     <span className="stage-key">&crarr;</span>
                     Restart
@@ -63,7 +65,9 @@ interface ResultProps {
 export const StageResult = ({ t, onRestart, onFreeDrive }: ResultProps): JSX.Element => (
     <div className="result-backdrop">
         <div className={t.stageResultIsBest ? 'result result-best' : 'result'}>
-            <span className="result-kicker">{t.stageName}</span>
+            <span className="result-kicker">
+                {t.stageName} — {t.difficulty}
+            </span>
             <span className="result-time">{formatTime(t.stageResultTime)}</span>
 
             {t.stageResultIsBest ? (

@@ -427,13 +427,17 @@ const startDriving = async (page) => {
     );
 
     // A11 — camera cycling, by key and by button, visits all three views.
-    const seen = new Set();
+    const order = [];
     for (let i = 0; i < 4; i++) {
-        seen.add(await page.evaluate(() => window.brb.game.cameraMode));
+        order.push(await page.evaluate(() => window.brb.game.cameraMode));
         await page.keyboard.press('KeyC');
         await page.evaluate(() => window.__h.sim(0.2));
     }
-    check(seen.size === 3, 'A11 C cycles chase / hood / cockpit', [...seen].join(','));
+    check(
+        order.join(',') === 'chase,cockpit,hood,chase',
+        'A11 C cycles chase -> cockpit -> hood and wraps',
+        order.join(',')
+    );
     const beforeBtn = await page.evaluate(() => window.brb.game.cameraMode);
     await page.locator('.hud-btn').first().click();
     const afterBtn = await page.evaluate(() => window.brb.game.cameraMode);
@@ -765,6 +769,109 @@ const startDriving = async (page) => {
         check(st.mean > 12 && st.mean < 235, `E1c the ${view} view is neither black nor blown out`, JSON.stringify(st));
     }
 
+    // ---------------------------------------------------------- F: difficulty
+
+    // F1 — the four levels exist and are selectable.
+    const levels = await page.evaluate(() => {
+        const g = window.brb.game;
+        const out = [];
+        for (const name of ['easy', 'medium', 'hard', 'expert']) {
+            g.setDifficulty(name);
+            out.push({ name, applied: g.currentDifficulty, label: window.brb.telemetry.difficulty });
+        }
+        g.setDifficulty('medium');
+        return out;
+    });
+    check(
+        levels.length === 4 && levels.every((l) => l.applied === l.name && l.label.length > 0),
+        'F1 easy / medium / hard / expert all apply',
+        JSON.stringify(levels)
+    );
+
+    // F2 — easier levels really are harder to spin. Same provocation, same
+    // speed, on each level: full lock and full throttle, which is how you put a
+    // truck sideways on gravel.
+    const spin = await page.evaluate(() => {
+        const g = window.brb.game;
+        const p = g.physics;
+        const out = {};
+        for (const name of ['easy', 'medium', 'hard', 'expert']) {
+            g.setDifficulty(name);
+            window.__h.hardReset();
+            window.__h.autopilot(10, { keyThrottle: true });
+            window.__h.release();
+            p.u = 26;
+            p.v = 0;
+            p.yawRate = 0;
+            g.input.keyThrottle = true;
+            g.input.keyRight = true;
+            let peakSlip = 0;
+            let peakYaw = 0;
+            g.setRenderEnabled(false);
+            for (let i = 0; i < 150; i++) {
+                g.tick(1 / 60);
+                peakSlip = Math.max(peakSlip, Math.abs(p.v));
+                peakYaw = Math.max(peakYaw, Math.abs(p.yawRate));
+            }
+            g.setRenderEnabled(true);
+            window.__h.release();
+            out[name] = { slip: +peakSlip.toFixed(2), yaw: +peakYaw.toFixed(3) };
+        }
+        g.setDifficulty('medium');
+        return out;
+    });
+    check(
+        spin.easy.slip < spin.expert.slip,
+        'F2 the same provocation slides less on Easy than on Expert',
+        JSON.stringify(spin)
+    );
+    check(
+        spin.easy.slip <= spin.medium.slip + 0.6 && spin.medium.slip <= spin.hard.slip + 0.6,
+        'F2b sideways slip increases as the difficulty does',
+        JSON.stringify(spin)
+    );
+
+    // F3 — best times are kept separately per difficulty.
+    const perLevel = await page.evaluate(() => {
+        const g = window.brb.game;
+        g.setDifficulty('easy');
+        g.clearBestTimes();
+        g.setDifficulty('expert');
+        g.clearBestTimes();
+        // Plant a fabricated best on Easy only, through the real storage path.
+        localStorage.setItem(
+            'brb.stage.v3.easy',
+            JSON.stringify({ best: 123.4, splits: new Array(25).fill(0).map((_, i) => i * 5) })
+        );
+        g.setDifficulty('medium');
+        g.setDifficulty('easy');
+        const easyBest = window.brb.telemetry.stageBest;
+        g.setDifficulty('expert');
+        const expertBest = window.brb.telemetry.stageBest;
+        g.setDifficulty('medium');
+        return { easyBest, expertBest };
+    });
+    check(
+        Math.abs(perLevel.easyBest - 123.4) < 0.01 && perLevel.expertBest === 0,
+        'F3 best times are stored per difficulty, not shared',
+        JSON.stringify(perLevel)
+    );
+
+    // F4 — the road is wide enough to place a truck on.
+    const width = await page.evaluate(() => {
+        const g = window.brb.game;
+        let min = Infinity;
+        let max = 0;
+        for (let s = 500; s < 6000; s += 40) {
+            const w = g.roadWidthAt(s);
+            min = Math.min(min, w);
+            max = Math.max(max, w);
+        }
+        return { min: +min.toFixed(2), max: +max.toFixed(2) };
+    });
+    check(width.min > 7, 'F4 the carriageway is at least 7 m wide', JSON.stringify(width));
+    check(width.max < 12, 'F4b and not absurdly wide', JSON.stringify(width));
+
     // ------------------------------------------------------ D: the timed stage
 
     // D1 — the stage starts armed on the line with the clock stopped.
@@ -940,7 +1047,7 @@ const startDriving = async (page) => {
         const afterRestart = t.stageBest;
         window.brb.game.clearBestTimes();
         window.__h.sim(0.3);
-        return { before, afterRestart, afterClear: t.stageBest, stored: localStorage.getItem('brb.stage.v2') };
+        return { before, afterRestart, afterClear: t.stageBest, stored: localStorage.getItem('brb.stage.v3.medium') };
     });
     check(persistence.before > 0 && persistence.afterRestart === persistence.before, 'D10 the best time survives a restart', `${persistence.afterRestart.toFixed(1)} s`);
     check(persistence.afterClear === 0 && !persistence.stored, 'D10b clearing best times removes it');

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState, type JSX } from 'react';
 import { Game, type GameMode } from './game/Game';
 import { detectQuality, initialQuality, saveQualityOverride, type QualityName } from './game/quality';
 import { loadSteerLevel, multiplierFor, saveSteerLevel, type SteerLevel } from './game/steering';
+import { loadDifficulty, saveDifficulty, type DifficultyName } from './game/difficulty';
 import { TitleScreen } from './ui/TitleScreen';
 import { Hud } from './ui/Hud';
 import { TouchControls } from './ui/TouchControls';
@@ -26,6 +27,7 @@ export const App = (): JSX.Element => {
     const [quality, setQuality] = useState<QualityName>(() => initialQuality());
     const [steering, setSteering] = useState<SteerLevel>(() => loadSteerLevel());
     const [mode, setMode] = useState<GameMode>('free');
+    const [difficulty, setDifficulty] = useState<DifficultyName>(() => loadDifficulty());
     const [stageBest, setStageBest] = useState(0);
     const [detected] = useState<QualityName>(() => detectQuality());
     const [touch] = useState(() => isTouchDevice());
@@ -43,6 +45,7 @@ export const App = (): JSX.Element => {
                 canvas,
                 quality,
                 steerSensitivity: multiplierFor(steering),
+                difficulty,
                 // Only for the automated checks, which sample the rendered frame.
                 preserveDrawingBuffer: new URLSearchParams(window.location.search).has('debug')
             });
@@ -108,6 +111,13 @@ export const App = (): JSX.Element => {
         setSteering(level);
         saveSteerLevel(level);
         gameRef.current?.setSteerSensitivity(multiplierFor(level));
+    }, []);
+
+    const handleDifficulty = useCallback((next: DifficultyName) => {
+        setDifficulty(next);
+        saveDifficulty(next);
+        gameRef.current?.setDifficulty(next);
+        setStageBest(telemetry.stageBest);
     }, []);
 
     const handleRecover = useCallback(() => {
@@ -179,6 +189,8 @@ export const App = (): JSX.Element => {
                 <TitleScreen
                     onStart={handleStart}
                     onStartStage={handleStartStage}
+                    difficulty={difficulty}
+                    onDifficulty={handleDifficulty}
                     ready={ready}
                     touch={touch}
                     stageBest={stageBest > 0 ? `best ${formatTime(stageBest)}` : 'no time set'}
@@ -202,6 +214,8 @@ export const App = (): JSX.Element => {
                 <SettingsPanel
                     mode={mode}
                     onMode={handleMode}
+                    difficulty={difficulty}
+                    onDifficulty={handleDifficulty}
                     quality={quality}
                     detected={detected}
                     steering={steering}

@@ -19,7 +19,10 @@ export const STAGE_NAME = 'Hollow Creek Stage';
 /** Times are recorded at each of these fractions, for the live delta. */
 const CHECKPOINTS = 24;
 
-const STORE_KEY = 'brb.stage.v2';
+// Bests are stored per difficulty: an Expert time and an Easy one are not the
+// same achievement, and a single leaderboard for both is worse than none. The
+// version also moved with the road widening, which changed every time.
+const STORE_PREFIX = 'brb.stage.v3.';
 
 export type StageState = 'armed' | 'running' | 'finished';
 
@@ -28,9 +31,9 @@ interface StoredStage {
     splits: number[];
 }
 
-const loadStored = (): StoredStage | null => {
+const loadStored = (difficulty: string): StoredStage | null => {
     try {
-        const raw = localStorage.getItem(STORE_KEY);
+        const raw = localStorage.getItem(STORE_PREFIX + difficulty);
         if (!raw) return null;
         const parsed: unknown = JSON.parse(raw);
         if (!parsed || typeof parsed !== 'object') return null;
@@ -68,12 +71,25 @@ export class Stage {
     private bestSplits: Float64Array | null = null;
     private nextCheckpoint = 0;
 
-    constructor() {
-        const stored = loadStored();
-        if (stored) {
-            this.best = stored.best;
-            this.bestSplits = Float64Array.from(stored.splits);
-        }
+    private difficulty: string;
+
+    constructor(difficulty = 'medium') {
+        this.difficulty = difficulty;
+        this.load();
+    }
+
+    /** Switch to another difficulty's records. */
+    setDifficulty(difficulty: string): void {
+        if (difficulty === this.difficulty) return;
+        this.difficulty = difficulty;
+        this.load();
+        this.delta = NaN;
+    }
+
+    private load(): void {
+        const stored = loadStored(this.difficulty);
+        this.best = stored ? stored.best : 0;
+        this.bestSplits = stored ? Float64Array.from(stored.splits) : null;
     }
 
     /** Put the truck on the line with the clock stopped, ready to go. */
@@ -159,7 +175,7 @@ export class Stage {
     private save(): void {
         try {
             const splits = this.bestSplits ? Array.from(this.bestSplits) : [];
-            localStorage.setItem(STORE_KEY, JSON.stringify({ best: this.best, splits }));
+            localStorage.setItem(STORE_PREFIX + this.difficulty, JSON.stringify({ best: this.best, splits }));
         } catch {
             /* private mode — the stage still runs, it just forgets */
         }
@@ -170,7 +186,7 @@ export class Stage {
         this.bestSplits = null;
         this.delta = NaN;
         try {
-            localStorage.removeItem(STORE_KEY);
+            localStorage.removeItem(STORE_PREFIX + this.difficulty);
         } catch {
             /* nothing to do */
         }
