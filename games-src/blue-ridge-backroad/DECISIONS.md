@@ -790,3 +790,51 @@ wrong, but because the microtask queue never drains. Every director check goes
 through a `driveFor` helper that yields every couple of seconds. Worth recording
 next to the ring-clamping foot-gun as the second case where the harness, not the
 game, was the thing that had to change.
+
+## D11 — The empty stage picker
+
+**D11.1 — The bug was layout, and the tests could not see layout.** The picker
+showed "Best matches for flowing" with nothing under it on any viewport below
+about 900px tall. Nothing was wrong with the scout, the memo or the render: five
+candidate rows were in the DOM every time, correct and styled. `.modal` is capped
+at `max-height: 86vh`, and the six profile cards — each carrying a label *and* a
+blurb — plus the intro paragraph came to roughly 600px above the results. At
+1280x720 the heading landed on the modal's bottom edge and **zero** rows were
+inside the visible box; at 1920x1080 four of five were, which is why it looked
+fine while it was being built.
+
+The chooser is now two columns of short chips with the blurb shown only for the
+selected character. Content dropped from 1209px to 830px and all five rows are on
+screen unscrolled at 1280x720.
+
+**D11.2 — A page-wide `touchmove` block froze panels that need to scroll.**
+`TouchControls` installed a document-level `touchmove` listener that
+unconditionally called `preventDefault`, to kill pull-to-refresh and
+rubber-banding. It also made the picker unscrollable on a phone, so the rows
+below the fold were not merely awkward to reach but genuinely unreachable. The
+handler now exempts anything inside `.modal`. Measured after the change:
+`touchmove` is no longer prevented inside the panel and still is on the canvas,
+which is the split that was intended all along.
+
+Worth noting how close this came to being misdiagnosed. The first probe checked
+`defaultPrevented` on a synthetic touch event and blamed `body { touch-action:
+none }` — but `touch-action` is a browser hint and never sets `defaultPrevented`,
+so that reading pointed at the wrong line entirely. The value was true because a
+real listener was calling `preventDefault`. Similarly, a wheel probe reported the
+modal as unscrollable on desktop; it was, in fact, a missing settle after moving
+the mouse, and desktop scrolling had always worked. Both were the instrument, not
+the game.
+
+**D11.3 — 151 tests passed with this broken, and that is the interesting part.**
+Section K asserted that `scout()` returns five candidates. It did, and it always
+had — including while every player on a laptop saw an empty panel. The test
+stopped at the function and the bug lived in what the component did with the
+result, so the two never overlapped. Section M now drives the real UI at the real
+viewport and asks what is *visible* rather than what exists: rows fully inside
+the modal's own box, for all six characters, with a click adopting the stage.
+Both new checks were confirmed to fail against the reverted build (0 of 5
+visible) before being kept.
+
+The general lesson is narrower than "test the UI". It is that a test asserting on
+a pure function tells you nothing about a feature whose failure mode is
+presentation, and the scout's whole value to a player is presentation.

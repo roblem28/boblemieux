@@ -112,8 +112,16 @@ export const TouchControls = ({ input, visible }: Props): JSX.Element | null => 
     const brakeRef = useControlButton(input, 'brake');
 
     useEffect(() => {
-        // Kill pull-to-refresh, rubber-banding and pinch-zoom for the whole page.
+        // Kill pull-to-refresh, rubber-banding and pinch-zoom on the game
+        // surface — but not inside a panel that is supposed to scroll.
+        //
+        // This used to prevent every touchmove on the document, which made the
+        // stage picker's results unreachable on a phone: the list was below the
+        // fold of a scrollable modal that could no longer be scrolled. The
+        // handler is about the road, not the whole page.
         const stop = (e: TouchEvent): void => {
+            const target = e.target as Element | null;
+            if (target?.closest?.('.modal')) return;
             if (e.cancelable) e.preventDefault();
         };
         document.addEventListener('touchmove', stop, { passive: false });

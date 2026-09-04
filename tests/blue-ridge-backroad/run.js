@@ -1946,6 +1946,142 @@ const startDriving = async (page) => {
     check(backToFree.mode === 'free', 'D11 the game can switch back to free drive');
     check(!backToFree.stagePanel && backToFree.timing, 'D11b the HUD swaps the stage clock for the mile timer');
 
+    // ------------------------------------------------- M: the stage picker UI
+
+    // Section K asserts that `scout()` returns five candidates. It does, and it
+    // always did — including while the picker showed an empty panel to every
+    // player on a laptop, because the rows were rendered correctly and then
+    // pushed below the fold of a modal capped at 86vh. A test that stops at the
+    // function is not a test of the feature.
+    //
+    // So these drive the real UI at the real viewport and ask what is *visible*,
+    // not what exists.
+
+    /** Rows fully inside the modal's own scroll viewport, not merely in the DOM. */
+    const visibleRows = () =>
+        page.evaluate(() => {
+            const modal = document.querySelector('.modal');
+            if (!modal) return { open: false };
+            const mb = modal.getBoundingClientRect();
+            const rows = [...document.querySelectorAll('.candidate')];
+            const inside = rows.filter((c) => {
+                const b = c.getBoundingClientRect();
+                return b.top >= mb.top - 1 && b.bottom <= mb.bottom + 1 && b.height > 0;
+            });
+            const heading = [...document.querySelectorAll('.modal h3')].find((h) => /best matches/i.test(h.textContent));
+            return {
+                open: true,
+                inDom: rows.length,
+                visible: inside.length,
+                names: inside.map((c) => c.querySelector('.candidate-name').textContent),
+                headingText: heading ? heading.textContent : '',
+                scrollTop: Math.round(modal.scrollTop),
+                needsScroll: modal.scrollHeight > modal.clientHeight
+            };
+        });
+
+    await page.click('button:has-text("Settings")');
+    await page.waitForTimeout(120);
+    await page.click('button:has-text("Find a stage")');
+    await page.waitForTimeout(250);
+
+    const opened = await visibleRows();
+    check(opened.open, 'M1 the picker opens from the settings panel');
+    check(opened.inDom === 5, 'M1b five candidates are rendered', `${opened.inDom} in the DOM`);
+    check(
+        opened.visible === opened.inDom,
+        'M1c and every one of them is actually on screen, unscrolled',
+        `${opened.visible} of ${opened.inDom} visible at 1280x720, scrollTop ${opened.scrollTop}`
+    );
+    // Note the panel as a whole may still scroll — the footer sits below the
+    // list — and that is fine. What must never happen again is the *results*
+    // needing a scroll nobody knows is there.
+
+    // M2 — every character, not just the default one. The bug showed on all six
+    // equally, and a check that only ever opens the panel on 'flowing' would
+    // have missed a profile that returns nothing.
+    const perProfile = await page.evaluate(async () => {
+        const out = [];
+        const chips = [...document.querySelectorAll('.profile-chip')];
+        for (const chip of chips) {
+            chip.click();
+            // React re-renders on a later task; querying now races it.
+            await new Promise((r) => setTimeout(r, 80));
+            const modal = document.querySelector('.modal');
+            const mb = modal.getBoundingClientRect();
+            const rows = [...document.querySelectorAll('.candidate')].filter((c) => {
+                const b = c.getBoundingClientRect();
+                return b.top >= mb.top - 1 && b.bottom <= mb.bottom + 1 && b.height > 0;
+            });
+            const heading = [...document.querySelectorAll('.modal h3')].find((h) => /best matches/i.test(h.textContent));
+            out.push({
+                label: chip.textContent.trim(),
+                visible: rows.length,
+                first: rows[0] ? rows[0].querySelector('.candidate-name').textContent : '',
+                heading: heading ? heading.textContent : ''
+            });
+        }
+        return out;
+    });
+    check(perProfile.length === 6, 'M2 all six characters are offered as chips', `${perProfile.length}`);
+    const emptyOnes = perProfile.filter((r) => r.visible < 3);
+    check(
+        emptyOnes.length === 0,
+        'M2b every character shows candidates on screen',
+        emptyOnes.map((r) => `${r.label}: ${r.visible}`).join(', ')
+    );
+    check(
+        new Set(perProfile.map((r) => r.first)).size >= 4,
+        'M2c different characters actually offer different road',
+        perProfile.map((r) => r.first).join(' | ')
+    );
+    check(
+        perProfile.every((r) => /best matches for/i.test(r.heading)),
+        'M2d the heading follows the selected character',
+        perProfile[perProfile.length - 1].heading
+    );
+
+    // M3 — the search re-runs when the character changes. If the memo were keyed
+    // wrongly the rows would simply never update, which looks like working.
+    const swapped = await page.evaluate(async () => {
+        const chips = [...document.querySelectorAll('.profile-chip')];
+        const nameList = () => [...document.querySelectorAll('.candidate-name')].map((n) => n.textContent).join('|');
+        chips[0].click();
+        await new Promise((r) => setTimeout(r, 80));
+        const a = nameList();
+        chips[1].click();
+        await new Promise((r) => setTimeout(r, 80));
+        const b = nameList();
+        return { a, b, changed: a !== b };
+    });
+    check(swapped.changed, 'M3 switching character re-runs the search', `${swapped.a.slice(0, 40)} -> ${swapped.b.slice(0, 40)}`);
+
+    // M4 — a row can be clicked, and the stage it names is the stage loaded.
+    const picked = await page.evaluate(async () => {
+        const row = document.querySelector('.candidate');
+        const name = row.querySelector('.candidate-name').textContent;
+        row.click();
+        await new Promise((r) => setTimeout(r, 120));
+        window.__h.sim(0.3);
+        await new Promise((r) => setTimeout(r, 60));
+        return { name, loaded: window.brb.game.currentStage.name, hud: window.brb.telemetry.stageName, open: !!document.querySelector('.candidate') };
+    });
+    check(picked.loaded === picked.name, 'M4 clicking a candidate loads that stage', `${picked.name} -> ${picked.loaded}`);
+    check(picked.hud === picked.name, 'M4b and the HUD names it', picked.hud);
+
+    // Put the game back the way the rest of the suite expects it.
+    await page.evaluate(async () => {
+        window.brb.game.useDefaultStage();
+        window.brb.game.setMode('free');
+        window.__h.sim(0.3);
+        for (const b of document.querySelectorAll('button')) {
+            if (/^(Close|Back to the road)$/.test(b.textContent.trim())) b.click();
+        }
+        await new Promise((r) => setTimeout(r, 80));
+    });
+    const closed = await page.evaluate(() => !document.querySelector('.modal'));
+    check(closed, 'M5 the picker closes again');
+
     await page.close();
 
     // ----------------------------------------------------------------- mobile
@@ -2042,6 +2178,72 @@ const startDriving = async (page) => {
     });
     check(noScroll.scrolled === 0, 'B6 the page cannot scroll', `scrolled=${noScroll.scrolled}`);
     check(noScroll.touchAction === 'none', 'B6b body touch-action is none', noScroll.touchAction);
+
+    // B6f — the page-wide touchmove blocker must not freeze panels that scroll.
+    // It is there to kill pull-to-refresh and rubber-banding on the road; when
+    // it applied to the whole document it also made the stage picker's results
+    // unreachable on a phone, because the list sits below the fold of a
+    // scrollable modal.
+    const modalScroll = await mp.evaluate(async () => {
+        for (const b of document.querySelectorAll('button')) {
+            if (/Settings/.test(b.textContent)) b.click();
+        }
+        await new Promise((r) => setTimeout(r, 120));
+        for (const b of document.querySelectorAll('button')) {
+            if (/Find a stage/.test(b.textContent)) b.click();
+        }
+        await new Promise((r) => setTimeout(r, 250));
+
+        const modal = document.querySelector('.modal');
+        if (!modal) return { open: false };
+        const probe = (el) => {
+            const ev = new TouchEvent('touchmove', { bubbles: true, cancelable: true });
+            el.dispatchEvent(ev);
+            return ev.defaultPrevented;
+        };
+        const inModal = probe(document.querySelector('.candidate-list') ?? modal);
+        const onCanvas = probe(document.querySelector('canvas'));
+
+        const reach = () => {
+            const mb = modal.getBoundingClientRect();
+            return [...document.querySelectorAll('.candidate')].filter((c) => {
+                const b = c.getBoundingClientRect();
+                return b.top >= mb.top - 1 && b.bottom <= mb.bottom + 1;
+            }).length;
+        };
+        const atTop = reach();
+        modal.scrollTop = modal.scrollHeight;
+        await new Promise((r) => setTimeout(r, 60));
+        const atBottom = reach();
+        const rows = document.querySelectorAll('.candidate').length;
+
+        for (const b of document.querySelectorAll('button')) {
+            if (/^(Close|Back to the road)$/.test(b.textContent.trim())) b.click();
+        }
+        await new Promise((r) => setTimeout(r, 80));
+        return { open: true, inModal, onCanvas, atTop, atBottom, rows, seen: Math.max(atTop, atBottom) };
+    });
+    check(modalScroll.open, 'B6f the stage picker opens on a phone');
+    check(
+        modalScroll.inModal === false,
+        'B6g a scrollable panel is exempt from the page-wide touchmove block',
+        `touchmove prevented inside the modal: ${modalScroll.inModal}`
+    );
+    check(
+        modalScroll.onCanvas === true,
+        'B6h while the road itself is still protected from rubber-banding',
+        `touchmove prevented on the canvas: ${modalScroll.onCanvas}`
+    );
+    check(
+        modalScroll.atTop >= 1,
+        'B6i candidates are on screen without scrolling at all',
+        `${modalScroll.atTop} of ${modalScroll.rows} visible on an iPhone 13`
+    );
+    check(
+        modalScroll.atBottom > modalScroll.atTop || modalScroll.atTop === modalScroll.rows,
+        'B6j and scrolling reaches the rest',
+        `${modalScroll.atTop} -> ${modalScroll.atBottom} of ${modalScroll.rows}`
+    );
     check(noScroll.userSelect === 'none', 'B6c text selection is disabled', noScroll.userSelect);
     check(noScroll.btnTouchAction === 'none', 'B6d controls set touch-action none', noScroll.btnTouchAction);
     check(noScroll.docHeight <= noScroll.winHeight + 1, 'B6e the document does not overflow the viewport');

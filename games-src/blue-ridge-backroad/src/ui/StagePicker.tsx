@@ -37,27 +37,31 @@ export const StagePicker = ({ game, onClose, onPicked }: Props): JSX.Element => 
         <div className="modal-backdrop" onPointerDown={onClose}>
             <div className="modal" onPointerDown={(e) => e.stopPropagation()}>
                 <h2>Find a stage</h2>
-                <p className="setting-note">
-                    The road goes on for ever and never changes, so stages are found rather than
-                    built. Ask for a character; every window of road gets measured and ranked.
-                </p>
 
+                {/*
+                  The chooser is deliberately compact. It used to be six cards
+                  carrying a label and a full blurb each, which with the intro
+                  paragraph came to about 600px above the results — so on any
+                  viewport under roughly 900px tall the modal's 86vh cap put
+                  every candidate below the fold and the panel looked empty.
+                  Only the selected character needs its blurb; the other five
+                  need a name you can hit.
+                */}
                 <h3>What are you after</h3>
-                <div className="profile-list">
+                <div className="profile-chips">
                     {profiles.map((p) => (
                         <button
                             key={p.id}
                             type="button"
-                            className={p.id === profileId ? 'quality-option selected' : 'quality-option'}
+                            className={p.id === profileId ? 'profile-chip selected' : 'profile-chip'}
                             onClick={() => setProfileId(p.id)}
                         >
-                            <span className="quality-name">
-                                {p.label} <em>{p.lengthMiles} mi</em>
-                            </span>
-                            <span className="quality-detail">{p.blurb}</span>
+                            {p.label}
+                            <em>{p.lengthMiles} mi</em>
                         </button>
                     ))}
                 </div>
+                {profile && <p className="setting-note profile-blurb">{profile.blurb}</p>}
 
                 <h3>Best matches{profile ? ` for ${profile.label.toLowerCase()}` : ''}</h3>
                 <div className="candidate-list">

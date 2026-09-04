@@ -428,6 +428,7 @@
     width: min(520px, 100%);
     max-height: 86vh;
     overflow-y: auto;
+    touch-action: pan-y;
     padding: 24px;
     border: 1px solid var(--edge);
     border-radius: 16px;
@@ -1333,4 +1334,54 @@
 .field-row input:focus-visible {
     outline: 2px solid rgba(255, 255, 255, 0.5);
     outline-offset: 1px;
+}
+
+/* ------------------------------------------------- stage picker chooser */
+
+/*
+ * Two columns of short chips rather than six stacked cards. The picker's whole
+ * failure mode was height: the results are the point of the panel, and anything
+ * above them competes with them for the 86vh the modal gets.
+ */
+.profile-chips {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 6px;
+}
+
+.profile-chip {
+    display: flex;
+    align-items: baseline;
+    gap: 0.4rem;
+    padding: 0.5rem 0.7rem;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.03);
+    color: inherit;
+    font: inherit;
+    font-size: 0.84rem;
+    text-align: left;
+    cursor: pointer;
+}
+
+.profile-chip em {
+    margin-left: auto;
+    opacity: 0.55;
+    font-style: normal;
+    font-size: 0.76rem;
+    font-variant-numeric: tabular-nums;
+}
+
+.profile-chip.selected {
+    border-color: rgba(255, 255, 255, 0.45);
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.profile-chip:focus-visible {
+    outline: 2px solid rgba(255, 255, 255, 0.5);
+    outline-offset: 1px;
+}
+
+.profile-blurb {
+    margin-top: 6px;
 }
