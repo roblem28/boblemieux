@@ -33,7 +33,8 @@ export class CameraRig {
     private started = false;
 
     constructor(aspect: number) {
-        this.camera = new PerspectiveCamera(62, aspect, 0.25, 2400);
+        // A near plane of 0.25 clips bodywork the interior cameras sit close to.
+        this.camera = new PerspectiveCamera(62, aspect, 0.12, 2400);
     }
 
     cycle(): CameraMode {
@@ -51,6 +52,13 @@ export class CameraRig {
     update(dt: number, physics: VehiclePhysics, model: VehicleModel): void {
         const speed = Math.abs(physics.u);
         const speedT = smoothstep(0, 62, speed);
+        // A camera change snaps the position; the field of view has to snap with
+        // it. Easing it over a second means the first moment of a new view is
+        // rendered with the *previous* view's framing — which for the interior
+        // cameras is a chase-camera 65 degrees, wide enough to fill the screen
+        // with bodywork.
+        const snapFov = !this.started;
+        let fovTarget = this.fov;
 
         // Impacts and hard landings shove the camera a little.
         this.shake = Math.max(this.shake * Math.exp(-dt * 4.5), physics.impact * 0.6 + physics.landing * 0.35);
@@ -77,33 +85,42 @@ export class CameraRig {
                 physics.position.z + fwdZ * ahead
             );
             const posRate = lerp(4.4, 7.2, speedT);
+            fovTarget = lerp(62, 82, speedT);
             this.blend(dt, posRate, 8);
-            this.fov = damp(this.fov, lerp(62, 82, speedT), 3, dt);
         } else if (this.mode === 'hood') {
             model.hoodAnchor.getWorldPosition(desired);
             const fwdX = Math.sin(physics.yaw);
             const fwdZ = Math.cos(physics.yaw);
             lookTarget.set(
                 desired.x + fwdX * 30,
-                desired.y - 1.2 + physics.pitch * 12,
+                desired.y - 1.0 + physics.pitch * 12,
                 desired.z + fwdZ * 30
             );
+            // NOTE: three's `fov` is VERTICAL. The interior cameras were on
+            // 72-88, which is ~115 degrees horizontal at 16:9 — wide enough to
+            // drag the whole cab into frame and bury the view in bodywork.
+            fovTarget = lerp(50, 62, speedT);
             this.blend(dt, 26, 16);
-            this.fov = damp(this.fov, lerp(66, 84, speedT), 3, dt);
         } else {
             model.cockpitAnchor.getWorldPosition(desired);
-            // A little look-into-the-corner, which is what a driver actually does.
-            const lean = clamp(physics.steer * 2.4 + physics.yawRate * 0.35, -0.5, 0.5);
+            // A little look-into-the-corner, which is what a driver actually
+            // does — emphasis on *little*. This was steer * 2.4 clamped to
+            // +/-0.5 rad, i.e. up to 29 degrees of head turn, which at speed
+            // aimed the camera straight at the door pillar and filled the
+            // screen with a slab of trim.
+            const lean = clamp(physics.steer * 0.55 + physics.yawRate * 0.12, -0.17, 0.17);
             const lx = Math.sin(physics.yaw + lean);
             const lz = Math.cos(physics.yaw + lean);
             lookTarget.set(
                 desired.x + lx * 30,
-                desired.y - 1.6 + physics.pitch * 10,
+                desired.y - 1.5 + physics.pitch * 10,
                 desired.z + lz * 30
             );
+            fovTarget = lerp(46, 54, speedT);
             this.blend(dt, 30, 20);
-            this.fov = damp(this.fov, lerp(68, 80, speedT), 3, dt);
         }
+
+        this.fov = snapFov ? fovTarget : damp(this.fov, fovTarget, 3, dt);
 
         const amp = this.shake * (this.mode === 'chase' ? 0.22 : 0.1);
         this.camera.position.set(

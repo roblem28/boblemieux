@@ -20,6 +20,7 @@ import { AudioEngine } from './audio/AudioEngine';
 import { PRESETS, type QualityName, type QualityPreset } from './quality';
 import { CoursePreview, PREVIEW_STEP } from './road/CoursePreview';
 import { SplitTimer } from './splits';
+import { Stage, STAGE_LENGTH, STAGE_NAME, STAGE_START_S } from './stage';
 import { bindKeyboard, createInputState, type InputState, type KeyboardBinding } from './input';
 import { telemetry, publishTelemetry } from '../ui/telemetry';
 import { MPS_TO_MPH, M_TO_MILES, clamp } from './util/mathx';
@@ -32,11 +33,21 @@ import { MPS_TO_MPH, M_TO_MILES, clamp } from './util/mathx';
 const MAX_FRAME_DT = 0.1; // a tab that was backgrounded must not teleport
 const REBASE_DISTANCE = 1200; // metres before instance matrices are re-origined
 
+export type GameMode = 'free' | 'stage';
+
+const FREE_START_S = 420;
+
 export interface GameOptions {
     canvas: HTMLCanvasElement;
     quality: QualityName;
     seed?: number;
     steerSensitivity?: number;
+    /**
+     * Keeps the drawing buffer readable after compositing, so tests can sample
+     * what was actually rendered. Off in normal play — it costs a copy per
+     * frame — and only ever set by the debug flag.
+     */
+    preserveDrawingBuffer?: boolean;
     onCameraChange?: (mode: CameraMode) => void;
     onDiscovery?: (name: string) => void;
 }
@@ -84,6 +95,8 @@ export class Game {
     private readonly probeFrame = createFrame();
     private readonly preview: CoursePreview;
     private readonly splits = new SplitTimer();
+    private readonly stage = new Stage();
+    private mode: GameMode = 'free';
 
     constructor(options: GameOptions) {
         this.options = options;
@@ -94,7 +107,8 @@ export class Game {
             canvas: options.canvas,
             antialias: this.preset.name === 'high',
             powerPreference: 'high-performance',
-            stencil: false
+            stencil: false,
+            preserveDrawingBuffer: options.preserveDrawingBuffer ?? false
         });
         this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, this.preset.pixelRatioCap));
         this.renderer.outputColorSpace = SRGBColorSpace;
@@ -120,6 +134,8 @@ export class Game {
         telemetry.previewSeverity = this.preview.severity;
         telemetry.previewCount = this.preview.offset.length;
         telemetry.previewStep = PREVIEW_STEP;
+        telemetry.stageName = STAGE_NAME;
+        telemetry.stageBest = this.stage.best;
 
         // Well clear of s = 0: RoadPath clamps below its start, so a chunk built
         // there would collapse every row onto the same frame - a zero-area road
@@ -233,19 +249,88 @@ export class Game {
     }
 
     /**
-     * Put the truck back on the road. The mile under way is marked assisted, so
-     * a recovery can never buy a personal best.
+     * Put the truck back on the road. Whatever is being timed — the mile on the
+     * endless drive, or the stage run — is marked assisted, so a recovery can
+     * never buy a personal best.
      */
     recover(): void {
         this.physics.recover();
         this.splits.invalidate();
+        this.stage.invalidate();
         telemetry.stuck = false;
+        publishTelemetry();
+    }
+
+    get currentMode(): GameMode {
+        return this.mode;
+    }
+
+    setMode(mode: GameMode): void {
+        if (mode === this.mode) return;
+        this.mode = mode;
+        if (mode === 'stage') this.restartStage();
+        else this.restartFree();
+    }
+
+    /** Back to the start line, clock stopped, world identical to last time. */
+    restartStage(): void {
+        this.mode = 'stage';
+        this.teleportTo(STAGE_START_S);
+        this.stage.arm();
+        this.physics.handbrake = true;
+        telemetry.mode = 'stage';
+        telemetry.stageState = 'armed';
+        telemetry.stageElapsed = 0;
+        telemetry.stageProgress = 0;
+        telemetry.stageRemainingMiles = STAGE_LENGTH / 1609.344;
+        telemetry.stageBest = this.stage.best;
+        telemetry.stageDelta = NaN;
+        publishTelemetry();
+    }
+
+    restartFree(): void {
+        this.mode = 'free';
+        this.teleportTo(FREE_START_S);
+        this.physics.handbrake = false;
+        telemetry.mode = 'free';
+        publishTelemetry();
+    }
+
+    /**
+     * Move the truck to a distance along the road and rebuild the world around
+     * it. Chunks are primed synchronously: a restart is a deliberate cut, and
+     * streaming them in one per frame afterwards would show the road being
+     * built under the player.
+     */
+    private teleportTo(s: number): void {
+        // The sample ring prunes behind the vehicle, so jumping back to a
+        // distance it has discarded would silently clamp to whatever the oldest
+        // live sample happens to be. Regenerate first; it is deterministic, so
+        // the stage is the same two miles however far you drove beforehand.
+        if (s < this.path.minS + 200) this.path.rewind(s);
+        this.physics.reset(s);
+        this.splits.reset();
+        this.lastEventChunk = Number.NaN;
+        this.vegetation.rebase(this.physics.position.x, 0, this.physics.position.z);
+        this.rebaseAnchor.copy(this.physics.position);
+        this.chunks.primeAround(this.physics.s);
+        this.accumulator = 0;
+        this.clockLast = performance.now();
+        // Snap rather than sweep the camera across the world.
+        this.rig.set(this.rig.mode);
+    }
+
+    clearStageBest(): void {
+        this.stage.forgetBest();
+        telemetry.stageBest = 0;
         publishTelemetry();
     }
 
     clearBestTimes(): void {
         this.splits.forgetBests();
+        this.stage.forgetBest();
         telemetry.mileBest = 0;
+        telemetry.stageBest = 0;
         publishTelemetry();
     }
 
@@ -276,16 +361,30 @@ export class Game {
             this.input.recoverRequested = false;
             if (this.driving) this.recover();
         }
+        if (this.input.restartRequested) {
+            this.input.restartRequested = false;
+            // Enter restarts the stage, and does nothing on the endless drive —
+            // there is nothing there to restart.
+            if (this.driving && this.mode === 'stage') this.restartStage();
+        }
 
         if (this.driving) {
             this.stepPhysics(dt);
             this.chunks.update(this.physics.s, 1);
             this.model.sync(this.physics, dt, this.sky.night);
+            this.model.setCockpitView(this.rig.mode === 'cockpit');
             this.particles.update(dt, this.physics, this.model);
             this.rig.update(dt, this.physics, this.model);
             this.focus.copy(this.physics.position);
             this.audio.update(dt, this.physics);
             this.checkDiscovery();
+            if (this.mode === 'stage') {
+                this.stage.update(dt, this.physics.s, this.physics.throttle);
+                // Held on the line until the driver asks to go.
+                this.physics.handbrake = this.stage.state === 'armed';
+            } else {
+                this.physics.handbrake = false;
+            }
             const split = this.splits.update(dt, this.physics.odometer);
             if (split.completedMile >= 0) {
                 telemetry.lastSplitMile = split.completedMile;
@@ -337,6 +436,18 @@ export class Game {
             telemetry.advisoryCurvature = this.preview.advisoryCurvature;
             telemetry.advisoryDistance = this.preview.advisoryDistance;
 
+            telemetry.mode = this.mode;
+            telemetry.stageState = this.stage.state;
+            telemetry.stageElapsed = this.stage.elapsed;
+            telemetry.stageProgress = this.stage.progress;
+            telemetry.stageRemainingMiles = this.stage.distanceRemaining / 1609.344;
+            telemetry.stageBest = this.stage.best;
+            telemetry.stageDelta = this.stage.delta;
+            telemetry.stageAssisted = this.stage.assisted;
+            telemetry.stageResultTime = this.stage.resultTime;
+            telemetry.stageResultDelta = this.stage.resultDelta;
+            telemetry.stageResultIsBest = this.stage.resultIsBest;
+
             telemetry.mile = this.splits.currentMile;
             telemetry.mileTime = this.splits.currentMileTime;
             telemetry.mileBest = this.splits.currentMileBest;
@@ -372,6 +483,20 @@ export class Game {
 
     get presetValues(): QualityPreset {
         return this.preset;
+    }
+
+    /** The live camera, for diagnostics and the automated checks. */
+    get cameraForTest(): unknown {
+        return this.rig.camera;
+    }
+
+    /** The scene, so diagnostics can raycast what a camera is looking at. */
+    get sceneForTest(): unknown {
+        return this.scene;
+    }
+
+    get roadMinS(): number {
+        return this.path.minS;
     }
 
     get sceneObjectCount(): number {

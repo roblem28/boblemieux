@@ -188,6 +188,13 @@ export class VehiclePhysics {
 
     /** Scales how quickly steering input winds on. Set from the settings panel. */
     steerSensitivity = 1;
+    /**
+     * Holds the truck still regardless of gradient. Used on the stage start
+     * line: a road with any camber to it will roll a stationary truck away,
+     * and a time trial that starts its own clock while you read the HUD is a
+     * bad time trial.
+     */
+    handbrake = false;
     /** Seconds spent off the road and barely moving — the HUD offers a recovery. */
     stuckTime = 0;
     private reverseHold = 0;
@@ -211,6 +218,10 @@ export class VehiclePhysics {
     }
 
     private placeOnRoad(s: number): void {
+        // Clear the pedals too: a teleport that keeps the throttle applied
+        // starts the stage clock before the player has touched anything.
+        this.throttle = 0;
+        this.brake = 0;
         this.path.sample(s, this.frame);
         this.path.surfacePoint(this.frame, 0, this.position);
         this.position.y += WHEEL_RADIUS;
@@ -507,6 +518,12 @@ export class VehiclePhysics {
             const wheelDrop = (w.groundY - this.prevWheelY[i]) / Math.max(dt, 1e-4);
             this.prevWheelY[i] = w.groundY;
             w.slipping = damp(w.slipping, this.slipAmount + Math.abs(wheelDrop) * 0.02, 8, dt);
+        }
+
+        if (this.handbrake) {
+            this.u = 0;
+            this.v = 0;
+            this.yawRate = 0;
         }
 
         // Off the road and barely moving for a while: the HUD offers a way out.

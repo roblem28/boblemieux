@@ -1,6 +1,7 @@
 import type { JSX } from 'react';
 import { useTelemetry } from './telemetry';
 import { CourseAhead } from './CourseAhead';
+import { StagePanel, StageResult } from './StagePanel';
 import { formatDelta, formatTime } from '../game/splits';
 
 interface Props {
@@ -8,6 +9,8 @@ interface Props {
     onSound: () => void;
     onSettings: () => void;
     onRecover: () => void;
+    onRestartStage: () => void;
+    onFreeDrive: () => void;
     muted: boolean;
     showFps: boolean;
 }
@@ -23,11 +26,23 @@ const TICKS = Array.from({ length: 17 }, (_, i) => {
     return { mph, angle, major: mph % 20 === 0 };
 });
 
-export const Hud = ({ onCamera, onSound, onSettings, onRecover, muted, showFps }: Props): JSX.Element => {
+export const Hud = ({
+    onCamera,
+    onSound,
+    onSettings,
+    onRecover,
+    onRestartStage,
+    onFreeDrive,
+    muted,
+    showFps
+}: Props): JSX.Element => {
     const t = useTelemetry();
     const mph = Math.min(t.mph, DIAL_MAX);
     const needle = START_ANGLE + (mph / DIAL_MAX) * SWEEP;
-    const showSplit = t.splitFlash > 0 && t.lastSplitMile >= 0;
+    const stageMode = t.mode === 'stage';
+    // Mile splits belong to the endless drive; the stage has its own clock.
+    const showSplit = !stageMode && t.splitFlash > 0 && t.lastSplitMile >= 0;
+    const finished = stageMode && t.stageState === 'finished';
 
     return (
         <div className="hud">
@@ -49,8 +64,11 @@ export const Hud = ({ onCamera, onSound, onSettings, onRecover, muted, showFps }
                 )}
             </div>
 
-            {/* Mile timing. There is no lap on an endless road, so the clock
-                runs per mile against your own best for that same stretch. */}
+            {stageMode ? (
+                <StagePanel t={t} onRestart={onRestartStage} />
+            ) : (
+            /* Mile timing. There is no lap on an endless road, so the clock
+               runs per mile against your own best for that same stretch. */
             <div className="timing">
                 <div className="timing-row">
                     <span className="timing-label">Mile {t.mile + 1}</span>
@@ -67,6 +85,7 @@ export const Hud = ({ onCamera, onSound, onSettings, onRecover, muted, showFps }
                     <span className="timing-value">{formatTime(t.totalTime)}</span>
                 </div>
             </div>
+            )}
 
             {showSplit && (
                 <div
@@ -95,12 +114,14 @@ export const Hud = ({ onCamera, onSound, onSettings, onRecover, muted, showFps }
 
             <CourseAhead t={t} />
 
-            {t.stuck && (
+            {t.stuck && !finished && (
                 <button className="recover-btn" type="button" onClick={onRecover}>
                     <span className="recover-key">R</span>
                     Back to the road
                 </button>
             )}
+
+            {finished && <StageResult t={t} onRestart={onRestartStage} onFreeDrive={onFreeDrive} />}
 
             <div className="gauge-cluster">
                 <svg className="gauge" viewBox="0 0 200 200" aria-hidden="true">

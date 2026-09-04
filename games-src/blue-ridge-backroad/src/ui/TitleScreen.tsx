@@ -2,11 +2,13 @@ import type { JSX } from 'react';
 
 interface Props {
     onStart: () => void;
+    onStartStage: () => void;
     ready: boolean;
     touch: boolean;
+    stageBest: string;
 }
 
-export const TitleScreen = ({ onStart, ready, touch }: Props): JSX.Element => (
+export const TitleScreen = ({ onStart, onStartStage, ready, touch, stageBest }: Props): JSX.Element => (
     <div className="title">
         <div className="title-vignette" />
         <div className="title-inner">
@@ -20,9 +22,15 @@ export const TitleScreen = ({ onStart, ready, touch }: Props): JSX.Element => (
                 the road, the woods, and whatever is out there in them.
             </p>
 
-            <button className="start-btn" type="button" onClick={onStart} disabled={!ready}>
-                {ready ? 'Start Engine' : 'Warming up…'}
-            </button>
+            <div className="title-actions">
+                <button className="start-btn" type="button" onClick={onStart} disabled={!ready}>
+                    {ready ? 'Start Engine' : 'Warming up…'}
+                </button>
+                <button className="stage-btn" type="button" onClick={onStartStage} disabled={!ready}>
+                    <span>Run the 2-mile stage</span>
+                    <em>{stageBest}</em>
+                </button>
+            </div>
 
             <div className="title-controls">
                 {touch ? (

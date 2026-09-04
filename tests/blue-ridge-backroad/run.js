@@ -201,13 +201,62 @@ const HARNESS = () => {
             const n = Math.round(seconds * 60);
             g.setRenderEnabled(false);
             let peak = 0;
+            let peakInput = 0;
             for (let i = 0; i < n; i++) {
                 g.tick(1 / 60);
                 peak = Math.max(peak, Math.abs(p.steer));
+                peakInput = Math.max(peakInput, Math.abs(p.steerInput));
             }
             g.setRenderEnabled(true);
             g.input.keyRight = false;
-            return (peak * 180) / Math.PI;
+            // `deg` is the road-wheel angle the player sees; `input` is the
+            // driver's intent, which is the only thing sensitivity scales. The
+            // angle also carries the counter-steer allowance, which depends on
+            // how much the rear happens to be sliding — far too noisy to compare
+            // three settings with.
+            return { deg: (peak * 180) / Math.PI, input: peakInput };
+        },
+        /**
+         * Statistics of the frame that was actually rendered. A camera buried
+         * inside bodywork produces a near-uniform image, which is exactly the
+         * bug this catches — and one that no amount of position-checking finds,
+         * because the position looked reasonable.
+         */
+        frameStats() {
+            g.setRenderEnabled(true);
+            g.tick(1 / 60);
+            const cv = document.querySelector('canvas');
+            const off = document.createElement('canvas');
+            off.width = 200;
+            off.height = 120;
+            const ctx = off.getContext('2d');
+            ctx.drawImage(cv, 0, 0, off.width, off.height);
+            const d = ctx.getImageData(0, 0, off.width, off.height).data;
+            const lum = [];
+            const buckets = new Map();
+            for (let i = 0; i < d.length; i += 4) {
+                lum.push(0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2]);
+                // Coarse colour histogram, to spot a frame that is one flat slab.
+                const key = ((d[i] >> 5) << 10) | ((d[i + 1] >> 5) << 5) | (d[i + 2] >> 5);
+                buckets.set(key, (buckets.get(key) ?? 0) + 1);
+            }
+            const n = lum.length;
+            const mean = lum.reduce((a, b) => a + b, 0) / n;
+            const sd = Math.sqrt(lum.reduce((a, b) => a + (b - mean) * (b - mean), 0) / n);
+            let biggest = 0;
+            for (const v of buckets.values()) biggest = Math.max(biggest, v);
+            return { mean: +mean.toFixed(1), sd: +sd.toFixed(1), dominant: +(biggest / n).toFixed(3) };
+        },
+        /**
+         * Back to a defined starting state: fresh spawn, world rebuilt, clocks
+         * zeroed. The suite is one long continuous drive, so without this a
+         * check inherits whatever ditch the previous one finished in — which
+         * produced failures that looked like physics regressions and were not.
+         */
+        hardReset() {
+            this.release();
+            g.restartFree();
+            this.sim(0.4);
         },
         hold(fields, seconds) {
             for (const k of Object.keys(fields)) g.input[k] = fields[k];
@@ -332,7 +381,7 @@ const startDriving = async (page) => {
 
     // A9 — steering changes heading, and both directions work.
     await page.evaluate(() => {
-        window.__h.recover();
+        window.__h.hardReset();
         window.__h.hold({ keyThrottle: true }, 0.5);
     });
     const preLeft = await page.evaluate(() => window.__h.state());
@@ -359,8 +408,8 @@ const startDriving = async (page) => {
     // happened to end at makes it a race between the throttle and the drag of
     // whatever corner the truck is in — it has to accelerate from near rest.
     await page.evaluate(() => {
-        window.__h.recover();
-        window.__h.hold({ keyBrake: true }, 5);
+        window.__h.hardReset();
+        window.__h.hold({ keyBrake: true }, 2);
         window.__h.release();
         window.__h.sim(0.3);
     });
@@ -395,7 +444,7 @@ const startDriving = async (page) => {
     // its speed at whatever instant the run ended — which may be mid-hairpin and
     // slower than anything off-road.
     const onRoadPeak = await page.evaluate(() => {
-        window.__h.recover();
+        window.__h.hardReset();
         return window.__h.autopilot(18, { keyThrottle: true });
     });
     // Steer off, then hold the throttle down in the weeds for long enough that
@@ -419,7 +468,7 @@ const startDriving = async (page) => {
 
     // A13 — a long unattended run stays stable and keeps streaming road.
     await page.evaluate(() => {
-        window.__h.recover();
+        window.__h.hardReset();
         window.__h.autopilot(60, { keyThrottle: true });
         window.__h.draw();
     });
@@ -437,7 +486,15 @@ const startDriving = async (page) => {
     // A14 — no console errors across all of the above.
     check(errors.length === 0, 'A14 no console errors while driving', errors.slice(0, 3).join(' | '));
 
-    // A15 — the vehicle sits on the road surface, not floating or sunk.
+    // A15 — the vehicle sits on the road surface, not floating or sunk. Measured
+    // back on the carriageway: on a steep bank the wheels are legitimately at
+    // very different heights and the number means nothing.
+    await page.evaluate(() => {
+        window.__h.hardReset();
+        window.__h.autopilot(6, { keyThrottle: true });
+        window.__h.release();
+        window.__h.sim(0.5);
+    });
     const ride = await page.evaluate(() => {
         const g = window.brb.game;
         const p = g.physics;
@@ -505,10 +562,10 @@ const startDriving = async (page) => {
     const steerCurve = await page.evaluate(() => {
         window.__h.recover();
         window.__h.bringToSpeed(16);
-        const short = window.__h.steerTap(0.15);
+        const short = window.__h.steerTap(0.15).deg;
         window.__h.recover();
         window.__h.bringToSpeed(16);
-        const long = window.__h.steerTap(1.4);
+        const long = window.__h.steerTap(1.4).deg;
         window.__h.release();
         return { short, long };
     });
@@ -532,7 +589,7 @@ const startDriving = async (page) => {
             // Steering lock available falls with speed, so all three taps have
             // to be taken from the same speed or this compares nothing.
             window.__h.bringToSpeed(16);
-            out[name] = window.__h.steerTap(0.4);
+            out[name] = window.__h.steerTap(0.4).input;
             window.__h.release();
         }
         g_setSens(1);
@@ -542,8 +599,8 @@ const startDriving = async (page) => {
         }
     });
     check(
-        steerLevels.relaxed < steerLevels.standard && steerLevels.standard < steerLevels.sharp,
-        'C2 steering sensitivity levels differ in the right order',
+        steerLevels.relaxed < steerLevels.standard && steerLevels.standard <= steerLevels.sharp,
+        'C2 steering sensitivity winds lock on at different rates',
         JSON.stringify(steerLevels)
     );
 
@@ -674,6 +731,231 @@ const startDriving = async (page) => {
     check(hudBits.timing, 'C9 the mile timing panel is on screen');
     check(hudBits.course, 'C9b the course-ahead map is on screen');
     check(/\d/.test(hudBits.courseText), 'C9c the course map shows an advisory speed', hudBits.courseText);
+
+    // E — every camera actually sees the world. The interior cameras once sat
+    // inside the windshield and on top of the dash, which filled the screen with
+    // a flat slab of bodywork; the positions looked perfectly sensible, so only
+    // looking at the pixels catches it.
+    const views = await page.evaluate(() => {
+        const g = window.brb.game;
+        const p = g.physics;
+        // Sample from a known-good state: on the road, moderate speed, clear of
+        // the cut banks. A camera momentarily inside terrain is a different
+        // problem from a camera permanently inside the bodywork, and this check
+        // is about the second one.
+        window.__h.hardReset();
+        window.__h.autopilot(10, { keyThrottle: true });
+        window.__h.release();
+        for (let i = 0; i < 30 && (Math.abs(p.lateral) > 1.5 || Math.abs(p.u) > 22); i++) {
+            window.__h.autopilot(0.5, {});
+        }
+        const out = {};
+        for (const want of ['chase', 'hood', 'cockpit']) {
+            let guard = 0;
+            while (g.cameraMode !== want && guard++ < 5) g.cycleCamera();
+            for (let i = 0; i < 10; i++) g.tick(1 / 60);
+            out[want] = { ...window.__h.frameStats(), lateral: +p.lateral.toFixed(2), mph: +(Math.abs(p.u) * 2.2369).toFixed(0) };
+        }
+        return out;
+    });
+    for (const view of ['chase', 'hood', 'cockpit']) {
+        const st = views[view];
+        check(st.sd > 12, `E1 the ${view} view renders a varied scene, not a flat wall`, JSON.stringify(st));
+        check(st.dominant < 0.75, `E1b the ${view} view is not dominated by one flat colour`, JSON.stringify(st));
+        check(st.mean > 12 && st.mean < 235, `E1c the ${view} view is neither black nor blown out`, JSON.stringify(st));
+    }
+
+    // ------------------------------------------------------ D: the timed stage
+
+    // D1 — the stage starts armed on the line with the clock stopped.
+    const armed = await page.evaluate(() => {
+        window.brb.game.clearBestTimes();
+        window.brb.game.restartStage();
+        window.__h.sim(0.5);
+        const t = window.brb.telemetry;
+        return {
+            mode: t.mode,
+            state: t.stageState,
+            elapsed: t.stageElapsed,
+            remaining: t.stageRemainingMiles,
+            lateral: Math.abs(window.brb.game.physics.lateral),
+            speed: Math.abs(window.brb.game.physics.u)
+        };
+    });
+    check(armed.mode === 'stage' && armed.state === 'armed', 'D1 the stage starts armed', `${armed.mode}/${armed.state}`);
+    check(armed.elapsed === 0, 'D1b the clock is stopped until you move', `${armed.elapsed}`);
+    check(armed.remaining > 1.98 && armed.remaining < 2.02, 'D1c the stage is two miles', `${armed.remaining.toFixed(3)} mi`);
+    check(armed.lateral < 1 && armed.speed < 0.5, 'D1d the truck sits on the centreline, stopped');
+
+    // D2 — the clock starts on moving, not before.
+    const started = await page.evaluate(() => {
+        const t = window.brb.telemetry;
+        const p = window.brb.game.physics;
+        window.__h.sim(2); // sit on the line, no throttle
+        const idle = t.stageElapsed;
+        const crept = Math.abs(p.u);
+        window.__h.autopilot(3, { keyThrottle: true });
+        return { idle, crept, running: t.stageElapsed, state: t.stageState };
+    });
+    check(started.idle === 0, 'D2 waiting on the line does not burn time, and the truck is held there', `${started.idle}`);
+    check(started.crept < 0.01, 'D2b the truck does not roll off the line on its own', `${started.crept.toFixed(3)} m/s`);
+    check(started.running > 1 && started.state === 'running', 'D2c the throttle starts the clock', `${started.running.toFixed(1)} s`);
+
+    // D2d — the stage is identical after a long free drive. The road's sample
+    // ring prunes what is behind you, so without a rewind the start line would
+    // land on whatever the oldest surviving sample happened to be.
+    const afterLongDrive = await page.evaluate(() => {
+        const p = window.brb.game.physics;
+        window.brb.game.restartStage();
+        window.__h.sim(0.3);
+        const fresh = { s: p.s, x: p.position.x, z: p.position.z };
+        // Drive a long way in free mode, far enough to prune the ring.
+        window.brb.game.setMode('free');
+        // The ring holds 8.2 km, so the drive has to clear that to prune it.
+        for (let i = 0; i < 24 && p.s < 9000; i++) window.__h.autopilot(30, { keyThrottle: true });
+        window.__h.release();
+        const drovenTo = p.s;
+        const prunedTo = window.brb.game.roadMinS;
+        window.brb.game.restartStage();
+        window.__h.sim(0.3);
+        return { fresh, drovenTo, prunedTo, back: { s: p.s, x: p.position.x, z: p.position.z }, progress: window.brb.telemetry.stageProgress };
+    });
+    check(
+        afterLongDrive.drovenTo > 8400 && afterLongDrive.prunedTo > 1000,
+        'D2d the free drive pruned the road ring past the stage start',
+        `drove to ${afterLongDrive.drovenTo.toFixed(0)} m, ring now starts at ${afterLongDrive.prunedTo.toFixed(0)} m`
+    );
+    check(
+        Math.abs(afterLongDrive.back.s - afterLongDrive.fresh.s) < 1 &&
+            Math.abs(afterLongDrive.back.x - afterLongDrive.fresh.x) < 1 &&
+            Math.abs(afterLongDrive.back.z - afterLongDrive.fresh.z) < 1 &&
+            afterLongDrive.progress < 0.01,
+        'D2e the stage start is identical after driving far away from it',
+        JSON.stringify(afterLongDrive)
+    );
+
+    // D3 — the stage is repeatable: the same road, from the same place.
+    const repeatable = await page.evaluate(() => {
+        const p = window.brb.game.physics;
+        const runs = [];
+        for (let i = 0; i < 2; i++) {
+            window.brb.game.restartStage();
+            window.__h.sim(0.3);
+            runs.push({ s: p.s, x: p.position.x, z: p.position.z });
+        }
+        return runs;
+    });
+    check(
+        Math.abs(repeatable[0].s - repeatable[1].s) < 0.5 &&
+            Math.abs(repeatable[0].x - repeatable[1].x) < 0.5 &&
+            Math.abs(repeatable[0].z - repeatable[1].z) < 0.5,
+        'D3 restarting puts the truck back on the identical start line',
+        JSON.stringify(repeatable)
+    );
+
+    // D4 — progress tracks distance along the stage.
+    const progressed = await page.evaluate(() => {
+        const t = window.brb.telemetry;
+        window.brb.game.restartStage();
+        window.__h.autopilot(25, { keyThrottle: true });
+        return { progress: t.stageProgress, remaining: t.stageRemainingMiles, state: t.stageState };
+    });
+    check(
+        progressed.progress > 0.03 && progressed.progress < 1,
+        'D4 stage progress advances as you drive it',
+        `${(progressed.progress * 100).toFixed(0)}%`
+    );
+    check(progressed.remaining < 2, 'D4b the distance remaining counts down', `${progressed.remaining.toFixed(2)} mi`);
+
+    // D5 — the stage can actually be completed, and it records a best.
+    const finished = await page.evaluate(() => {
+        const t = window.brb.telemetry;
+        window.brb.game.clearBestTimes();
+        window.brb.game.restartStage();
+        // Drive it until the finish, with a generous cap.
+        for (let i = 0; i < 120 && t.stageState !== 'finished'; i++) {
+            window.__h.autopilot(3, { keyThrottle: true });
+        }
+        window.__h.release();
+        return {
+            state: t.stageState,
+            time: t.stageResultTime,
+            isBest: t.stageResultIsBest,
+            best: t.stageBest,
+            progress: t.stageProgress,
+            assisted: t.stageAssisted
+        };
+    });
+    check(finished.state === 'finished', 'D5 the stage can be driven to the finish', `progress ${(finished.progress * 100).toFixed(0)}%`);
+    check(finished.time > 40 && finished.time < 900, 'D5b the stage time is plausible', `${finished.time.toFixed(1)} s`);
+    check(finished.isBest && finished.best > 0, 'D5c a first clean run sets the best', `best ${finished.best.toFixed(1)} s`);
+
+    // D6 — the clock stops at the finish.
+    const stopped = await page.evaluate(() => {
+        const t = window.brb.telemetry;
+        const at = t.stageElapsed;
+        window.__h.hold({ keyThrottle: true }, 3);
+        window.__h.release();
+        return { at, after: t.stageElapsed };
+    });
+    check(Math.abs(stopped.after - stopped.at) < 0.25, 'D6 the clock stops at the finish', `${stopped.at.toFixed(1)} -> ${stopped.after.toFixed(1)}`);
+
+    // D7 — the results panel appears with the time on it.
+    const resultUi = await page.evaluate(() => ({
+        shown: !!document.querySelector('.result'),
+        time: document.querySelector('.result-time')?.textContent ?? '',
+        actions: document.querySelectorAll('.result-actions button').length
+    }));
+    check(resultUi.shown, 'D7 the results panel is shown on finishing');
+    check(/\d:\d\d/.test(resultUi.time), 'D7b it shows the time', resultUi.time);
+    check(resultUi.actions === 2, 'D7c it offers run again and free drive', `${resultUi.actions} buttons`);
+
+    // D8 — Enter restarts the stage through the real key binding.
+    await page.keyboard.press('Enter');
+    await page.evaluate(() => window.__h.sim(0.3));
+    const afterEnter = await page.evaluate(() => ({
+        state: window.brb.telemetry.stageState,
+        elapsed: window.brb.telemetry.stageElapsed,
+        progress: window.brb.telemetry.stageProgress
+    }));
+    check(afterEnter.state === 'armed' && afterEnter.elapsed === 0, 'D8 Enter restarts the stage from the line', JSON.stringify(afterEnter));
+
+    // D9 — using the recovery bars the run from taking a best.
+    const assisted = await page.evaluate(() => {
+        const t = window.brb.telemetry;
+        window.brb.game.restartStage();
+        window.__h.autopilot(6, { keyThrottle: true });
+        window.brb.game.recover();
+        window.__h.sim(0.3);
+        return { assisted: t.stageAssisted };
+    });
+    check(assisted.assisted, 'D9 a recovered stage run is marked assisted');
+
+    // D10 — a best time survives a restart, and clearing removes it.
+    const persistence = await page.evaluate(() => {
+        const t = window.brb.telemetry;
+        const before = t.stageBest;
+        window.brb.game.restartStage();
+        window.__h.sim(0.3);
+        const afterRestart = t.stageBest;
+        window.brb.game.clearBestTimes();
+        window.__h.sim(0.3);
+        return { before, afterRestart, afterClear: t.stageBest, stored: localStorage.getItem('brb.stage.v2') };
+    });
+    check(persistence.before > 0 && persistence.afterRestart === persistence.before, 'D10 the best time survives a restart', `${persistence.afterRestart.toFixed(1)} s`);
+    check(persistence.afterClear === 0 && !persistence.stored, 'D10b clearing best times removes it');
+
+    // D11 — switching back to free drive leaves the stage behind.
+    const backToFree = await page.evaluate(async () => {
+        window.brb.game.setMode('free');
+        window.__h.sim(0.3);
+        // React flushes the re-render asynchronously, so the DOM has to be
+        // queried on a later task or this races the render it is checking.
+        await new Promise((r) => setTimeout(r, 60));
+        return { mode: window.brb.telemetry.mode, stagePanel: !!document.querySelector('.stage'), timing: !!document.querySelector('.timing') };
+    });
+    check(backToFree.mode === 'free', 'D11 the game can switch back to free drive');
+    check(!backToFree.stagePanel && backToFree.timing, 'D11b the HUD swaps the stage clock for the mile timer');
 
     await page.close();
 

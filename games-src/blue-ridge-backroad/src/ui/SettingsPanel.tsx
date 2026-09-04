@@ -3,6 +3,8 @@ import { PRESETS, type QualityName } from '../game/quality';
 import { STEER_LEVELS, type SteerLevel } from '../game/steering';
 
 interface Props {
+    mode: 'free' | 'stage';
+    onMode: (mode: 'free' | 'stage') => void;
     quality: QualityName;
     detected: QualityName;
     steering: SteerLevel;
@@ -23,6 +25,8 @@ const SUMMARY: Record<QualityName, string> = {
 };
 
 export const SettingsPanel = ({
+    mode,
+    onMode,
     quality,
     detected,
     steering,
@@ -36,6 +40,29 @@ export const SettingsPanel = ({
     <div className="modal-backdrop" onPointerDown={onClose}>
         <div className="modal" onPointerDown={(e) => e.stopPropagation()}>
             <h2>Settings</h2>
+
+            <h3>Drive</h3>
+            <div className="segmented">
+                <button
+                    type="button"
+                    className={mode === 'free' ? 'segment selected' : 'segment'}
+                    onClick={() => onMode('free')}
+                >
+                    Free drive
+                </button>
+                <button
+                    type="button"
+                    className={mode === 'stage' ? 'segment selected' : 'segment'}
+                    onClick={() => onMode('stage')}
+                >
+                    2-mile stage
+                </button>
+            </div>
+            <p className="setting-note">
+                {mode === 'stage'
+                    ? 'A fixed two miles of the same road, timed. Enter restarts it from the line.'
+                    : 'The endless road, timed per mile against your own best for that mile.'}
+            </p>
 
             <h3>Steering</h3>
             <div className="segmented">
@@ -94,6 +121,8 @@ export const SettingsPanel = ({
                 <dd>Change camera</dd>
                 <dt>R</dt>
                 <dd>Back to the road when stuck</dd>
+                <dt>Enter</dt>
+                <dd>Restart the stage</dd>
             </dl>
 
             <button type="button" className="primary" onClick={onClose}>

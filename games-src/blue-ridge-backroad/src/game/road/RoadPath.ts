@@ -281,6 +281,23 @@ export class RoadPath {
         return clamp(k * 9.5, -MAX_BANK, MAX_BANK);
     }
 
+    /**
+     * Throw the sample table away and regenerate from the origin, so a distance
+     * the ring has already pruned becomes addressable again.
+     *
+     * Samples are generated strictly forward because heading and elevation are
+     * running integrals, and the ring keeps memory bounded by discarding what is
+     * behind you. That is fine while driving, but it means you cannot jump back
+     * to the stage start after a long free drive — the stage's own road is gone.
+     * Regeneration is deterministic, so what comes back is identical, and
+     * rebuilding a few hundred samples costs microseconds.
+     */
+    rewind(throughS: number): void {
+        this.head = -1;
+        this.tail = 0;
+        this.ensure(Math.max(0, throughS) + 400);
+    }
+
     get maxS(): number {
         return this.head * STEP;
     }

@@ -50,6 +50,20 @@ export interface Telemetry {
 
     /** Off the road and stopped for long enough to offer a way out. */
     stuck: boolean;
+
+    /** 'free' for the endless drive, 'stage' for the timed two-mile run. */
+    mode: string;
+    stageName: string;
+    stageState: string;
+    stageElapsed: number;
+    stageProgress: number;
+    stageRemainingMiles: number;
+    stageBest: number;
+    stageDelta: number;
+    stageAssisted: boolean;
+    stageResultTime: number;
+    stageResultDelta: number;
+    stageResultIsBest: boolean;
 }
 
 export const telemetry: Telemetry = {
@@ -84,7 +98,20 @@ export const telemetry: Telemetry = {
     splitFlash: 0,
     totalTime: 0,
 
-    stuck: false
+    stuck: false,
+
+    mode: 'free',
+    stageName: '',
+    stageState: 'armed',
+    stageElapsed: 0,
+    stageProgress: 0,
+    stageRemainingMiles: 0,
+    stageBest: 0,
+    stageDelta: NaN,
+    stageAssisted: false,
+    stageResultTime: 0,
+    stageResultDelta: NaN,
+    stageResultIsBest: false
 };
 
 let version = 0;

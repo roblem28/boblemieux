@@ -127,6 +127,16 @@ export class VehicleModel {
     private readonly bodyGroup = new Group();
     private readonly owned: (BufferGeometry | Material)[] = [];
     private readonly headlightBeams: Mesh[] = [];
+    /**
+     * The cab shell and roof. The cockpit camera sits inside this box, and a
+     * box you are inside is not something you can rely on back-face culling to
+     * hide — so it is switched off explicitly in the interior view, the way a
+     * driving game swaps in a separate cockpit model. The dash and seats go
+     * with it: they are crude boxes at arm's length, and at this focal length
+     * they simply fill the screen. The steering wheel stays, which is what
+     * actually makes the view read as a cockpit.
+     */
+    private readonly greenhouse: Mesh[] = [];
     private lightsOn = 0;
 
     constructor(assets: Assets) {
@@ -158,14 +168,18 @@ export class VehicleModel {
             metalness: 0
         });
         const trim = new MeshStandardMaterial({
-            color: new Color(0.11, 0.11, 0.12),
+            color: new Color(0.17, 0.17, 0.18),
             roughness: 0.85,
             metalness: 0.1
         });
         const interior = new MeshStandardMaterial({
-            color: new Color(0.16, 0.14, 0.12),
+            // Light enough to read as trim rather than as a black hole: the cab
+            // has no interior lighting, so a dark material renders as a void.
+            color: new Color(0.29, 0.26, 0.22),
             roughness: 0.92,
-            metalness: 0
+            metalness: 0,
+            emissive: new Color(0.03, 0.028, 0.025),
+            emissiveIntensity: 1
         });
         const headlight = new MeshStandardMaterial({
             color: new Color(0.85, 0.85, 0.8),
@@ -259,8 +273,29 @@ export class VehicleModel {
         // ------------------------------------------------------------ anchors
         // Local +X is the driver's left in this right-handed, Y-up world, so a
         // left-hand-drive cab puts the seat and wheel at positive x.
-        this.cockpitAnchor.position.set(0.38, 1.36, 0.28);
-        this.hoodAnchor.position.set(0, 1.55, 0.9);
+        // These have to clear the bodywork, and the bodywork is specific:
+        //   hood       y 0.95 .. 1.42, z 0.76 .. 2.48
+        //   cab        y 1.18 .. 2.04, z -0.71 .. 1.01
+        //   windshield y 1.35 .. 1.97, z 0.85 .. 1.15
+        //   dash       y 1.29 .. 1.55, z 0.47 .. 0.97
+        //   roof       y 2.01 .. 2.11
+        //
+        // The driver's eye sits above the dash and behind the wheel, looking out
+        // through the windshield. The hood camera sits above the hood and ahead
+        // of the windshield, so the hood fills the bottom of the frame. The old
+        // values put the hood camera inside the windshield glass and the cockpit
+        // camera below the dash top, 19 cm from its face — which is why both
+        // views were a wall of paint.
+        // Eye height sits about a third of a metre above the dash top (1.48)
+        // and the same below the roof lining (2.10) — the framing a driver
+        // actually has. The hood camera clears the hood (top 1.42) and sits
+        // ahead of the windshield (front face 1.15), so the hood reads as a
+        // strip along the bottom rather than half the screen.
+        // Sat back between the seats rather than up against the dash: moving
+        // the eye forward makes the dash *nearer*, so its top face swells to
+        // fill the screen. Back here it reads as a strip along the bottom.
+        this.cockpitAnchor.position.set(0.36, 1.78, -0.15);
+        this.hoodAnchor.position.set(0, 1.86, 1.5);
         this.chaseAnchor.position.set(0, 1.5, -1.2);
         this.chassis.add(this.cockpitAnchor, this.hoodAnchor, this.chaseAnchor);
 
@@ -317,23 +352,23 @@ export class VehicleModel {
         }
 
         // Cab greenhouse: narrower and shorter at the roof, like a real cabin.
-        const cab = taperedBox(1.82, 0.86, 1.72, 0.9, 0.82);
-        cab.translate(0, 1.61, 0.15);
-        this.add(g, cab, m.paint);
+        const cab = taperedBox(1.82, 0.94, 1.72, 0.9, 0.82);
+        cab.translate(0, 1.66, 0.15);
+        this.greenhouse.push(this.add(g, cab, m.paint));
         const roof = taperedBox(1.62, 0.1, 1.42, 0.97, 0.97);
-        roof.translate(0, 2.06, 0.12);
-        this.add(g, roof, m.paint);
+        roof.translate(0, 2.15, 0.12);
+        this.greenhouse.push(this.add(g, roof, m.paint));
 
         // Glass: windshield raked back, side glass, rear window.
-        const windshield = new BoxGeometry(1.6, 0.78, 0.07);
-        windshield.translate(0, 1.66, 1.0);
+        const windshield = new BoxGeometry(1.6, 0.86, 0.07);
+        windshield.translate(0, 1.72, 1.0);
         const ws = this.add(g, windshield, m.glass, false);
         ws.rotation.x = -0.42;
         for (const x of [-0.855, 0.855]) {
-            const side = boxAt(0.06, 0.5, 1.35, x, 1.75, 0.16);
+            const side = boxAt(0.06, 0.56, 1.35, x, 1.8, 0.16);
             this.add(g, side, m.glass, false);
         }
-        const rearGlass = boxAt(1.42, 0.5, 0.07, 0, 1.76, -0.66);
+        const rearGlass = boxAt(1.42, 0.56, 0.07, 0, 1.82, -0.66);
         this.add(g, rearGlass, m.glass, false);
 
         // Bed: floor plus four walls, so it reads as an open pickup box.
@@ -368,13 +403,13 @@ export class VehicleModel {
         // -------------------------------------------------- detail-only parts
         // Mirrors.
         for (const x of [-1.02, 1.02]) {
-            this.add(g, boxAt(0.06, 0.05, 0.22, x * 0.94, 1.72, 0.92), m.trim);
-            this.add(g, boxAt(0.09, 0.22, 0.16, x, 1.72, 0.98), m.trim);
+            this.add(g, boxAt(0.06, 0.05, 0.22, x * 0.94, 1.76, 0.92), m.trim);
+            this.add(g, boxAt(0.09, 0.22, 0.16, x, 1.76, 0.98), m.trim);
         }
         // Roof light bar.
-        this.add(g, boxAt(1.34, 0.11, 0.14, 0, 2.19, 0.32), m.trim);
+        this.add(g, boxAt(1.34, 0.11, 0.14, 0, 2.28, 0.32), m.trim);
         for (const x of [-0.44, 0, 0.44]) {
-            this.add(g, boxAt(0.24, 0.14, 0.08, x, 2.19, 0.4), m.headlight, false);
+            this.add(g, boxAt(0.24, 0.14, 0.08, x, 2.28, 0.4), m.headlight, false);
         }
         // Exhaust and tow hooks.
         const pipe = new CylinderGeometry(0.045, 0.045, 0.9, 8);
@@ -390,18 +425,19 @@ export class VehicleModel {
 
         {
             // Interior — visible through the glass and in cockpit view.
-            this.add(g, boxAt(1.66, 0.26, 0.5, 0, 1.42, 0.72), m.interior, false); // dash
-            this.add(g, boxAt(1.5, 0.1, 0.34, 0, 1.28, 0.5), m.trim, false); // dash lower
+            this.greenhouse.push(this.add(g, boxAt(1.66, 0.24, 0.5, 0, 1.36, 0.72), m.interior, false)); // dash
+            this.greenhouse.push(this.add(g, boxAt(1.5, 0.1, 0.34, 0, 1.22, 0.5), m.trim, false)); // dash lower
             for (const x of [-0.4, 0.4]) {
-                this.add(g, boxAt(0.5, 0.14, 0.5, x, 1.16, -0.05), m.interior, false); // seat base
+                this.greenhouse.push(this.add(g, boxAt(0.5, 0.14, 0.5, x, 1.16, -0.05), m.interior, false)); // seat base
                 const back = boxAt(0.5, 0.62, 0.13, x, 1.46, -0.28);
                 const b = this.add(g, back, m.interior, false);
                 b.rotation.x = 0.14;
+                this.greenhouse.push(b);
             }
-            this.add(g, boxAt(0.12, 0.4, 0.12, 0, 1.3, -0.3), m.trim, false); // centre console
+            this.greenhouse.push(this.add(g, boxAt(0.12, 0.4, 0.12, 0, 1.3, -0.3), m.trim, false)); // centre console
 
             // Steering wheel, on its own node so it can be turned.
-            this.steeringWheel.position.set(0.38, 1.44, 0.52);
+            this.steeringWheel.position.set(0.38, 1.4, 0.52);
             this.steeringWheel.rotation.x = -0.42;
             const rimGeo = new CylinderGeometry(0.185, 0.185, 0.035, 16, 1);
             rimGeo.rotateX(Math.PI * 0.5);
@@ -416,10 +452,18 @@ export class VehicleModel {
             g.add(this.steeringWheel);
 
             // Column stalk and pedals hint.
-            this.add(g, boxAt(0.08, 0.08, 0.3, 0.38, 1.34, 0.68), m.trim, false);
+            this.add(g, boxAt(0.08, 0.08, 0.3, 0.38, 1.3, 0.68), m.trim, false);
         }
 
         return g;
+    }
+
+    /**
+     * Hide the cab shell for the interior view. Everything else — dash, wheel,
+     * seats, hood, bed — stays, so the cockpit still reads as a cockpit.
+     */
+    setCockpitView(on: boolean): void {
+        for (let i = 0; i < this.greenhouse.length; i++) this.greenhouse[i].visible = !on;
     }
 
     /** Apply the physics state to the visual rig. Called once per rendered frame. */

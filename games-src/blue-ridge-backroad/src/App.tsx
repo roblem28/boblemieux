@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type JSX } from 'react';
-import { Game } from './game/Game';
+import { Game, type GameMode } from './game/Game';
 import { detectQuality, initialQuality, saveQualityOverride, type QualityName } from './game/quality';
 import { loadSteerLevel, multiplierFor, saveSteerLevel, type SteerLevel } from './game/steering';
 import { TitleScreen } from './ui/TitleScreen';
@@ -7,6 +7,7 @@ import { Hud } from './ui/Hud';
 import { TouchControls } from './ui/TouchControls';
 import { SettingsPanel } from './ui/SettingsPanel';
 import { telemetry, publishTelemetry } from './ui/telemetry';
+import { formatTime } from './game/splits';
 
 type Screen = 'title' | 'driving';
 
@@ -24,6 +25,8 @@ export const App = (): JSX.Element => {
     const [settingsOpen, setSettingsOpen] = useState(false);
     const [quality, setQuality] = useState<QualityName>(() => initialQuality());
     const [steering, setSteering] = useState<SteerLevel>(() => loadSteerLevel());
+    const [mode, setMode] = useState<GameMode>('free');
+    const [stageBest, setStageBest] = useState(0);
     const [detected] = useState<QualityName>(() => detectQuality());
     const [touch] = useState(() => isTouchDevice());
     const [error, setError] = useState<string | null>(null);
@@ -36,13 +39,20 @@ export const App = (): JSX.Element => {
         if (!canvas || gameRef.current) return;
         let game: Game | null = null;
         try {
-            game = new Game({ canvas, quality, steerSensitivity: multiplierFor(steering) });
+            game = new Game({
+                canvas,
+                quality,
+                steerSensitivity: multiplierFor(steering),
+                // Only for the automated checks, which sample the rendered frame.
+                preserveDrawingBuffer: new URLSearchParams(window.location.search).has('debug')
+            });
         } catch (err) {
             setError(err instanceof Error ? err.message : 'WebGL is unavailable in this browser.');
             return;
         }
         gameRef.current = game;
         game.startPreview();
+        setStageBest(telemetry.stageBest);
         setReady(true);
         return () => {
             game?.dispose();
@@ -54,8 +64,32 @@ export const App = (): JSX.Element => {
 
     const handleStart = useCallback(() => {
         // This runs inside the click handler, which is what unlocks Web Audio.
+        gameRef.current?.restartFree();
         gameRef.current?.startDriving();
+        setMode('free');
         setScreen('driving');
+    }, []);
+
+    const handleStartStage = useCallback(() => {
+        gameRef.current?.restartStage();
+        gameRef.current?.startDriving();
+        setMode('stage');
+        setScreen('driving');
+    }, []);
+
+    const handleRestartStage = useCallback(() => {
+        gameRef.current?.restartStage();
+        setMode('stage');
+    }, []);
+
+    const handleFreeDrive = useCallback(() => {
+        gameRef.current?.restartFree();
+        setMode('free');
+    }, []);
+
+    const handleMode = useCallback((next: GameMode) => {
+        gameRef.current?.setMode(next);
+        setMode(next);
     }, []);
 
     const handleCamera = useCallback(() => {
@@ -82,6 +116,7 @@ export const App = (): JSX.Element => {
 
     const handleClearTimes = useCallback(() => {
         gameRef.current?.clearBestTimes();
+        setStageBest(0);
     }, []);
 
     const handleQuality = useCallback((name: QualityName) => {
@@ -102,9 +137,14 @@ export const App = (): JSX.Element => {
     useEffect(() => {
         const params = new URLSearchParams(window.location.search);
         if (params.has('debug') || params.has('fps')) setShowFps(true);
-        if (params.has('drive')) {
+        if (params.has('drive') || params.has('stage')) {
             // Skip the title screen — used by the automated checks.
+            const wantStage = params.has('stage');
             const id = window.setTimeout(() => {
+                if (wantStage) {
+                    gameRef.current?.restartStage();
+                    setMode('stage');
+                }
                 gameRef.current?.startDriving();
                 setScreen('driving');
             }, 60);
@@ -136,7 +176,13 @@ export const App = (): JSX.Element => {
         <div className="app">
             <canvas ref={canvasRef} className="game-canvas" />
             {screen === 'title' ? (
-                <TitleScreen onStart={handleStart} ready={ready} touch={touch} />
+                <TitleScreen
+                    onStart={handleStart}
+                    onStartStage={handleStartStage}
+                    ready={ready}
+                    touch={touch}
+                    stageBest={stageBest > 0 ? `best ${formatTime(stageBest)}` : 'no time set'}
+                />
             ) : (
                 <>
                     <Hud
@@ -144,6 +190,8 @@ export const App = (): JSX.Element => {
                         onSound={handleSound}
                         onSettings={() => setSettingsOpen(true)}
                         onRecover={handleRecover}
+                        onRestartStage={handleRestartStage}
+                        onFreeDrive={handleFreeDrive}
                         muted={muted}
                         showFps={showFps}
                     />
@@ -152,6 +200,8 @@ export const App = (): JSX.Element => {
             )}
             {settingsOpen && (
                 <SettingsPanel
+                    mode={mode}
+                    onMode={handleMode}
                     quality={quality}
                     detected={detected}
                     steering={steering}
@@ -172,6 +222,7 @@ export const App = (): JSX.Element => {
 const FALLBACK_INPUT = {
     cycleCameraRequested: false,
     recoverRequested: false,
+    restartRequested: false,
     keyThrottle: false,
     keyBrake: false,
     keyLeft: false,

@@ -382,3 +382,67 @@ understeered off the road — the autopilot's peak dropped from 134 mph to 34,
 which looked like a physics regression and was not. It now closes the loop on
 `steerInput`, the quantity the keys actually move. Worth recording because the
 failure mode was so convincingly disguised as a game bug.
+
+---
+
+## The fixed stage, and the interior cameras
+
+**D4.1 — A fixed two-mile stage, not laps.** `STAGE_START_S = 1000`, two miles
+long, on the same seeded road every time — so a time is a real comparison. The
+truck is held on the line and the clock starts on the first touch of the
+throttle: no countdown, because a time trial is restarted constantly and making
+the player sit through "3, 2, 1" every retry taxes the thing they are doing.
+Starting on *movement* was tried first and was worse — any camber rolls a
+stationary truck away and starts the clock behind your back, which is why the
+truck is now held with a handbrake while armed.
+
+**D4.2 — A live delta against your own best run.** The best run stores its
+elapsed time at 24 checkpoints along the stage; the HUD interpolates between
+them to show how far up or down you are *at this point on the road*. That is the
+number that makes a time trial worth repeating — a final time alone tells you
+nothing until it is over.
+
+**D4.3 — `RoadPath.rewind()`.** Restarting the stage after a long free drive
+placed the truck at whatever the oldest surviving road sample happened to be:
+the sample ring prunes behind the vehicle, and the stage's own road had been
+discarded. Generation is deterministic and forward-only, so the fix is to
+regenerate from the origin — a few hundred samples, microseconds — whenever a
+teleport targets a distance the ring no longer holds. Without it the premise of
+a repeatable stage is simply false, and it fails silently.
+
+**D4.4 — The interior cameras were broken in four separate ways.** Reported from
+play: hood and cockpit showed "way too zoomed in and all you can see is the
+blue". It turned out to be a stack of independent faults, each of which alone
+would have ruined the view:
+
+ 1. *Anchors inside the bodywork.* The hood camera sat inside the windshield
+    glass (z 0.85–1.15) and the cockpit camera 13 cm above the dash top, close
+    enough that the dash's top face filled the screen.
+ 2. *Vertical field of view.* Three's `fov` is vertical, and the interior
+    cameras were on 72–88 — roughly 115 degrees horizontal at 16:9. Wide enough
+    to drag the entire cab into frame.
+ 3. *The field of view did not snap on a camera change.* Position snapped but
+    the FOV eased over about a second, so the first moment of the cockpit view
+    was rendered with the chase camera's framing. This also caused a visible
+    lurch every time you pressed C.
+ 4. *The look-into-the-corner lean was `steer * 2.4` clamped to ±0.5 rad* — up
+    to 29 degrees of head turn, which at speed aimed the camera at the door
+    pillar.
+
+Beyond those, the cab is a box the camera sits *inside*, and back-face culling
+cannot be relied on to hide it. The cockpit view now switches off the cab shell,
+dash and seats and keeps the steering wheel — which is what a driving game does
+with a separate cockpit model, and what actually makes the view read as a
+cockpit. The greenhouse was also raised and the dash lowered to give the view
+somewhere to sit.
+
+**D4.5 — The suite now looks at pixels.** None of the above was catchable by
+checking camera positions: every position looked reasonable. There is now a
+check that samples the rendered frame in each of the three views and asserts it
+is not a near-uniform slab. It needs `preserveDrawingBuffer`, which is enabled
+only under the debug flag.
+
+**D4.6 — `hardReset()` in the harness.** The suite is one long continuous drive,
+so a check inherited whatever ditch the previous one finished in — which
+produced several failures that looked exactly like physics regressions and were
+not. State-sensitive checks now start from a defined spawn.
