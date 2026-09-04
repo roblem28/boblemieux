@@ -24,6 +24,9 @@ import { Stage, DEFAULT_STAGE, type StageDefinition } from './stage';
 import { PROFILES, profileFor, scout, type StageCandidate } from './scout/Scout';
 import { DEFAULT_DIFFICULTY, difficultyFor, type DifficultyName } from './difficulty';
 import { CoDriver, type CoDriverMode } from './codriver/CoDriver';
+import { Director } from './director/Director';
+import { classify, HttpEndpoint, LocalEndpoint, type Brief, type Endpoint } from './director/Endpoint';
+import { parsePatch } from './director/patch';
 import { analysePreview, createFeature, phrase, shouldLink, type RoadFeature } from './codriver/PaceNotes';
 import { bindKeyboard, createInputState, type InputState, type KeyboardBinding } from './input';
 import { telemetry, publishTelemetry } from '../ui/telemetry';
@@ -92,6 +95,12 @@ export class Game {
     private renderEnabled = true;
     private chaptersWanted = false;
     /**
+     * Chooses what the road ahead is like, on a slow cadence. Constructed
+     * always and enabled never, by default: it is a director, not a
+     * dependency, and everything else works whether it runs or not.
+     */
+    readonly director: Director;
+    /**
      * Set when something that changes how the road is generated has changed.
      * The next teleport regenerates the whole road rather than only the part
      * the ring has pruned — otherwise the ring keeps samples made under the old
@@ -156,6 +165,7 @@ export class Game {
         this.physics.difficulty = difficultyFor(this.difficultyName);
         telemetry.difficulty = this.physics.difficulty.label;
         this.coDriver.setMode(options.coDriver ?? 'text');
+        this.director = new Director(this.path);
         this.chaptersWanted = options.chapters ?? false;
         this.path.chapters.enabled = this.chaptersWanted;
         telemetry.previewOffset = this.preview.offset;
@@ -283,6 +293,8 @@ export class Game {
      */
     setChaptersEnabled(enabled: boolean): void {
         if (enabled === this.chaptersWanted) return;
+        // The director has nothing to steer without chapters.
+        if (!enabled && this.director.enabled) this.director.setEnabled(false);
         this.chaptersWanted = enabled;
         this.worldDirty = true;
         if (this.mode === 'stage') return;
@@ -297,6 +309,72 @@ export class Game {
 
     get chaptersEnabled(): boolean {
         return this.chaptersWanted;
+    }
+
+    /**
+     * Turn the director on or off.
+     *
+     * On implies chapters on, because the chapter schedule is the director's
+     * only lever — running it with chapters off would leave it deciding things
+     * that reach nothing. Off leaves chapters exactly as they were, and hands
+     * the road ahead back to the procedural schedule.
+     */
+    setDirectorEnabled(enabled: boolean): void {
+        if (enabled && !this.chaptersWanted) this.setChaptersEnabled(true);
+        this.director.setEnabled(enabled);
+        telemetry.directorStatus = this.director.state;
+        telemetry.directorSource = this.director.endpointKind;
+        telemetry.directorReason = '';
+        publishTelemetry();
+    }
+
+    get directorEnabled(): boolean {
+        return this.director.enabled;
+    }
+
+    /**
+     * Point the director at a model, or back at the built-in policy.
+     *
+     * An empty URL means the local policy. A URL means an Ollama-compatible
+     * chat endpoint on a box the player controls; see AI-DIRECTOR §3.2 for why
+     * that needs TLS to work from the deployed site.
+     */
+    setDirectorEndpoint(url: string, model = 'qwen3:8b'): void {
+        const trimmed = url.trim();
+        const endpoint: Endpoint = trimmed === '' ? new LocalEndpoint() : new HttpEndpoint(trimmed, model.trim() || 'qwen3:8b');
+        this.director.setEndpoint(endpoint);
+        telemetry.directorSource = this.director.endpointKind;
+        publishTelemetry();
+    }
+
+    /** Diagnostics: the director's whole state in one object. */
+    directorReportForTest(): unknown {
+        return this.director.report();
+    }
+
+    /**
+     * Diagnostics: run the patch validator directly.
+     *
+     * Exposed because it is the security boundary of the feature, and a
+     * boundary tested only through behaviour is a boundary tested by accident.
+     */
+    validatePatchForTest(raw: unknown): unknown {
+        return parsePatch(raw);
+    }
+
+    /** Diagnostics: the road itself, for checks about slots and generation. */
+    get pathForTest(): RoadPath {
+        return this.path;
+    }
+
+    /** Diagnostics: how the director reads a window of driving. */
+    classifyForTest(brief: unknown): string {
+        return classify(brief as Brief);
+    }
+
+    /** Diagnostics: a fresh copy of the built-in policy, with its own memory. */
+    newLocalPolicyForTest(): LocalEndpoint {
+        return new LocalEndpoint();
     }
 
     /** Chapter label at a distance, for diagnostics and the suite. */
@@ -359,6 +437,7 @@ export class Game {
         this.physics.recover();
         this.splits.invalidate();
         this.stage.invalidate();
+        this.director.noteRecovery();
         telemetry.stuck = false;
         publishTelemetry();
     }
@@ -427,6 +506,8 @@ export class Game {
 
     restartFree(): void {
         this.mode = 'free';
+        // A new drive is a new session as far as the director is concerned.
+        this.director.reset();
         if (this.path.chapters.enabled !== this.chaptersWanted) this.worldDirty = true;
         this.path.chapters.enabled = this.chaptersWanted;
         this.teleportTo(FREE_START_S);
@@ -531,6 +612,8 @@ export class Game {
             }
             const split = this.splits.update(dt, this.physics.odometer);
             if (split.completedMile >= 0) {
+                // Mile markers are the director's commit points.
+                this.director.noteMile(split.time, split.delta);
                 telemetry.lastSplitMile = split.completedMile;
                 telemetry.lastSplitTime = split.time;
                 telemetry.lastSplitDelta = split.delta;
@@ -595,6 +678,30 @@ export class Game {
                 // the instant you set off is noise.
                 if (this.lastSurface !== '') this.coDriver.announce(surface.call);
                 this.lastSurface = surface.name;
+            }
+
+            // The director runs here, at 10 Hz, and only on the endless drive:
+            // the timed stage is neutral road by definition (AI-DIRECTOR §3.3).
+            // Note the order — it runs *after* the surface has been read above,
+            // so a patch that changes the surface is announced by the ordinary
+            // co-driver path when the truck actually reaches the new chapter,
+            // rather than at the moment the patch lands a kilometre earlier.
+            if (this.driving && this.mode === 'free') {
+                const landed = this.director.update(0.1, {
+                    s: this.physics.s,
+                    miles: this.physics.odometer * M_TO_MILES,
+                    speed: Math.abs(this.physics.u),
+                    // A rear slip angle this far past the tire's peak is a
+                    // slide the driver is fighting, not a cornering attitude.
+                    spinning: this.physics.slipAmount > 0.3,
+                    offRoad: this.physics.offRoad
+                });
+                if (landed) {
+                    telemetry.directorReason = landed.reason;
+                    telemetry.directorPatches = this.director.patchCount;
+                }
+                telemetry.directorStatus = this.director.state;
+                telemetry.directorSource = this.director.endpointKind;
             }
 
             this.coDriver.update(0.1, this.physics.s, Math.abs(this.physics.u), this.preview);

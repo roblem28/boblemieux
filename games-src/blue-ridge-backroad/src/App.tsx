@@ -32,6 +32,21 @@ export const App = (): JSX.Element => {
     const [mode, setMode] = useState<GameMode>('free');
     const [difficulty, setDifficulty] = useState<DifficultyName>(() => loadDifficulty());
     const [coDriver, setCoDriver] = useState<CoDriverMode>(() => loadCoDriverMode());
+    const [director, setDirector] = useState(() => {
+        try {
+            return localStorage.getItem('brb.director') === 'on';
+        } catch {
+            return false;
+        }
+    });
+    const [directorUrl, setDirectorUrl] = useState(() => {
+        try {
+            return localStorage.getItem('brb.director.url') ?? '';
+        } catch {
+            return '';
+        }
+    });
+
     const [chapters, setChapters] = useState(() => {
         try {
             return localStorage.getItem('brb.chapters') === 'on';
@@ -148,12 +163,44 @@ export const App = (): JSX.Element => {
 
     const handleChapters = useCallback((on: boolean) => {
         setChapters(on);
+        // The director has nothing to steer without them.
+        if (!on) {
+            setDirector(false);
+            try {
+                localStorage.setItem('brb.director', 'off');
+            } catch {
+                /* private mode */
+            }
+        }
         try {
             localStorage.setItem('brb.chapters', on ? 'on' : 'off');
         } catch {
             /* private mode */
         }
         gameRef.current?.setChaptersEnabled(on);
+    }, []);
+
+    const handleDirector = useCallback((on: boolean) => {
+        setDirector(on);
+        // Chapters are the director's only lever, so it turns them on with it.
+        if (on) setChapters(true);
+        try {
+            localStorage.setItem('brb.director', on ? 'on' : 'off');
+            if (on) localStorage.setItem('brb.chapters', 'on');
+        } catch {
+            /* private mode */
+        }
+        gameRef.current?.setDirectorEnabled(on);
+    }, []);
+
+    const handleDirectorUrl = useCallback((url: string) => {
+        setDirectorUrl(url);
+        try {
+            localStorage.setItem('brb.director.url', url);
+        } catch {
+            /* private mode */
+        }
+        gameRef.current?.setDirectorEndpoint(url);
     }, []);
 
     const handleRecover = useCallback(() => {
@@ -268,6 +315,10 @@ export const App = (): JSX.Element => {
                     speechAvailable={speechAvailable}
                     chapters={chapters}
                     onChapters={handleChapters}
+                    director={director}
+                    onDirector={handleDirector}
+                    directorUrl={directorUrl}
+                    onDirectorUrl={handleDirectorUrl}
                     onFindStage={handleFindStage}
                     quality={quality}
                     detected={detected}

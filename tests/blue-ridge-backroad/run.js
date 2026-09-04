@@ -42,6 +42,24 @@ const HARNESS = () => {
             for (let i = 0; i < n; i++) g.tick(1 / 60);
             g.setRenderEnabled(true);
         },
+        /**
+         * Drive for `seconds`, yielding to the event loop every couple of them.
+         *
+         * The director is asynchronous by construction — it awaits an endpoint —
+         * so a tight synchronous `for` loop of `tick()` calls can never see it
+         * answer, however long it runs for. Nothing is wrong with the director
+         * in that case; the test simply never gave the microtask queue a chance
+         * to drain. Any check on director behaviour has to drive through this.
+         */
+        async driveFor(seconds, block = 2) {
+            let done = 0;
+            while (done < seconds) {
+                const span = Math.min(block, seconds - done);
+                this.autopilot(span, { keyThrottle: true });
+                done += span;
+                await new Promise((r) => setTimeout(r, 0));
+            }
+        },
         /** One drawn frame, so renderer.info reflects the real scene. */
         draw() {
             g.setRenderEnabled(true);
@@ -1114,6 +1132,350 @@ const startDriving = async (page) => {
     );
 
     await page.evaluate(() => window.brb.game.setChaptersEnabled(false));
+
+    // -------------------------------------------------------- L: the director
+
+    // The director never gets a real model in the suite. Every check below runs
+    // against a stub endpoint installed from the page, which is the point: the
+    // cadence, the validation, the commit points and the failure handling are
+    // the product, and none of them should depend on what is at the other end.
+    const installEndpoint = (body) =>
+        page.evaluate((src) => {
+            // eslint-disable-next-line no-new-func
+            window.__ep = new Function('return ' + src)();
+            window.brb.game.director.setEndpoint(window.__ep);
+        }, body);
+
+    const ALWAYS = `({
+        kind: 'local',
+        calls: 0,
+        propose(brief) {
+            this.calls += 1;
+            this.lastBrief = brief;
+            return Promise.resolve({
+                chapter: 'switchbacks',
+                surface: 'greasy',
+                event: 'none',
+                reason: 'Testing: tightening the road up.'
+            });
+        }
+    })`;
+
+    // L1 — off, and off means nothing exists to go wrong.
+    const dirOff = await page.evaluate(() => window.brb.game.directorReportForTest());
+    check(
+        dirOff.enabled === false && dirOff.status === 'off' && dirOff.patches === 0,
+        'L1 the director is off by default',
+        JSON.stringify({ enabled: dirOff.enabled, status: dirOff.status })
+    );
+
+    // L2 — the validator. This is the security boundary, so it is checked
+    // directly rather than inferred from behaviour.
+    const validation = await page.evaluate(() => {
+        const g = window.brb.game;
+        const v = (raw) => g.validatePatchForTest(raw);
+        const good = { chapter: 'switchbacks', surface: 'damp', event: 'foggy_hollow', reason: 'ok' };
+        return {
+            good: v(good) !== null,
+            unknownChapter: v({ ...good, chapter: 'the_moon' }),
+            unknownSurface: v({ ...good, surface: 'ice' }),
+            unknownEvent: v({ ...good, event: 'dragon' }),
+            noReason: v({ ...good, reason: '   ' }),
+            notObject: v('switchbacks'),
+            array: v([good]),
+            nullish: v(null),
+            eventOptional: v({ chapter: 'open', surface: 'dry', reason: 'fine' }) !== null,
+            // Control characters and newlines are stripped; length is capped.
+            dirty: v({ ...good, reason: 'a b' + String.fromCharCode(10) + 'c' + String.fromCharCode(0x200b) + 'd' }).reason,
+            long: v({ ...good, reason: 'x'.repeat(400) }).reason.length
+        };
+    });
+    check(validation.good && validation.eventOptional, 'L2 a well-formed patch validates');
+    check(
+        validation.unknownChapter === null &&
+            validation.unknownSurface === null &&
+            validation.unknownEvent === null,
+        'L2b an unknown name is rejected outright, not clamped to something valid'
+    );
+    check(
+        validation.noReason === null &&
+            validation.notObject === null &&
+            validation.array === null &&
+            validation.nullish === null,
+        'L2c junk of every shape is rejected'
+    );
+    check(validation.dirty === 'a b c d', 'L2d displayed text is stripped of control characters', validation.dirty);
+    check(validation.long <= 120, 'L2e and capped in length', `${validation.long} chars`);
+
+    // L3 — turning it on turns chapters on, because that is its only lever.
+    const turnedOn = await page.evaluate(() => {
+        const g = window.brb.game;
+        g.restartFree();
+        g.setDirectorEnabled(true);
+        return { chapters: g.chaptersEnabled, status: g.directorReportForTest().status, mode: g.currentMode };
+    });
+    check(
+        turnedOn.chapters && turnedOn.status === 'watching' && turnedOn.mode === 'free',
+        'L3 enabling the director enables chapters',
+        JSON.stringify(turnedOn)
+    );
+
+    // L4 — with an endpoint that always answers, a patch lands, and it lands on
+    // road that has not been built yet.
+    await installEndpoint(ALWAYS);
+    const landed = await page.evaluate(async () => {
+        const g = window.brb.game;
+        g.restartFree();
+        g.setDirectorEnabled(true);
+        await window.__h.driveFor(200);
+        const r = g.directorReportForTest();
+        return {
+            patches: r.patches,
+            calls: window.__ep.calls,
+            applied: r.applied,
+            s: g.physics.s,
+            built: g.pathForTest.generatedThroughS,
+            chapterThere: r.applied ? g.chapterAtForTest(r.applied.startS + 700).name : ''
+        };
+    });
+    check(landed.patches >= 1, 'L4 a patch lands during a drive', `${landed.patches} in 200 s, ${landed.calls} calls`);
+    check(
+        landed.applied && landed.chapterThere === 'switchbacks',
+        'L4b the road it names is the road that appears there',
+        `${landed.chapterThere}`
+    );
+    // Measured against where the truck was *when the patch landed*, not where
+    // it ended up: by the end of a 200 s drive the truck is long past it, and
+    // comparing against the final position says nothing.
+    check(
+        landed.applied && landed.applied.startS > landed.applied.atS,
+        'L4c it lands ahead of the truck, never underneath it',
+        landed.applied ? `${(landed.applied.startS - landed.applied.atS).toFixed(0)} m ahead at the time` : 'no patch'
+    );
+    check(
+        landed.applied && landed.applied.startS > landed.applied.builtS,
+        'L4d and on road that had not been generated yet, so no rebuild can revert it',
+        landed.applied ? `${(landed.applied.startS - landed.applied.builtS).toFixed(0)} m past the built head` : 'no patch'
+    );
+
+    // L5 — the floor between applied patches holds. A world that can churn every
+    // few seconds is worse than one that never changes.
+    const spacing = await page.evaluate(async () => {
+        const g = window.brb.game;
+        g.restartFree();
+        g.setDirectorEnabled(true);
+        await window.__h.driveFor(240);
+        return { patches: g.directorReportForTest().patches, seconds: 240 };
+    });
+    check(
+        spacing.patches <= Math.ceil(spacing.seconds / 45),
+        'L5 patches never land closer together than the floor allows',
+        `${spacing.patches} in ${spacing.seconds} s`
+    );
+
+    // L6 — the timed stage is never touched, whatever the director is doing.
+    const stageUntouched = await page.evaluate(async () => {
+        const g = window.brb.game;
+        g.setDirectorEnabled(true);
+        g.setMode('stage');
+        const before = g.directorReportForTest().patches;
+        await window.__h.driveFor(120);
+        const c = g.chapterAtForTest(g.physics.s);
+        const after = g.directorReportForTest().patches;
+        g.setMode('free');
+        return { before, after, twist: c.twistiness, grip: c.grip };
+    });
+    check(
+        stageUntouched.after === stageUntouched.before && stageUntouched.twist < 0 && stageUntouched.grip === 1,
+        'L6 the director does not run on the timed stage',
+        JSON.stringify(stageUntouched)
+    );
+
+    // L7 — an endpoint that never answers. This is the case the whole design is
+    // built around, so the assertion is about the game, not the director: it
+    // keeps driving and the co-driver keeps calling.
+    await installEndpoint(`({ kind: 'local', propose() { return new Promise(() => {}); } })`);
+    const hung = await page.evaluate(async () => {
+        const g = window.brb.game;
+        g.restartFree();
+        g.setDirectorEnabled(true);
+        await window.__h.driveFor(200);
+        const r = g.directorReportForTest();
+        return {
+            status: r.status,
+            patches: r.patches,
+            failures: r.failures,
+            note: window.brb.telemetry.paceNote,
+            miles: window.brb.telemetry.miles,
+            mph: window.brb.telemetry.mph
+        };
+    });
+    check(hung.patches === 0, 'L7 a hung endpoint applies nothing', `${hung.patches} patches`);
+    check(hung.status === 'unreachable' && hung.failures >= 1, 'L7b and reports itself unreachable', JSON.stringify({ status: hung.status, failures: hung.failures }));
+    check(hung.miles > 0.5 && hung.mph > 5, 'L7c the drive is completely unaffected', `${hung.miles.toFixed(2)} mi at ${hung.mph.toFixed(0)} mph`);
+    check(typeof hung.note === 'string', 'L7d the co-driver keeps working, because it never needed a model');
+
+    // L8 — an endpoint that answers with rubbish is exactly a timeout: nothing
+    // is applied, not even the parts that happened to be valid.
+    await installEndpoint(
+        `({ kind: 'local', propose() { return Promise.resolve({ chapter: 'the_moon', surface: 'damp', event: 'none', reason: 'hi' }); } })`
+    );
+    const garbage = await page.evaluate(async () => {
+        const g = window.brb.game;
+        g.restartFree();
+        g.setDirectorEnabled(true);
+        await window.__h.driveFor(180);
+        const r = g.directorReportForTest();
+        return { patches: r.patches, status: r.status, surface: g.chapterAtForTest(g.physics.s + 3000).surface };
+    });
+    check(garbage.patches === 0, 'L8 a schema violation applies nothing at all', `${garbage.patches} patches`);
+    check(garbage.status === 'unreachable', 'L8b it is treated exactly like a timeout', garbage.status);
+
+    // L9 — ramp-home. A patch lands, the endpoint then dies, and the road ahead
+    // goes back to the schedule rather than holding the last patch for ever.
+    await installEndpoint(ALWAYS);
+    const home = await page.evaluate(async () => {
+        const g = window.brb.game;
+        g.restartFree();
+        g.setDirectorEnabled(true);
+        await window.__h.driveFor(200);
+        const r = g.directorReportForTest();
+        if (!r.applied) return { landed: false };
+        const slot = r.applied.slot;
+        const heldBefore = g.pathForTest.chapters.hasOverride(slot);
+        // Now kill it. Two failures is the threshold for handing the road back.
+        window.__ep.propose = () => Promise.reject(new Error('down'));
+        await window.__h.driveFor(220);
+        return {
+            landed: true,
+            slot,
+            heldBefore,
+            heldAfter: g.pathForTest.chapters.hasOverride(slot),
+            aheadCleared: !g.pathForTest.chapters.hasOverride(slot + 40),
+            status: g.directorReportForTest().status
+        };
+    });
+    check(home.landed && home.heldBefore, 'L9 a patch is held as a slot override');
+    check(home.landed && home.aheadCleared && home.status === 'unreachable', 'L9b when the endpoint dies the road ahead is handed back to the schedule', JSON.stringify(home));
+
+    // L10 — the handling is never touched. This is the promise in §5, and it is
+    // the one a player would feel betrayed by.
+    const handling = await page.evaluate(async () => {
+        const g = window.brb.game;
+        const snap = () => {
+            const d = g.physics.difficulty;
+            return { stability: d.stability, rearBias: d.rearBias, catchLock: d.catchLock, offRoadDrag: d.offRoadDrag };
+        };
+        g.restartFree();
+        g.setDirectorEnabled(true);
+        const before = snap();
+        await window.__h.driveFor(200);
+        return { before, after: snap(), patches: g.directorReportForTest().patches };
+    });
+    check(
+        JSON.stringify(handling.before) === JSON.stringify(handling.after),
+        'L10 the director never touches how the truck handles',
+        `${handling.patches} patches applied, handling identical`
+    );
+
+    // L11 — turning it off hands everything back and leaves no trace.
+    const offAgain = await page.evaluate(() => {
+        const g = window.brb.game;
+        g.setDirectorEnabled(false);
+        const r = g.directorReportForTest();
+        g.setChaptersEnabled(false);
+        g.restartFree();
+        // The chapter label is written by the 10 Hz block, so it has to be
+        // driven for a moment before it is read — reading it straight after a
+        // restart reports the label from the drive that just ended.
+        window.__h.sim(0.3);
+        return { status: r.status, chapters: g.chaptersEnabled, label: window.brb.telemetry.chapter };
+    });
+    check(
+        offAgain.status === 'off' && offAgain.chapters === false && offAgain.label === '',
+        'L11 turning it off leaves the road exactly as it was',
+        JSON.stringify(offAgain)
+    );
+
+    // L13 — how a window of driving is read. The thresholds here were measured
+    // rather than guessed, and the measurement moved them a long way, so this
+    // is the check that keeps them honest.
+    const going = await page.evaluate(() => {
+        const g = window.brb.game;
+        const brief = (o) => ({
+            miles: 5, chapter: 'open', surface: 'dry',
+            spins: 0, excursions: 0, recoveries: 0,
+            meanMph: 100, maxMph: 120, lastMile: 60, lastMileDelta: 0,
+            windowMiles: 2, trigger: '', ...o
+        });
+        return {
+            // Measured on Easy: two off-road clips in a two-mile window at
+            // 120 mph is what a good run looks like on this road.
+            fastAndClean: g.classifyForTest(brief({ excursions: 2, windowMiles: 2, meanMph: 120 })),
+            // Measured on Medium going badly: the same *count* over a fifth of
+            // the distance, at half the speed.
+            comingApart: g.classifyForTest(brief({ excursions: 6, windowMiles: 0.4, meanMph: 53 })),
+            spinning: g.classifyForTest(brief({ spins: 6, windowMiles: 0.2, meanMph: 23 })),
+            // Asking to be put back on the road is unambiguous on its own.
+            recovered: g.classifyForTest(brief({ recoveries: 1 })),
+            crawling: g.classifyForTest(brief({ meanMph: 20 })),
+            spotless: g.classifyForTest(brief({ meanMph: 90 }))
+        };
+    });
+    check(
+        going.fastAndClean === 'cruising' && going.spotless === 'cruising',
+        'L13 a fast clean window reads as cruising, clips and all',
+        JSON.stringify(going)
+    );
+    check(
+        going.comingApart === 'struggling' && going.spinning === 'struggling' && going.recovered === 'struggling',
+        'L13b a window that is genuinely going wrong reads as trouble',
+        JSON.stringify(going)
+    );
+    check(
+        going.fastAndClean !== going.comingApart,
+        'L13c the same incident count reads differently over different distances — the point of using a rate',
+        `2 clips in 2 mi = ${going.fastAndClean}, 6 in 0.4 mi = ${going.comingApart}`
+    );
+    check(going.crawling === 'settled', 'L13d and a slow pootle is neither', going.crawling);
+
+    // L14 — the built-in policy is what almost everyone will run, so it has to
+    // be worth running: it must actually move the road around. The first
+    // version visited three of the eight chapters over twelve minutes, because
+    // "open the road out" always resolves to the same two or three.
+    const policy = await page.evaluate(async () => {
+        const g = window.brb.game;
+        const ep = g.newLocalPolicyForTest();
+        const picks = [];
+        let chapter = 'open';
+        for (let i = 0; i < 12; i++) {
+            // Alternate how the drive is going, the way a real one does.
+            const bad = i % 3 === 0;
+            const raw = await ep.propose({
+                miles: i * 2, chapter, surface: 'dry',
+                spins: bad ? 5 : 0, excursions: bad ? 6 : 1, recoveries: 0,
+                meanMph: bad ? 40 : 95, maxMph: 120,
+                lastMile: 60, lastMileDelta: 0, windowMiles: bad ? 0.5 : 2.5, trigger: ''
+            });
+            const patch = g.validatePatchForTest(raw);
+            if (!patch) return { invalid: i };
+            picks.push(patch);
+            chapter = patch.chapter;
+        }
+        return {
+            chapters: new Set(picks.map((p) => p.chapter)).size,
+            surfaces: new Set(picks.map((p) => p.surface)).size,
+            events: picks.filter((p) => p.event !== 'none').length,
+            repeatedInPlace: picks.some((p, i) => i > 0 && p.chapter === picks[i - 1].chapter)
+        };
+    });
+    check(policy.invalid === undefined, 'L14 every patch the built-in policy emits passes its own validator');
+    check(policy.chapters >= 5, 'L14b it moves the road around rather than settling into a rut', `${policy.chapters} of 8 chapters in 12 changes`);
+    check(policy.surfaces >= 3, 'L14c and varies the surface', `${policy.surfaces} surfaces`);
+    check(policy.events >= 2, 'L14d and puts something out there to find', `${policy.events} set-pieces`);
+    check(!policy.repeatedInPlace, 'L14e it never picks the chapter already in force');
+
+    check(errors.length === 0, 'L12 no console errors from any of it', errors.slice(0, 3).join(' | '));
 
     // ------------------------------------------------------ H: the co-driver
 

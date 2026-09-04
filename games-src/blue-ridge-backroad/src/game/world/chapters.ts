@@ -234,15 +234,57 @@ export class ChapterSchedule {
         return previous;
     }
 
+    /**
+      * A surface forced onto a slot, independent of the chapter occupying it.
+      *
+      * Chapters carry a default surface, but surface is the one lever that is
+      * genuinely weather rather than terrain — a greasy morning does not change
+      * what the road is shaped like. Keeping it separately overridable lets the
+      * director say "same road, but damp" without having to find a chapter that
+      * happens to bundle those two together.
+      */
+    private readonly surfaceOverrides = new Map<number, SurfaceName>();
+
     /** Force a chapter into a slot. Slots already behind the vehicle are the caller's problem. */
     override(slot: number, chapterIndex: number): void {
         this.overrides.set(slot, clamp(chapterIndex, 0, CHAPTERS.length - 1));
         this.resolved.clear();
     }
 
+    /** Force a surface onto a slot, leaving the chapter alone. */
+    overrideSurface(slot: number, surface: SurfaceName): void {
+        this.surfaceOverrides.set(slot, surface);
+    }
+
     clearOverrides(): void {
         this.overrides.clear();
+        this.surfaceOverrides.clear();
         this.resolved.clear();
+    }
+
+    /**
+     * Drop every override from `slot` onward, leaving earlier road untouched.
+     *
+     * This is the ramp-home path (AI-DIRECTOR §9): when the director stops
+     * answering, the road ahead reverts to the procedural schedule rather than
+     * holding the last patch for ever. The decay is not abrupt — the chapter
+     * ramp already blends across `CHAPTER_RAMP` metres, so the reverted stretch
+     * eases in exactly like any other transition.
+     */
+    clearFrom(slot: number): void {
+        for (const key of [...this.overrides.keys()]) if (key >= slot) this.overrides.delete(key);
+        for (const key of [...this.surfaceOverrides.keys()]) if (key >= slot) this.surfaceOverrides.delete(key);
+        this.resolved.clear();
+    }
+
+    /** Whether anything has been forced onto `slot`. */
+    hasOverride(slot: number): boolean {
+        return this.overrides.has(slot) || this.surfaceOverrides.has(slot);
+    }
+
+    /** The surface a slot ends up with: the override if there is one, else the chapter's. */
+    surfaceForSlot(slot: number): SurfaceName {
+        return this.surfaceOverrides.get(slot) ?? CHAPTERS[this.indexAt(slot)].surface;
     }
 
     chapterAt(s: number): Chapter {
@@ -288,8 +330,8 @@ export class ChapterSchedule {
         scratch.widthTarget = mix(from.widthTarget, here.widthTarget);
         scratch.fogBias = mix(from.fogBias, here.fogBias);
         scratch.timeOfDay = mix(from.timeOfDay, here.timeOfDay);
-        const sa = SURFACES[from.surface];
-        const sb = SURFACES[here.surface];
+        const sa = SURFACES[this.surfaceForSlot(local < CHAPTER_RAMP && slot > 0 ? slot - 1 : slot)];
+        const sb = SURFACES[this.surfaceForSlot(slot)];
         scratch.grip = mix(sa.grip, sb.grip);
         scratch.drag = mix(sa.drag, sb.drag);
         return scratch;
@@ -297,6 +339,7 @@ export class ChapterSchedule {
 
     /** The surface in force, for the co-driver to call. Not blended — it is a name. */
     surfaceAt(s: number): Surface {
-        return SURFACES[this.chapterAt(s).surface];
+        if (!this.enabled) return SURFACES.dry;
+        return SURFACES[this.surfaceForSlot(Math.floor(s / CHAPTER_LENGTH))];
     }
 }

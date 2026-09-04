@@ -1,7 +1,11 @@
 # Blue Ridge Backroad — AI Director
 
-**Status:** design, not built. Revised after review; the review changed the shape
-of it substantially, and the changes are noted where they land.
+**Status:** steps 1-4 of 5 built and in the game (§13). Only forks remain.
+Revised after review; the review changed the shape of it substantially, and the
+changes are noted where they land. Where building something contradicted the
+design, the design is corrected in place and the correction is noted — the
+measurements behind each one are in `games-src/blue-ridge-backroad/DECISIONS.md`
+under D7 to D10.
 
 The original question: *can a locally-hosted LLM be linked to a running browser
 driving game and change the world as you drive?*
@@ -308,6 +312,16 @@ Most of the original list is now answered. What is genuinely still open:
 
 ## 13. Build order
 
+**Built so far:**
+
+| step | state | where |
+|---|---|---|
+| 1. Pace notes | built | `src/game/codriver/` |
+| 2. Chapters and the ramp | built | `src/game/world/chapters.ts` |
+| 3. The scout | built | `src/game/scout/Scout.ts` |
+| 4. The director | built | `src/game/director/` |
+| 5. Forks | not started | — |
+
 1. **Deterministic pace-note generator** — closed grammar, no model, plus
    publishing `rise[]` in telemetry. Standalone value, and it is the fallback
    layer everything else leans on.
@@ -322,3 +336,72 @@ Most of the original list is now answered. What is genuinely still open:
 
 Note the ordering: the model is step four of five. If steps one to three are
 built and the model never arrives, the game is still better than it is today.
+
+
+---
+
+## 14. As built — where the design was wrong
+
+Four things in the sections above did not survive contact with a working
+implementation. They are corrected here rather than quietly left stale.
+
+**§6's patch schema gave the model slot numbers.** `slots: [{ n, event }]` asks a
+model to name absolute schedule indices, and it has no way to know which of them
+are still ahead of generated road — so it would be inventing integers that index
+into a determinism-critical map. As built, the model names *what* goes in the
+next free slot and the game decides *which* slot that is. It also refuses to
+overwrite a set-piece the schedule already placed: a director that destroys
+content is strictly worse than one that only adds it.
+
+**§9's ramp-home predates chapters.** "The last valid patch decays to neutral
+over ~4 chunks" was written when a patch was six floats. With chapters, clearing
+the overrides from the first unwritten slot is simpler and better — the schedule
+resumes its own sequence and the existing 420 m chapter ramp blends the reverted
+stretch in exactly like any other transition.
+
+**The trigger thresholds in §9 were guesses, and they were badly wrong.** "A spin
+count must clear its threshold twice" was right about hysteresis and silent about
+what the threshold should be. Two off-road excursions since the last change
+sounded like trouble; measured, it fired on every proposal during a clean 120 mph
+run on Easy, because a fast window is a long window. Incidents have to be a rate
+per mile, not a count per window. See D10.4.
+
+**§4 claimed crests.** `CoursePreview` computes a `rise[]` array and the note
+grammar was built to call crests from it — but measured at preview scale, this
+road does not have any: `maxTurn36m` came out at essentially zero everywhere.
+Crest calls were cut and gradient is called instead. See D7.
+
+Two things in the design turned out to matter more than they read on the page.
+**"Search in code, taste in the model" (§7.1) is the whole architecture**, not
+just the scout's design — the director works the same way, ranking nothing and
+choosing from a menu the game already knows how to build. And **§5's insistence
+that grip is a surface property, not a difficulty property**, is what makes the
+director safe to ship at all: because it can only move weather, and only when the
+co-driver says so, there is no version of it that quietly changes how the truck
+handles.
+
+## 15. Running it against a real model
+
+The endpoint is optional and off by default; with the field empty a policy built
+into the game does the choosing, and that is what the model has to beat.
+
+To point it at a box:
+
+1. Serve a chat endpoint. Ollama's `/api/chat` is what the client speaks, and an
+   OpenAI-compatible `/v1/chat/completions` works too — the response is read from
+   either shape. Set `format` / `response_format` is already sent; a 3-4B model
+   under that grammar emits valid patches reliably (§10).
+2. Allow the game's origin with CORS.
+3. Give the host TLS. **This is the step people will skip.** The deployed game is
+   HTTPS, and a browser silently refuses a plain `http://` request from it — the
+   director will simply report itself unreachable and the game will carry on
+   without it. Tailscale Serve or a Cloudflare tunnel solves this and the
+   remote-access problem at once. Running the game from a local dev server on
+   `127.0.0.1` avoids it entirely, which is the easiest way to experiment.
+4. Paste the URL into Settings → Director → Model endpoint.
+
+Judging whether it is worth it: the built-in policy is deliberately a real
+policy, so the comparison is meaningful. Watch whether the model's reasons make
+sense against what actually just happened, and whether its picks are less
+predictable than a band-and-rotate heuristic. That is question 4 in §12, and it
+is now answerable.

@@ -695,3 +695,98 @@ built-in one does, and the test asserts it.
 **D9.6 — The built-in stage keeps its old storage key.** Records are keyed per
 stage now, but `hollow-creek` still writes `brb.stage.v3.<difficulty>` rather
 than a suffixed key, so times set before any of this existed still count.
+
+## D10 — The director
+
+**D10.1 — The model chooses from a menu; it never returns anything the game
+acts on numerically.** A patch is four fields and three of them are *names*
+looked up in tables that ship with the game: a chapter, a surface, a set-piece.
+There is no float in it anywhere. The design doc had already ruled out returning
+JavaScript to `eval`; this goes further, because the interesting attack is not
+code execution but a plausible-looking number in a field that reaches the
+generator. The worst a hostile or broken endpoint can now do is pick a
+combination that is dull — which the game already survives, since the procedural
+schedule picks combinations at random.
+
+The fourth field, `reason`, is free text shown to the player so a change of scene
+has a stated cause. It is treated as hostile: control characters, zero-width and
+bidi codepoints stripped, collapsed to one line, capped at 120 characters,
+rendered as text, never spoken and never fed to the co-driver's grammar. What
+*is* spoken on a surface change is the surface's own authored call string.
+
+**D10.2 — Validation rejects; it does not clamp.** An unknown chapter name is a
+rejected patch, not a clamp to chapter zero, and a rejected patch is treated as
+identical to a timeout. There is no partial application, because a half-applied
+patch is a world state nothing generated and nothing can reproduce.
+
+**D10.3 — Two clocks, because a slow model has to be harmless.** Proposals fire
+on triggers with hysteresis — a condition must hold on two consecutive
+evaluations a second apart, so one bad corner does not redirect the world.
+Applications wait for a mile marker, with a 45-second floor between them. The
+separation is what makes latency a non-issue: the request can take as long as it
+likes, because it is landing at the next mile marker either way. A patch that
+waits more than a minute without reaching a marker gives up waiting, since a
+driver at 20 mph is four minutes from the next one and a director that never
+lands is indistinguishable from a broken one.
+
+**D10.4 — The trigger thresholds were measured, and the measurement moved them a
+long way.** The first version called it trouble when a window contained two
+off-road excursions. That sounded reasonable and was wrong. Measured over seven
+minutes on each difficulty, *every* proposal on Easy fired as "a run of trouble"
+on a clean 120 mph run — because a fast window is a long window, and two verge
+clips across two miles is what good driving on this road looks like.
+
+Expressed as a rate the two separate cleanly: ordinary quick driving sits at 0 to
+1.5 excursions and under one spin per mile, while the windows that were genuinely
+coming apart measured 11 to 17 excursions per mile at half the speed. The bar
+sits between those, not near either. After the change, Easy reads as cruising
+throughout and Expert produces a mix, which is what those difficulties are for.
+
+The first attempt to measure this was itself wrong in an instructive way: it
+sampled `slipAmount` fifty times in a row *after* each simulation block rather
+than during it, so it read one instant fifty times and reported zero spins
+everywhere. The fix was to stop writing a second instrument and read the
+director's own counters, which already sample at the right rate.
+
+**D10.5 — The built-in policy is the product; the model is optional.** Almost
+nobody will configure an endpoint, so the fallback is written as a real policy —
+contrast and recovery, open the road out after trouble, ask a harder question
+after a clean fast stretch — rather than a random pick. That also gives any model
+something to be measured against, which is the only way to find out whether it
+adds anything.
+
+It needed the same treatment as the thresholds. The first version visited three
+of the eight chapters across eight patches over twelve minutes of driving,
+because "open the road out" always resolves to the same two or three most open
+chapters. A preference with no memory is a rut. Adding a three-deep memory of
+recent picks and rotating within a band rather than always taking the extreme
+took it to six of eight, with all four surfaces and set-pieces appearing.
+
+**D10.6 — Ramp-home is the chapter ramp.** The design called for the last patch
+to "decay to neutral over ~4 chunks", which was written before chapters existed.
+With chapters it is simpler: clearing the overrides from the first unwritten slot
+lets the procedural schedule resume, and the existing 420 m chapter ramp blends
+the reverted stretch in exactly like any other transition. Nothing behind the
+vehicle is touched, so the road already driven stays the road that was driven.
+
+**D10.7 — The model does not get to pick slot numbers.** The sketched schema had
+it returning `slots: [{ n, event }]` with absolute indices. That was dropped: the
+model has no way to know which slots are still ahead of generated road, so it
+would be inventing integers that index into a determinism-critical map. The game
+knows which slot is next and free; the model only says what goes in it. Planting
+also refuses to overwrite a set-piece the schedule already placed — a chapter is
+1400 m and event slots are 640 m apart, so there is nearly always an empty one,
+and a director that destroys content is strictly worse than one that adds it.
+
+**D10.8 — The patch count is per drive, not per session.** It is what the panel
+is counting — "the world has changed three times since you set off" — not a
+lifetime total that climbs across restarts and means nothing. The tests caught
+this by reading it as per-drive, which is how a player would read it too.
+
+**D10.9 — Testing an async director needs the test to yield.** The suite drives
+the game through a tight synchronous loop of `tick()` calls, which can never
+observe the director answering, however long it runs — not because anything is
+wrong, but because the microtask queue never drains. Every director check goes
+through a `driveFor` helper that yields every couple of seconds. Worth recording
+next to the ring-clamping foot-gun as the second case where the harness, not the
+game, was the thing that had to change.

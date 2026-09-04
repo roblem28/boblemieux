@@ -177,11 +177,59 @@ export class RoadPath {
         return Math.round(s / EVENT_SPACING);
     }
 
+    /**
+     * Set-pieces forced into slots.
+     *
+     * Consulted from `slotKind`, which means an override reaches the *generator*
+     * — fog and the flattening under a bridge are computed from the schedule
+     * while the road is being built, not applied to it afterwards. That is the
+     * whole requirement in AI-DIRECTOR §3.4: a decision keyed by slot index and
+     * fed back through the same generators survives a level-of-detail rebuild,
+     * where anything applied imperatively to a live object would silently
+     * revert.
+     *
+     * The corollary is that a slot may only be overridden while its road is
+     * still ungenerated. The caller enforces that; `generatedThroughS` is how it
+     * knows where the line is.
+     */
+    private readonly eventOverrides = new Map<number, number>();
+
+    /** Force a set-piece into a slot, or `EVENT_NONE` to empty it. */
+    overrideEventSlot(index: number, kind: number): void {
+        this.eventOverrides.set(index, kind);
+    }
+
+    /** Drop forced set-pieces from `index` onward. The ramp-home path. */
+    clearEventOverridesFrom(index: number): void {
+        for (const key of [...this.eventOverrides.keys()]) if (key >= index) this.eventOverrides.delete(key);
+    }
+
     /** What kind of event slot `index` holds. Pure function of the seed. */
     private slotKind(index: number): number {
         if (index <= 0) return EVENT_NONE;
+        const forced = this.eventOverrides.get(index);
+        if (forced !== undefined) return forced;
         const r = hashFloat((index * 2654435761) ^ (this.seed * 40503));
         return r < 0.62 ? Math.floor(r * 1000) % EVENT_COUNT : EVENT_NONE;
+    }
+
+    /** What kind of event slot `index` holds. Public so the director can find a free one. */
+    kindOfSlot(index: number): number {
+        return this.slotKind(index);
+    }
+
+    /** Where slot `index` sits, publicly. */
+    centreOfSlot(index: number): number {
+        return this.slotCentre(index);
+    }
+
+    /**
+     * How far the sample ring has actually been built. Anything at or below this
+     * is already baked into geometry someone may be looking at; anything above
+     * it is still free to be decided.
+     */
+    get generatedThroughS(): number {
+        return this.head < 0 ? 0 : this.head * STEP;
     }
 
     /** Where slot `index` sits along the road. */
