@@ -23,6 +23,9 @@ interface Props {
     onCoDriver: (m: CoDriverMode) => void;
     speechAvailable: boolean;
     touch: boolean;
+    vehicles: readonly { id: string; name: string; blurb: string }[];
+    vehicle: string;
+    onVehicle: (id: string) => void;
     steerStyle: 'stick' | 'buttons';
     onSteerStyle: (next: 'stick' | 'buttons') => void;
     chapters: boolean;
@@ -60,6 +63,9 @@ export const SettingsPanel = ({
     onCoDriver,
     speechAvailable,
     touch,
+    vehicles,
+    vehicle,
+    onVehicle,
     steerStyle,
     onSteerStyle,
     chapters,
@@ -115,7 +121,30 @@ export const SettingsPanel = ({
                     <span className="row-action">Search</span>
                 </button>
 
-                <h3>Difficulty</h3>
+                <h3>Vehicle</h3>
+            <div className="profile-chips">
+                {vehicles.map((v) => (
+                    <button
+                        key={v.id}
+                        type="button"
+                        className={v.id === vehicle ? 'profile-chip selected' : 'profile-chip'}
+                        onClick={() => onVehicle(v.id)}
+                    >
+                        {v.name}
+                    </button>
+                ))}
+            </div>
+            <p className="setting-note">
+                {vehicles.find((v) => v.id === vehicle)?.blurb}
+                {' '}
+                <em>
+                    Changing this restarts the drive, and each vehicle keeps its own best times —
+                    they lap at different speeds, so one leaderboard across all three would measure
+                    the vehicle rather than the drive.
+                </em>
+            </p>
+
+            <h3>Difficulty</h3>
                 <div className="segmented segmented-4">
                     {DIFFICULTIES.map((d) => (
                         <button

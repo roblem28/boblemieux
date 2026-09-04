@@ -18,6 +18,7 @@ import {
 } from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { WHEEL_RADIUS, type VehiclePhysics } from './VehiclePhysics';
+import { DEFAULT_VEHICLE_ID, vehicleFor, type VehicleSpec } from './vehicles';
 import type { Assets } from '../world/Assets';
 import { clamp, damp } from '../util/mathx';
 
@@ -139,14 +140,31 @@ export class VehicleModel {
     private readonly greenhouse: Mesh[] = [];
     private lightsOn = 0;
 
-    constructor(assets: Assets) {
+    /** Diagnostics: the body scale this vehicle was built at, as one string. */
+    get bodyScaleForTest(): string {
+        const s = this.bodyGroup.scale;
+        return `${s.x.toFixed(2)}x${s.y.toFixed(2)}x${s.z.toFixed(2)}`;
+    }
+
+    /**
+     * Bed panels, so a vehicle without one can drop them.
+     *
+     * The shell is one pickup made of boxes, stretched per vehicle rather than
+     * modelled three times over. Non-uniform scale on the body group does most
+     * of the work, and it is honest about what it is: at the distance a chase
+     * camera sits, length, width, height and ride height are what tell two
+     * vehicles apart, not panel gaps.
+     */
+    private readonly bedParts: Mesh[] = [];
+
+    constructor(assets: Assets, readonly spec: VehicleSpec = vehicleFor(DEFAULT_VEHICLE_ID)) {
         const paint = new MeshStandardMaterial({
-            color: new Color(0.14, 0.26, 0.3),
+            color: new Color(spec.paint[0], spec.paint[1], spec.paint[2]),
             roughness: 0.42,
             metalness: 0.32
         });
         const paintDark = new MeshStandardMaterial({
-            color: new Color(0.09, 0.15, 0.17),
+            color: new Color(spec.paintDark[0], spec.paintDark[1], spec.paintDark[2]),
             roughness: 0.5,
             metalness: 0.3
         });
@@ -212,15 +230,22 @@ export class VehicleModel {
         // ------------------------------------------------------------- wheels
         const tireGeo = this.track(makeTire());
         const rimGeo = this.track(makeRim());
+        // Straight off the spec, so the wheels are always under the axles the
+        // physics is solving. They used to be four hard-coded pairs, which was
+        // fine with one vehicle and wrong the moment there were three.
+        const halfTrack = spec.track * 0.5;
+        const rearZ = -(spec.wheelbase - spec.aFront);
+        const wheelScale = spec.body.wheelRadius;
         const positions: [number, number][] = [
-            [-0.83, 1.44],
-            [0.83, 1.44],
-            [-0.83, -1.51],
-            [0.83, -1.51]
+            [-halfTrack, spec.aFront],
+            [halfTrack, spec.aFront],
+            [-halfTrack, rearZ],
+            [halfTrack, rearZ]
         ];
         for (const [x, z] of positions) {
             const node = new Object3D();
-            node.position.set(x, WHEEL_RADIUS, z);
+            node.position.set(x, WHEEL_RADIUS * wheelScale, z);
+            node.scale.setScalar(wheelScale);
             const spin = new Object3D();
             const tire = new Mesh(tireGeo, rubber);
             tire.castShadow = true;
@@ -294,10 +319,31 @@ export class VehicleModel {
         // Sat back between the seats rather than up against the dash: moving
         // the eye forward makes the dash *nearer*, so its top face swells to
         // fill the screen. Back here it reads as a strip along the bottom.
-        this.cockpitAnchor.position.set(0.36, 1.78, -0.15);
-        this.hoodAnchor.position.set(0, 1.86, 1.5);
-        this.chaseAnchor.position.set(0, 1.5, -1.2);
+        // Anchors hang off the chassis, not the scaled body, so they have to be
+        // scaled by hand. A cockpit anchor left at the truck's height sits above
+        // the roof of anything lower.
+        const bw = spec.body.width;
+        const bh = spec.body.height;
+        const bl = spec.body.length;
+        const lift = spec.body.lift;
+        this.cockpitAnchor.position.set(0.36 * bw, 1.78 * bh + lift, -0.15 * bl);
+        this.hoodAnchor.position.set(0, 1.86 * bh + lift, 1.5 * bl);
+        this.chaseAnchor.position.set(0, 1.5 * bh + lift, -1.2 * bl);
         this.chassis.add(this.cockpitAnchor, this.hoodAnchor, this.chaseAnchor);
+
+        // The body is stretched; the wheels are not, because a scaled wheel is
+        // an oval and reads as broken immediately.
+        this.bodyGroup.scale.set(bw, bh, bl);
+        this.bodyGroup.position.y += lift;
+
+        if (!spec.body.bed) {
+            // A closed back rather than an open box. Cheaper and more
+            // convincing than hiding the walls and leaving a hole where the
+            // floor was.
+            for (const part of this.bedParts) part.visible = false;
+            this.add(this.bodyGroup, boxAt(1.74, 0.82, 1.9, 0, 1.42, -1.5), paint);
+            this.add(this.bodyGroup, boxAt(1.4, 0.44, 0.07, 0, 1.72, -0.62), glass, false);
+        }
 
         this.root.add(this.chassis);
     }
@@ -373,12 +419,12 @@ export class VehicleModel {
 
         // Bed: floor plus four walls, so it reads as an open pickup box.
         const bedFloor = boxAt(1.78, 0.12, 2.0, 0, 1.02, -1.55);
-        this.add(g, bedFloor, m.paintDark);
+        this.bedParts.push(this.add(g, bedFloor, m.paintDark));
         for (const x of [-0.88, 0.88]) {
-            this.add(g, boxAt(0.11, 0.46, 2.02, x, 1.28, -1.55), m.paint);
+            this.bedParts.push(this.add(g, boxAt(0.11, 0.46, 2.02, x, 1.28, -1.55), m.paint));
         }
-        this.add(g, boxAt(1.8, 0.46, 0.1, 0, 1.28, -2.53), m.paint);
-        this.add(g, boxAt(1.8, 0.46, 0.09, 0, 1.28, -0.58), m.paint);
+        this.bedParts.push(this.add(g, boxAt(1.8, 0.46, 0.1, 0, 1.28, -2.53), m.paint));
+        this.bedParts.push(this.add(g, boxAt(1.8, 0.46, 0.09, 0, 1.28, -0.58), m.paint));
 
         // Bumpers, grille, skid plate.
         this.add(g, boxAt(1.94, 0.24, 0.24, 0, 0.78, 2.58), m.chrome);

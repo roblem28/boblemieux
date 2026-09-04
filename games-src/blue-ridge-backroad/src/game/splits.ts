@@ -10,6 +10,8 @@
  * recorded as a best.
  */
 
+import { DEFAULT_VEHICLE_ID } from './vehicle/vehicles';
+
 export const MILE_METRES = 1609.344;
 // Per difficulty, for the same reason as the stage records.
 const STORE_PREFIX = 'brb.splits.v2.';
@@ -18,9 +20,24 @@ const MAX_TRACKED_MILE = 200;
 
 export type BestTimes = Record<number, number>;
 
-export const loadBests = (difficulty: string): BestTimes => {
+/**
+ * Records are keyed by everything that changes what a good time *is*: the
+ * difficulty, and now the vehicle. A lap in the Coupe is not a lap in
+ * the Hauler, and one leaderboard across both would measure the vehicle rather
+ * than the drive.
+ *
+ * Each part is appended only when it is not the default, so the combination the
+ * game shipped with keeps the exact key it has always had and every time set
+ * before any of this existed still counts. That is also why the key grows
+ * rightwards instead of the prefix being versioned again: a version bump throws
+ * away everyone's times.
+ */
+export const splitKeyFor = (difficulty: string, vehicleId: string): string =>
+    vehicleId === DEFAULT_VEHICLE_ID ? STORE_PREFIX + difficulty : `${STORE_PREFIX}${difficulty}.${vehicleId}`;
+
+export const loadBests = (difficulty: string, vehicleId = DEFAULT_VEHICLE_ID): BestTimes => {
     try {
-        const raw = localStorage.getItem(STORE_PREFIX + difficulty);
+        const raw = localStorage.getItem(splitKeyFor(difficulty, vehicleId));
         if (!raw) return {};
         const parsed: unknown = JSON.parse(raw);
         if (!parsed || typeof parsed !== 'object') return {};
@@ -37,17 +54,17 @@ export const loadBests = (difficulty: string): BestTimes => {
     }
 };
 
-export const saveBests = (difficulty: string, bests: BestTimes): void => {
+export const saveBests = (difficulty: string, bests: BestTimes, vehicleId = DEFAULT_VEHICLE_ID): void => {
     try {
-        localStorage.setItem(STORE_PREFIX + difficulty, JSON.stringify(bests));
+        localStorage.setItem(splitKeyFor(difficulty, vehicleId), JSON.stringify(bests));
     } catch {
         /* private mode, or storage full — the timer still works, it just forgets */
     }
 };
 
-export const clearBests = (difficulty: string): void => {
+export const clearBests = (difficulty: string, vehicleId = DEFAULT_VEHICLE_ID): void => {
     try {
-        localStorage.removeItem(STORE_PREFIX + difficulty);
+        localStorage.removeItem(splitKeyFor(difficulty, vehicleId));
     } catch {
         /* nothing to do */
     }
@@ -72,6 +89,7 @@ const NONE: SplitResult = { completedMile: -1, time: 0, delta: NaN, isBest: fals
  */
 export class SplitTimer {
     private difficulty: string;
+    private vehicleId: string = DEFAULT_VEHICLE_ID;
     private bests: BestTimes;
     private mileStart = 0;
     private lastMile = 0;
@@ -87,6 +105,13 @@ export class SplitTimer {
     }
 
     /** Switch to another difficulty's records. */
+    /** Switch to another vehicle's mile records. */
+    setVehicle(vehicleId: string): void {
+        if (vehicleId === this.vehicleId) return;
+        this.vehicleId = vehicleId;
+        this.bests = loadBests(this.difficulty, this.vehicleId);
+    }
+
     setDifficulty(difficulty: string): void {
         if (difficulty === this.difficulty) return;
         this.difficulty = difficulty;
@@ -142,7 +167,7 @@ export class SplitTimer {
         const isBest = eligible && (previous === 0 || time < previous);
         if (isBest) {
             this.bests[completed] = time;
-            saveBests(this.difficulty, this.bests);
+            saveBests(this.difficulty, this.bests, this.vehicleId);
         }
 
         this.result.completedMile = completed;
@@ -158,7 +183,7 @@ export class SplitTimer {
 
     forgetBests(): void {
         this.bests = {};
-        clearBests(this.difficulty);
+        clearBests(this.difficulty, this.vehicleId);
     }
 }
 

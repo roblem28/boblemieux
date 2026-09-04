@@ -14,6 +14,7 @@ import { ChunkManager } from './world/ChunkManager';
 import { Sky } from './world/Sky';
 import { VehiclePhysics } from './vehicle/VehiclePhysics';
 import { VehicleModel } from './vehicle/VehicleModel';
+import { DEFAULT_VEHICLE_ID, VEHICLES, vehicleFor, type VehicleSpec } from './vehicle/vehicles';
 import { CameraRig, CAMERA_LABELS, type CameraMode } from './camera/CameraRig';
 import { Particles } from './fx/Particles';
 import { AudioEngine } from './audio/AudioEngine';
@@ -52,6 +53,8 @@ export interface GameOptions {
     difficulty?: DifficultyName;
     coDriver?: CoDriverMode;
     chapters?: boolean;
+    /** Which vehicle to start in. Defaults to the one the game shipped with. */
+    vehicle?: string;
     /**
      * Keeps the drawing buffer readable after compositing, so tests can sample
      * what was actually rendered. Off in normal play — it costs a copy per
@@ -155,7 +158,14 @@ export class Game {
         this.chunks = new ChunkManager(this.scene, this.path, this.assets, this.vegetation, this.preset);
         this.sky = new Sky(this.scene, this.assets, this.preset);
         this.physics = new VehiclePhysics(this.path);
-        this.model = new VehicleModel(this.assets);
+        // Before the model, which is built from the spec, and before anything
+        // reads a record — the vehicle is part of the key records live under.
+        const startingVehicle = vehicleFor(options.vehicle ?? DEFAULT_VEHICLE_ID);
+        this.physics.setVehicle(startingVehicle);
+        this.splits.setVehicle(startingVehicle.id);
+        this.stage.setVehicle(startingVehicle.id);
+        telemetry.vehicle = startingVehicle.name;
+        this.model = new VehicleModel(this.assets, startingVehicle);
         this.scene.add(this.model.root);
         this.particles = new Particles(this.scene, this.assets, this.preset);
         this.rig = new CameraRig(this.aspect);
@@ -258,7 +268,7 @@ export class Game {
         );
         this.chunks = new ChunkManager(this.scene, this.path, this.assets, this.vegetation, this.preset);
         this.sky = new Sky(this.scene, this.assets, this.preset);
-        this.model = new VehicleModel(this.assets);
+        this.model = new VehicleModel(this.assets, this.physics.spec);
         this.scene.add(this.model.root);
         this.particles.dispose();
         this.particles = new Particles(this.scene, this.assets, this.preset);
@@ -362,6 +372,11 @@ export class Game {
         return parsePatch(raw);
     }
 
+    /** Diagnostics: the built vehicle, for checks about shape and wheel placement. */
+    get modelForTest(): VehicleModel {
+        return this.model;
+    }
+
     /** Diagnostics: the road itself, for checks about slots and generation. */
     get pathForTest(): RoadPath {
         return this.path;
@@ -417,6 +432,42 @@ export class Game {
      * the timers swap to that level's bests rather than comparing an Expert run
      * against an Easy one.
      */
+    /**
+     * Swap the vehicle.
+     *
+     * The model is rebuilt rather than adjusted — it is built from the spec, the
+     * same way a quality change rebuilds it, and there is no state in it worth
+     * preserving across a swap. The drive restarts because a lap time only means
+     * anything if the whole lap was driven in one vehicle, and because the
+     * records being read change underneath it.
+     */
+    setVehicle(id: string): void {
+        const spec = vehicleFor(id);
+        if (spec.id === this.physics.spec.id) return;
+        this.physics.setVehicle(spec);
+        this.splits.setVehicle(spec.id);
+        this.stage.setVehicle(spec.id);
+
+        this.scene.remove(this.model.root);
+        this.model.dispose();
+        this.model = new VehicleModel(this.assets, spec);
+        this.scene.add(this.model.root);
+
+        telemetry.vehicle = spec.name;
+        telemetry.stageBest = this.stage.best;
+        telemetry.mileBest = this.splits.currentMileBest;
+        if (this.mode === 'stage') this.restartStage();
+        else this.restartFree();
+    }
+
+    get currentVehicle(): VehicleSpec {
+        return this.physics.spec;
+    }
+
+    get vehicles(): readonly VehicleSpec[] {
+        return VEHICLES;
+    }
+
     setDifficulty(name: DifficultyName): void {
         this.difficultyName = name;
         this.physics.difficulty = difficultyFor(name);

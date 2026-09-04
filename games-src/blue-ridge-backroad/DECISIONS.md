@@ -883,3 +883,64 @@ going, there is nothing to lose track of, and some people prefer it. Sections
 B1-B5 now select it through the real setting before asserting on it, so the
 non-default mode keeps its coverage instead of being deleted along with the
 default.
+
+## D13 — Three vehicles
+
+**D13.1 — A vehicle is a set of numbers, not a set of special cases.**
+`VehiclePhysics` had about twenty module-level constants — mass, wheelbase, CG
+height, yaw inertia, power, gearing, brake force. They are now instance fields
+read from a `VehicleSpec`, and the class has no idea which vehicle it has.
+`VehicleModel` builds from the same spec. Nothing anywhere asks "is this the
+pickup", which is what stops three vehicles becoming three code paths that drift.
+
+The Ranger's numbers are exactly the ones that were hard-coded before, so the
+default vehicle drives identically to how it always has. That was checked before
+anything else: the handling and driving sections passed unchanged against the
+refactor.
+
+**D13.2 — They differ where a driver would notice.** Measured on the road, with
+the autopilot steering but never lifting:
+
+| | mass | 0-60 | top | 60-0 | yaw at 40 |
+|---|---|---|---|---|---|
+| Ranger 4x4 | 2100 kg | 6.08 s | 138 mph | 51.4 m | 0.557 |
+| Hollow Coupe | 1120 kg | 5.10 s | 147 mph | 37.7 m | 0.585 |
+| Old Hauler | 2620 kg | 10.90 s | 73 mph | 71.5 m | 0.533 |
+
+Note the cornering column, which is the honest part. Steady-state yaw rate barely
+separates them, because at full lock at 40 mph all three are grip-limited rather
+than geometry-limited — yaw settles at roughly mu*g/u whatever the wheelbase is,
+so the only difference left is the 10% grip spread. What actually distinguishes
+the Coupe in a corner is entry speed and how quickly it rotates, not how hard it
+can turn once settled. Straight-line and braking do most of the separating, and
+the numbers say so rather than the blurbs.
+
+**D13.3 — Records are keyed by vehicle, and the default key is untouched.** They
+lap at very different speeds, so one leaderboard across all three would measure
+the vehicle rather than the drive — the same argument that already keys records
+by difficulty and by stage. Each part is appended to the key only when it is not
+the default, so the combination the game shipped with keeps the exact key it has
+always had and every existing time survives. The key grows rightwards rather than
+the prefix being versioned again, because a version bump silently discards
+everyone's times.
+
+**D13.4 — The shell is stretched, not modelled three times.** The body is one
+pickup made of boxes; each vehicle scales it and shifts its ride height, drops
+the bed for a closed back if it has no bed, and paints it. That is honest about
+what it is: at the distance a chase camera sits, length, width, height and ride
+height are what tell two vehicles apart. What is *not* approximated is wheel
+placement — the model reads track and wheelbase off the spec, so the wheels are
+always under the axles the physics is solving, and a test asserts it to within a
+millimetre.
+
+Camera anchors had to be scaled by hand, because they hang off the chassis rather
+than the scaled body group. A cockpit anchor left at the truck's height sits above
+the roof of anything lower.
+
+**D13.5 — Two test failures were the test, not the game.** `setVehicle` returns
+early when asked for the vehicle already loaded, so a record written to storage
+after the game started needs a real switch to be picked up — the test asked for
+'ranger' when 'ranger' was already current and then complained that nothing
+reloaded. And `loadStored` requires exactly `CHECKPOINTS + 1` splits, so a record
+written by hand with an empty splits array is correctly rejected. Both were
+fixtures that did not look like anything the game would ever write.

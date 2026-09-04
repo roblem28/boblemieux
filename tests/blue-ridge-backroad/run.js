@@ -1946,6 +1946,148 @@ const startDriving = async (page) => {
     check(backToFree.mode === 'free', 'D11 the game can switch back to free drive');
     check(!backToFree.stagePanel && backToFree.timing, 'D11b the HUD swaps the stage clock for the mile timer');
 
+    // ---------------------------------------------------------- P: vehicles
+
+    // Three vehicles that are meant to be different to *drive*, not to look at.
+    // The checks that matter are the measured ones: if the Hauler accelerates
+    // like the Coupe then the spec is not reaching the physics and the picker is
+    // decoration.
+
+    const fleet = await page.evaluate(() => {
+        const g = window.brb.game;
+        return {
+            count: g.vehicles.length,
+            ids: g.vehicles.map((v) => v.id),
+            current: g.currentVehicle.id,
+            named: window.brb.telemetry.vehicle,
+            allNamed: g.vehicles.every((v) => v.name && v.blurb)
+        };
+    });
+    check(fleet.count >= 3, 'P1 the game offers a fleet', `${fleet.count}: ${fleet.ids.join(', ')}`);
+    check(fleet.current === 'ranger', 'P1b the one the game shipped with is still the default', fleet.current);
+    check(fleet.named === 'Ranger 4x4' && fleet.allNamed, 'P1c every vehicle is named and described', fleet.named);
+
+    // P2 — the spec reaches the physics. Distance covered from rest in eight
+    // seconds, on the road, is a cheap discriminator that needs no lap.
+    const sprint = await page.evaluate(() => {
+        const g = window.brb.game;
+        const out = {};
+        for (const v of g.vehicles) {
+            g.setVehicle(v.id);
+            g.setDifficulty('medium');
+            g.restartFree();
+            const s0 = g.physics.odometer;
+            // `lift = false` steers to stay on the road but never backs off —
+            // the only way to measure acceleration on a road with corners.
+            window.__h.autopilot(8, { keyThrottle: true }, false);
+            out[v.id] = {
+                metres: +(g.physics.odometer - s0).toFixed(1),
+                mph: +(Math.abs(g.physics.u) * 2.2369362920544).toFixed(0),
+                mass: v.mass
+            };
+            g.input.keyThrottle = false;
+        }
+        g.setVehicle('ranger');
+        g.restartFree();
+        return out;
+    });
+    check(
+        sprint.coupe.metres > sprint.ranger.metres && sprint.ranger.metres > sprint.hauler.metres,
+        'P2 the three accelerate differently, in the order their specs imply',
+        `coupe ${sprint.coupe.metres}m, ranger ${sprint.ranger.metres}m, hauler ${sprint.hauler.metres}m in 8 s`
+    );
+    check(
+        sprint.coupe.mph > sprint.hauler.mph * 1.3,
+        'P2b and the gap is one a driver would feel, not a rounding difference',
+        `${sprint.coupe.mph} mph vs ${sprint.hauler.mph} mph`
+    );
+
+    // P3 — the model is built from the same spec, so the wheels sit under the
+    // axles the physics is solving rather than where the pickup's used to be.
+    const vehShape = await page.evaluate(() => {
+        const g = window.brb.game;
+        const out = {};
+        for (const v of g.vehicles) {
+            g.setVehicle(v.id);
+            const nodes = g.modelForTest.wheelNodes ?? [];
+            const wheels = g.physics.wheels;
+            let worst = 0;
+            for (let i = 0; i < 4; i++) {
+                worst = Math.max(worst, Math.abs(nodes[i].position.x - wheels[i].x), Math.abs(nodes[i].position.z - wheels[i].z));
+            }
+            out[v.id] = { worst: +worst.toFixed(3), scale: g.modelForTest.bodyScaleForTest };
+        }
+        g.setVehicle('ranger');
+        g.restartFree();
+        return out;
+    });
+    check(
+        Object.values(vehShape).every((r) => r.worst < 0.001),
+        'P3 every vehicle draws its wheels under its own axles',
+        JSON.stringify(vehShape)
+    );
+    check(
+        new Set(Object.values(vehShape).map((r) => r.scale)).size === 3,
+        'P3b and the three bodies are different sizes',
+        Object.entries(vehShape).map(([k, r]) => `${k} ${r.scale}`).join(' | ')
+    );
+
+    // P4 — vehRecords are per vehicle, and the default keeps the key it always had.
+    const vehRecords = await page.evaluate(() => {
+        const g = window.brb.game;
+        // The loader insists on a full set of checkpoint splits, so a record
+        // written by hand has to look like one the game would have written.
+        const splits = new Array(25).fill(0).map((_, i) => i * 4);
+        localStorage.setItem('brb.stage.v3.medium', JSON.stringify({ best: 222.2, splits }));
+        localStorage.setItem('brb.stage.v3.medium.coupe', JSON.stringify({ best: 180.5, splits }));
+        g.setDifficulty('medium');
+        // Records are read when the vehicle changes, and `setVehicle` returns
+        // early if you ask for the one already loaded — so a value written to
+        // storage after the game started needs a real switch to be picked up.
+        g.setVehicle('hauler');
+        g.setVehicle('ranger');
+        g.setMode('stage');
+        window.__h.sim(0.3);
+        const inRanger = window.brb.telemetry.stageBest;
+        g.setVehicle('coupe');
+        window.__h.sim(0.3);
+        const inCoupe = window.brb.telemetry.stageBest;
+        g.setVehicle('hauler');
+        window.__h.sim(0.3);
+        const inHauler = window.brb.telemetry.stageBest;
+        g.setVehicle('ranger');
+        g.setMode('free');
+        g.restartFree();
+        window.__h.sim(0.3);
+        return { inRanger, inCoupe, inHauler };
+    });
+    check(
+        Math.abs(vehRecords.inRanger - 222.2) < 0.01,
+        'P4 the default vehicle still reads records written before vehicles existed',
+        `${vehRecords.inRanger}`
+    );
+    check(Math.abs(vehRecords.inCoupe - 180.5) < 0.01, 'P4b another vehicle reads its own', `${vehRecords.inCoupe}`);
+    check(vehRecords.inHauler === 0, 'P4c and one with no time set has none', `${vehRecords.inHauler}`);
+
+    // P5 — swapping restarts the drive rather than leaving a part-driven lap
+    // credited to a vehicle that did not drive it.
+    const swap = await page.evaluate(() => {
+        const g = window.brb.game;
+        g.setMode('free');
+        g.restartFree();
+        window.__h.autopilot(4, { keyThrottle: true }, false);
+        const before = g.physics.odometer;
+        g.setVehicle('coupe');
+        window.__h.sim(0.2);
+        const after = g.physics.odometer;
+        g.setVehicle('ranger');
+        g.restartFree();
+        return { before: +before.toFixed(0), after: +after.toFixed(0) };
+    });
+    check(swap.before > 20 && swap.after < swap.before, 'P5 changing vehicle restarts the drive', `${swap.before} m -> ${swap.after} m`);
+
+    check(errors.length === 0, 'P6 no console errors from any of it', errors.slice(0, 3).join(' | '));
+
     // ------------------------------------------------- M: the stage picker UI
 
     // Section K asserts that `scout()` returns five candidates. It does, and it

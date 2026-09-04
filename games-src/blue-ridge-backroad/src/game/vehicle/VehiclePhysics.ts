@@ -11,6 +11,7 @@ import {
 } from '../road/RoadPath';
 import { clamp, damp, lerp, moveTowards, smoothstep, DEG } from '../util/mathx';
 import type { InputState, InputTargets } from '../input';
+import { DEFAULT_VEHICLE_ID, vehicleFor, type VehicleSpec } from './vehicles';
 import { resolveInputTargets } from '../input';
 import type { ChunkManager } from '../world/ChunkManager';
 import { DEFAULT_DIFFICULTY, difficultyFor, type Difficulty } from '../difficulty';
@@ -37,20 +38,8 @@ import { DEFAULT_DIFFICULTY, difficultyFor, type Difficulty } from '../difficult
 
 // ------------------------------------------------------------- parameters
 
-const MASS = 2100; // kg
-const WHEELBASE = 2.95;
-const A_FRONT = 1.44; // CG to front axle
-const B_REAR = WHEELBASE - A_FRONT;
-const TRACK = 1.66;
-const CG_HEIGHT = 0.7;
-const IZ = 3300; // yaw inertia
 const G = 9.81;
 
-const DRAG_K = 0.5 * 1.225 * 0.44 * 3.5; // 0.5 rho Cd A
-const PEAK_POWER = 300000; // W
-const PEAK_FORCE = 9600; // N — traction-limited launch
-const BRAKE_FORCE = 15500; // N
-const REVERSE_FORCE = 4200; // N
 const REVERSE_MAX = 13; // m/s
 
 const TIRE_B = 7.4;
@@ -59,9 +48,6 @@ const TIRE_D = 1.0;
 const RELAX_LENGTH = 0.55; // metres
 
 export const WHEEL_RADIUS = 0.41;
-const WHEEL_X = TRACK * 0.5;
-const WHEEL_Z_FRONT = A_FRONT;
-const WHEEL_Z_REAR = -B_REAR;
 
 /** Per-surface grip and rolling resistance. Index matches the SURFACE_* ids. */
 const SURFACE_MU = [0.98, 0.72, 0.52, 0.47];
@@ -89,20 +75,19 @@ const STEER_IN_RATE = 2.2; // how fast the driver's intent winds on, per second
 const STEER_RETURN_RATE = 3.8; // ...and how fast it unwinds
 const STEER_RATE_LOW = 3.0; // road-wheel slew at a standstill, rad/s
 const STEER_RATE_HIGH = 1.35; // ...and at 45 m/s
-const STEER_MAX_LOW = 30; // degrees of lock at a standstill
-const STEER_MAX_HIGH = 6.5; // ...and at 38 m/s and above
 
-const GEAR_RATIOS = [3.4, 2.05, 1.38, 1.0];
-const FINAL_DRIVE = 3.9;
 const RPM_IDLE = 750;
-const RPM_MAX = 6200;
 
 // ------------------------------------------------------------------ state
 
 export interface WheelState {
     /** Local mount position (x right, y up, z forward). */
-    readonly x: number;
-    readonly z: number;
+    /**
+     * Offsets from the CG. Not readonly any more: they are a property of the
+     * vehicle, and the vehicle can be swapped.
+     */
+    x: number;
+    z: number;
     /** Suspension compression, metres (0 = fully extended). */
     compression: number;
     /** Wheel spin angle, radians. */
@@ -121,7 +106,8 @@ const makeWheel = (x: number, z: number): WheelState => ({
     spin: 0,
     groundY: 0,
     surface: SURFACE_ROAD,
-    load: MASS * G * 0.25,
+    // Placeholder only — real load is computed every step from the spec.
+    load: 5000,
     slipping: 0
 });
 
@@ -184,12 +170,8 @@ export class VehiclePhysics {
     /** Set for one frame when a wheel lands hard. */
     landing = 0;
 
-    readonly wheels: WheelState[] = [
-        makeWheel(-WHEEL_X, WHEEL_Z_FRONT),
-        makeWheel(WHEEL_X, WHEEL_Z_FRONT),
-        makeWheel(-WHEEL_X, WHEEL_Z_REAR),
-        makeWheel(WHEEL_X, WHEEL_Z_REAR)
-    ];
+    /** Positions are written by `setVehicle`, which every constructor path calls. */
+    readonly wheels: WheelState[] = [makeWheel(0, 0), makeWheel(0, 0), makeWheel(0, 0), makeWheel(0, 0)];
 
     private fyFront = 0;
     private fyRear = 0;
@@ -220,7 +202,86 @@ export class VehiclePhysics {
     private reverseHold = 0;
     private prevWheelY = [0, 0, 0, 0];
 
-    constructor(private readonly path: RoadPath) {}
+    // ------------------------------------------------------------ the vehicle
+
+    /**
+     * Everything that differs between vehicles, unpacked from the spec.
+     *
+     * Unpacked rather than read through `this.spec.x` because these are touched
+     * dozens of times per substep, up to eight substeps a frame, and because
+     * several are derived — `bRear` and the wheel offsets have no meaning until
+     * something computes them.
+     */
+    spec: VehicleSpec = vehicleFor(DEFAULT_VEHICLE_ID);
+    private mass = 0;
+    private iz = 0;
+    private wheelbase = 0;
+    private aFront = 0;
+    private bRear = 0;
+    private track = 0;
+    private cgHeight = 0;
+    private dragK = 0;
+    private peakPower = 0;
+    private peakForce = 0;
+    private brakeForce = 0;
+    private reverseForce = 0;
+    private gearRatios: number[] = [];
+    private finalDrive = 0;
+    private rpmMax = 0;
+    private grip = 1;
+    private steerMaxLow = 0;
+    private steerMaxHigh = 0;
+    private wheelX = 0;
+    private wheelZFront = 0;
+    private wheelZRear = 0;
+
+    constructor(private readonly path: RoadPath) {
+        this.setVehicle(this.spec);
+    }
+
+    /**
+     * Swap the vehicle. Cheap, and safe to call mid-drive — but the caller is
+     * expected to restart, because a lap time only means something if the whole
+     * lap was driven in one vehicle.
+     */
+    setVehicle(spec: VehicleSpec): void {
+        this.spec = spec;
+        this.mass = spec.mass;
+        this.iz = spec.iz;
+        this.wheelbase = spec.wheelbase;
+        this.aFront = spec.aFront;
+        this.bRear = spec.wheelbase - spec.aFront;
+        this.track = spec.track;
+        this.cgHeight = spec.cgHeight;
+        this.dragK = spec.dragK;
+        this.peakPower = spec.peakPower;
+        this.peakForce = spec.peakForce;
+        this.brakeForce = spec.brakeForce;
+        this.reverseForce = spec.reverseForce;
+        this.gearRatios = spec.gearRatios;
+        this.finalDrive = spec.finalDrive;
+        this.rpmMax = spec.rpmMax;
+        this.grip = spec.grip;
+        this.steerMaxLow = spec.steerMaxLow;
+        this.steerMaxHigh = spec.steerMaxHigh;
+        this.wheelX = spec.track * 0.5;
+        this.wheelZFront = spec.aFront;
+        this.wheelZRear = -this.bRear;
+
+        const at: [number, number][] = [
+            [-this.wheelX, this.wheelZFront],
+            [this.wheelX, this.wheelZFront],
+            [-this.wheelX, this.wheelZRear],
+            [this.wheelX, this.wheelZRear]
+        ];
+        for (let i = 0; i < 4; i++) {
+            this.wheels[i].x = at[i][0];
+            this.wheels[i].z = at[i][1];
+            this.wheels[i].load = (spec.mass * G) / 4;
+        }
+        // Gear indices are per-vehicle; the Coupe has five and the Ranger four.
+        this.gear = Math.min(this.gear, spec.gearRatios.length - 1);
+    }
 
     reset(s: number): void {
         this.placeOnRoad(s);
@@ -297,7 +358,7 @@ export class VehiclePhysics {
         // Lock falls away faster than it used to. Nineteen degrees of road-wheel
         // angle at 58 mph — what the old curve allowed — is a hairpin input, and
         // holding it will put any vehicle round.
-        let steerMax = (STEER_MAX_LOW - (STEER_MAX_LOW - STEER_MAX_HIGH) * smoothstep(0, 38, speed)) * DEG;
+        let steerMax = (this.steerMaxLow - (this.steerMaxLow - this.steerMaxHigh) * smoothstep(0, 38, speed)) * DEG;
         // HANDEDNESS. This is a right-handed, Y-up world, so a positive rotation
         // about +Y takes forward (+Z) toward +X — which is the driver's LEFT.
         // Every angular quantity here follows that same rule: yaw, yawRate and
@@ -385,10 +446,10 @@ export class VehiclePhysics {
         const gLatLeft = G * clamp(slopeLat, -0.6, 0.6) * headingDotTangent;
 
         // 3. Load transfer -----------------------------------------------------
-        const axleFront = (MASS * G * B_REAR) / WHEELBASE;
-        const axleRear = (MASS * G * A_FRONT) / WHEELBASE;
-        const longTransfer = (MASS * this.accelLong * CG_HEIGHT) / WHEELBASE;
-        const latTransfer = (MASS * this.accelLat * CG_HEIGHT) / TRACK;
+        const axleFront = (this.mass * G * this.bRear) / this.wheelbase;
+        const axleRear = (this.mass * G * this.aFront) / this.wheelbase;
+        const longTransfer = (this.mass * this.accelLong * this.cgHeight) / this.wheelbase;
+        const latTransfer = (this.mass * this.accelLat * this.cgHeight) / this.track;
         const fzFront = Math.max(200, axleFront - longTransfer);
         const fzRear = Math.max(200, axleRear + longTransfer);
         this.wheels[0].load = Math.max(0, fzFront * 0.5 - latTransfer * 0.5);
@@ -410,25 +471,25 @@ export class VehiclePhysics {
 
         if (this.reverseHold > 0.6 && this.throttle < 0.05) {
             // Held brake at a standstill backs the truck up.
-            if (this.u > -REVERSE_MAX) fx -= REVERSE_FORCE * this.brake;
+            if (this.u > -REVERSE_MAX) fx -= this.reverseForce * this.brake;
         } else {
             const vEff = Math.max(4, Math.abs(this.u));
-            fx += this.throttle * Math.min(PEAK_FORCE, PEAK_POWER / vEff);
+            fx += this.throttle * Math.min(this.peakForce, this.peakPower / vEff);
             if (this.brake > 0) {
                 const dir = this.u > 0.15 ? 1 : this.u < -0.15 ? -1 : 0;
-                fx -= dir * BRAKE_FORCE * this.brake;
+                fx -= dir * this.brakeForce * this.brake;
                 // A dead band at zero stops braking integrating into reverse.
                 if (dir === 0) this.u = 0;
             }
         }
         // Drag, rolling resistance and the grade.
-        fx -= DRAG_K * (1 + surfaceDrag) * this.u * Math.abs(this.u);
+        fx -= this.dragK * (1 + surfaceDrag) * this.u * Math.abs(this.u);
         // Rolling resistance eases off at walking pace. At speed it is what
         // makes leaving the road cost you; at a crawl, applied in full, it is
         // what makes a truck in a ditch unable to dig itself out.
         const rollEase = 0.32 + 0.68 * Math.min(1, Math.abs(this.u) / 11);
-        fx -= rollCoef * MASS * G * Math.sign(this.u) * Math.min(1, Math.abs(this.u) * 2) * rollEase;
-        fx += MASS * gLong;
+        fx -= rollCoef * this.mass * G * Math.sign(this.u) * Math.min(1, Math.abs(this.u) * 2) * rollEase;
+        fx += this.mass * gLong;
 
         // Traction limit on the driven (rear) axle — this is what lets the
         // throttle break the rear loose on loose gravel.
@@ -445,14 +506,16 @@ export class VehiclePhysics {
         const uEff = Math.max(Math.abs(this.u), 2.5) * (this.u < 0 ? -1 : 1);
         // Lateral velocity, positive to the LEFT — right-handed with yawRate.
         const vL = -this.v;
-        const alphaF = Math.atan2(vL + A_FRONT * this.yawRate, Math.abs(uEff)) - this.steer * Math.sign(uEff || 1);
-        const alphaR = Math.atan2(vL - B_REAR * this.yawRate, Math.abs(uEff));
+        const alphaF = Math.atan2(vL + this.aFront * this.yawRate, Math.abs(uEff)) - this.steer * Math.sign(uEff || 1);
+        const alphaR = Math.atan2(vL - this.bRear * this.yawRate, Math.abs(uEff));
 
         // Combined slip: longitudinal demand eats into the lateral budget.
         const combined = clamp(1 - Math.pow(clamp(driveDemand / (maxDrive || 1), 0, 1), 2) * 0.55, 0.35, 1);
 
-        const targetFyF = -muFront * fzFront * pacejka(alphaF);
-        const targetFyR = -muRear * fzRear * pacejka(alphaR) * combined;
+        // `grip` is the one per-vehicle tire term: the curve's *shape* is the
+        // same rubber everywhere, its peak is not.
+        const targetFyF = -muFront * fzFront * pacejka(alphaF) * this.grip;
+        const targetFyR = -muRear * fzRear * pacejka(alphaR) * combined * this.grip;
 
         // Tire relaxation: the contact patch cannot build force instantly. This
         // single low-pass is the difference between a drift you can hold and a
@@ -464,23 +527,23 @@ export class VehiclePhysics {
         const cosSteer = Math.cos(this.steer);
         // Both tire forces are positive to the LEFT, matching alphaF/alphaR.
         const ayForceLeft = this.fyFront * cosSteer + this.fyRear;
-        const yawTorque = A_FRONT * this.fyFront * cosSteer - B_REAR * this.fyRear;
+        const yawTorque = this.aFront * this.fyFront * cosSteer - this.bRear * this.fyRear;
 
         // Body-frame equations of motion in (forward, left, up) — the standard
         // right-handed set, so the Coriolis terms are +r*vL and -r*u.
-        const du = (fx / MASS + this.yawRate * vL) * dt;
-        const dvL = (ayForceLeft / MASS - this.u * this.yawRate + gLatLeft) * dt;
+        const du = (fx / this.mass + this.yawRate * vL) * dt;
+        const dvL = (ayForceLeft / this.mass - this.u * this.yawRate + gLatLeft) * dt;
         this.u += du;
         this.v = -(vL + dvL);
         // Explicit yaw damping — a bare bicycle model goes unstable in yaw once
         // the rear is sliding.
-        this.yawRate += (yawTorque / IZ) * dt;
+        this.yawRate += (yawTorque / this.iz) * dt;
         this.yawRate -= this.yawRate * clamp(1.4 * dt, 0, 0.5);
 
         // Low-speed blend to kinematic steering.
         const kin = smoothstep(4.5, 1.0, Math.abs(this.u));
         if (kin > 0) {
-            const rKin = (this.u * Math.tan(this.steer)) / WHEELBASE;
+            const rKin = (this.u * Math.tan(this.steer)) / this.wheelbase;
             this.yawRate += (rKin - this.yawRate) * kin * clamp(dt * 12, 0, 1);
             this.v *= Math.exp(-9 * kin * dt);
         }
@@ -491,7 +554,7 @@ export class VehiclePhysics {
         // tire model exactly as it is.
         const assist = this.difficulty.stability;
         if (assist > 0 && Math.abs(this.u) > 3) {
-            const rKinematic = (this.u * Math.tan(this.steer)) / WHEELBASE;
+            const rKinematic = (this.u * Math.tan(this.steer)) / this.wheelbase;
             // The fastest the truck can rotate on the grip it actually has:
             // lateral acceleration is u * r, and that cannot exceed mu * g.
             const rLimit = (mu * G) / Math.max(Math.abs(this.u), 5);
@@ -560,7 +623,7 @@ export class VehiclePhysics {
         // Lateral acceleration expressed to the driver's RIGHT: that is the
         // direction weight transfers away from, and the direction the body
         // leans away from.
-        this.accelLat = damp(this.accelLat, -(ayForceLeft / MASS + gLatLeft), 9, dt);
+        this.accelLat = damp(this.accelLat, -(ayForceLeft / this.mass + gLatLeft), 9, dt);
         this.slipAmount = damp(this.slipAmount, Math.abs(alphaR) * Math.min(1, Math.abs(this.u) / 6), 7, dt);
         this.rearSlip = alphaR;
 
@@ -604,14 +667,14 @@ export class VehiclePhysics {
 
     private updateGear(speed: number): void {
         const wheelRps = speed / (2 * Math.PI * WHEEL_RADIUS);
-        const ratio = GEAR_RATIOS[this.gear] * FINAL_DRIVE;
+        const ratio = this.gearRatios[this.gear] * this.finalDrive;
         const raw = wheelRps * ratio * 60;
-        this.rpm = clamp(raw, RPM_IDLE, RPM_MAX);
+        this.rpm = clamp(raw, RPM_IDLE, this.rpmMax);
         // Hysteresis, so cruising near a shift point does not chatter.
-        if (raw > RPM_MAX * 0.93 && this.gear < GEAR_RATIOS.length - 1) {
+        if (raw > this.rpmMax * 0.93 && this.gear < this.gearRatios.length - 1) {
             this.gear += 1;
             this.shiftFlash = 1;
-        } else if (raw < RPM_MAX * 0.36 && this.gear > 0) {
+        } else if (raw < this.rpmMax * 0.36 && this.gear > 0) {
             this.gear -= 1;
         }
     }

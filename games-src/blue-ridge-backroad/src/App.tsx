@@ -54,6 +54,14 @@ export const App = (): JSX.Element => {
      * are steadier in rough going — there is nothing to lose track of — and
      * some people simply prefer them.
      */
+    const [vehicle, setVehicle] = useState(() => {
+        try {
+            return localStorage.getItem('brb.vehicle') ?? 'ranger';
+        } catch {
+            return 'ranger';
+        }
+    });
+
     const [steerStyle, setSteerStyle] = useState<'stick' | 'buttons'>(() => {
         try {
             return localStorage.getItem('brb.steerStyle') === 'buttons' ? 'buttons' : 'stick';
@@ -90,6 +98,7 @@ export const App = (): JSX.Element => {
                 difficulty,
                 coDriver,
                 chapters,
+                vehicle,
                 // Only for the automated checks, which sample the rendered frame.
                 preserveDrawingBuffer: new URLSearchParams(window.location.search).has('debug')
             });
@@ -216,6 +225,18 @@ export const App = (): JSX.Element => {
             /* private mode */
         }
         gameRef.current?.setDirectorEndpoint(url);
+    }, []);
+
+    const handleVehicle = useCallback((id: string) => {
+        setVehicle(id);
+        try {
+            localStorage.setItem('brb.vehicle', id);
+        } catch {
+            /* private mode */
+        }
+        gameRef.current?.setVehicle(id);
+        // The records on screen belong to the vehicle that just went away.
+        setStageBest(telemetry.stageBest);
     }, []);
 
     const handleSteerStyle = useCallback((next: 'stick' | 'buttons') => {
@@ -346,6 +367,9 @@ export const App = (): JSX.Element => {
                     onCoDriver={handleCoDriver}
                     speechAvailable={speechAvailable}
                     touch={touch}
+                    vehicles={gameRef.current?.vehicles ?? []}
+                    vehicle={vehicle}
+                    onVehicle={handleVehicle}
                     steerStyle={steerStyle}
                     onSteerStyle={handleSteerStyle}
                     chapters={chapters}

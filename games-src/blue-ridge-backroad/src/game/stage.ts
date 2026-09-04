@@ -1,4 +1,5 @@
 import { clamp } from './util/mathx';
+import { DEFAULT_VEHICLE_ID } from './vehicle/vehicles';
 
 /**
  * The Hollow Creek Stage — a fixed two-mile timed run.
@@ -52,8 +53,24 @@ interface StoredStage {
  * keeps the bare difficulty key it has always used, so existing times survive;
  * scouted stages get their identity appended.
  */
-const keyFor = (difficulty: string, stageId: string): string =>
-    stageId === DEFAULT_STAGE_ID ? STORE_PREFIX + difficulty : `${STORE_PREFIX}${difficulty}.${stageId}`;
+/**
+ * Records are keyed by everything that changes what a good time *is*: the
+ * difficulty, the stage, and now the vehicle. A lap in the Coupe is not a lap in
+ * the Hauler, and one leaderboard across both would measure the vehicle rather
+ * than the drive.
+ *
+ * Each part is appended only when it is not the default, so the combination the
+ * game shipped with keeps the exact key it has always had and every time set
+ * before any of this existed still counts. That is also why the key grows
+ * rightwards instead of the prefix being versioned again: a version bump throws
+ * away everyone's times.
+ */
+const keyFor = (difficulty: string, stageId: string, vehicleId: string): string => {
+    let key = STORE_PREFIX + difficulty;
+    if (stageId !== DEFAULT_STAGE_ID) key += `.${stageId}`;
+    if (vehicleId !== DEFAULT_VEHICLE_ID) key += `.${vehicleId}`;
+    return key;
+};
 
 const loadStored = (key: string): StoredStage | null => {
     try {
@@ -96,6 +113,7 @@ export class Stage {
     private nextCheckpoint = 0;
 
     private difficulty: string;
+    private vehicleId: string = DEFAULT_VEHICLE_ID;
     private definition: StageDefinition = DEFAULT_STAGE;
 
     constructor(difficulty = 'medium') {
@@ -126,6 +144,14 @@ export class Stage {
         this.arm();
     }
 
+    /** Switch to another vehicle's records. */
+    setVehicle(vehicleId: string): void {
+        if (vehicleId === this.vehicleId) return;
+        this.vehicleId = vehicleId;
+        this.load();
+        this.delta = NaN;
+    }
+
     /** Switch to another difficulty's records. */
     setDifficulty(difficulty: string): void {
         if (difficulty === this.difficulty) return;
@@ -135,7 +161,7 @@ export class Stage {
     }
 
     private load(): void {
-        const stored = loadStored(keyFor(this.difficulty, this.definition.id));
+        const stored = loadStored(keyFor(this.difficulty, this.definition.id, this.vehicleId));
         this.best = stored ? stored.best : 0;
         this.bestSplits = stored ? Float64Array.from(stored.splits) : null;
     }
@@ -224,7 +250,7 @@ export class Stage {
         try {
             const splits = this.bestSplits ? Array.from(this.bestSplits) : [];
             localStorage.setItem(
-                keyFor(this.difficulty, this.definition.id),
+                keyFor(this.difficulty, this.definition.id, this.vehicleId),
                 JSON.stringify({ best: this.best, splits })
             );
         } catch {
@@ -237,7 +263,7 @@ export class Stage {
         this.bestSplits = null;
         this.delta = NaN;
         try {
-            localStorage.removeItem(keyFor(this.difficulty, this.definition.id));
+            localStorage.removeItem(keyFor(this.difficulty, this.definition.id, this.vehicleId));
         } catch {
             /* nothing to do */
         }

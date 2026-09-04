@@ -60,6 +60,8 @@ export interface Telemetry {
     paceNoteAge: number;
     /** Label of the road chapter in force, or '' when chapters are off. */
     chapter: string;
+    /** Name of the vehicle being driven. */
+    vehicle: string;
 
     /** The director. `directorReason` is model output — display only, never interpreted. */
     directorStatus: string;
@@ -119,6 +121,7 @@ export const telemetry: Telemetry = {
     paceNote: '',
     paceNoteAge: 0,
     chapter: '',
+    vehicle: 'Ranger 4x4',
     directorStatus: 'off',
     directorSource: 'local',
     directorReason: '',
