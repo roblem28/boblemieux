@@ -41,9 +41,6 @@ void main() {
 
 const FRAG = /* glsl */ `
 uniform sampler2D map;
-uniform vec3 fogColor;
-uniform float fogNear;
-uniform float fogFar;
 varying float vAlpha;
 varying vec3 vTint;
 void main() {
@@ -97,10 +94,7 @@ class ParticlePool {
 
         this.mat = new ShaderMaterial({
             uniforms: {
-                map: { value: cfg.texture },
-                fogColor: { value: new Vector3() },
-                fogNear: { value: 1 },
-                fogFar: { value: 1000 }
+                map: { value: cfg.texture }
             },
             vertexShader: VERT,
             fragmentShader: FRAG,
@@ -188,7 +182,7 @@ export class Particles {
 
     constructor(
         private readonly scene: Scene,
-        private readonly assets: Assets,
+        assets: Assets,
         preset: QualityPreset
     ) {
         this.dust = new ParticlePool({
@@ -210,33 +204,6 @@ export class Particles {
             fade: 0.4
         });
         scene.add(this.dust.points, this.gravel.points);
-    }
-
-    setPreset(preset: QualityPreset): void {
-        this.scene.remove(this.dust.points, this.gravel.points);
-        this.dust.dispose();
-        this.gravel.dispose();
-        this.dust = new ParticlePool({
-            count: preset.dustParticles,
-            texture: this.assets.softSprite,
-            additive: false,
-            gravity: 0.35,
-            drag: 1.35,
-            grow: 1.9,
-            fade: 1.6
-        });
-        this.gravel = new ParticlePool({
-            count: preset.gravelParticles,
-            texture: this.assets.softSprite,
-            additive: false,
-            gravity: -16,
-            drag: 0.25,
-            grow: 0,
-            fade: 0.4
-        });
-        this.scene.add(this.dust.points, this.gravel.points);
-        this.dust.points.position.copy(this.origin);
-        this.gravel.points.position.copy(this.origin);
     }
 
     update(dt: number, physics: VehiclePhysics, model: VehicleModel): void {

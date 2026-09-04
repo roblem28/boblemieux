@@ -23,18 +23,6 @@ export class Rng {
     range(lo: number, hi: number): number {
         return lo + (hi - lo) * this.next();
     }
-
-    int(loInclusive: number, hiExclusive: number): number {
-        return loInclusive + Math.floor(this.next() * (hiExclusive - loInclusive));
-    }
-
-    chance(p: number): boolean {
-        return this.next() < p;
-    }
-
-    pick<T>(items: readonly T[]): T {
-        return items[Math.min(items.length - 1, Math.floor(this.next() * items.length))];
-    }
 }
 
 /** Order-independent integer hash — used to derive a per-chunk seed. */

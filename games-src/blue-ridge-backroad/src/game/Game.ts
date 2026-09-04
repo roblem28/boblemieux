@@ -69,6 +69,7 @@ export class Game {
      * thousands of times slower than the physics step it is verifying.
      */
     private renderEnabled = true;
+    private contextLost = false;
 
     private fpsAccum = 0;
     private fpsFrames = 0;
@@ -109,7 +110,11 @@ export class Game {
         this.rig = new CameraRig(this.aspect);
         this.keys = bindKeyboard(this.input);
 
-        this.physics.reset(40);
+        // Well clear of s = 0: RoadPath clamps below its start, so a chunk built
+        // there would collapse every row onto the same frame - a zero-area road
+        // with all of its trees stacked on one point. Reversing from the spawn
+        // reaches s = 0 in a few seconds.
+        this.physics.reset(420);
         this.vegetation.rebase(this.physics.position.x, 0, this.physics.position.z);
         this.rebaseAnchor.copy(this.physics.position);
         this.chunks.primeAround(this.physics.s);
@@ -122,6 +127,11 @@ export class Game {
         window.addEventListener('orientationchange', this.onResize);
         document.addEventListener('visibilitychange', this.onVisibility);
         window.addEventListener('blur', this.onBlur);
+        // Losing the GL context is routine on mobile (backgrounding, memory
+        // pressure). Without these the canvas goes black for good and the
+        // renderer warns on every frame.
+        options.canvas.addEventListener('webglcontextlost', this.onContextLost);
+        options.canvas.addEventListener('webglcontextrestored', this.onContextRestored);
     }
 
     private get aspect(): number {
@@ -235,7 +245,7 @@ export class Game {
             this.chunks.update(this.physics.s, 1);
             this.model.sync(this.physics, dt, this.sky.night);
             this.particles.update(dt, this.physics, this.model);
-            this.rig.update(dt, this.physics, this.model, this.elapsed);
+            this.rig.update(dt, this.physics, this.model);
             this.focus.copy(this.physics.position);
             this.audio.update(dt, this.physics);
             this.checkDiscovery();
@@ -254,7 +264,7 @@ export class Game {
 
         this.chunks.updateEvents(this.elapsed, this.rig.camera.position);
         this.sky.update(this.physics.odometer, this.focus, this.chunks.fogBoost);
-        if (this.renderEnabled) this.renderer.render(this.scene, this.rig.camera);
+        if (this.renderEnabled && !this.contextLost) this.renderer.render(this.scene, this.rig.camera);
 
         this.fpsAccum += dt;
         this.fpsFrames += 1;
@@ -374,6 +384,23 @@ export class Game {
 
     private onBlur = (): void => this.resetHeldInput();
 
+    private onContextLost = (e: Event): void => {
+        // Preventing the default is what lets the browser restore it at all.
+        e.preventDefault();
+        this.contextLost = true;
+        this.resetHeldInput();
+        this.audio.suspend();
+    };
+
+    private onContextRestored = (): void => {
+        this.contextLost = false;
+        this.clockLast = performance.now();
+        this.accumulator = 0;
+        this.renderer.shadowMap.needsUpdate = true;
+        this.resize();
+        if (this.driving) this.audio.resume();
+    };
+
     private resetHeldInput(): void {
         const i = this.input;
         i.keyThrottle = false;
@@ -411,6 +438,8 @@ export class Game {
         window.removeEventListener('orientationchange', this.onResize);
         document.removeEventListener('visibilitychange', this.onVisibility);
         window.removeEventListener('blur', this.onBlur);
+        this.options.canvas.removeEventListener('webglcontextlost', this.onContextLost);
+        this.options.canvas.removeEventListener('webglcontextrestored', this.onContextRestored);
         this.keys.dispose();
         this.audio.dispose();
         this.particles.dispose();

@@ -10,7 +10,7 @@ import {
     type RoadPath
 } from '../road/RoadPath';
 import { clamp, damp, moveTowards, smoothstep, DEG } from '../util/mathx';
-import type { InputState } from '../input';
+import type { InputState, InputTargets } from '../input';
 import { resolveInputTargets } from '../input';
 import type { ChunkManager } from '../world/ChunkManager';
 
@@ -106,6 +106,15 @@ const makeWheel = (x: number, z: number): WheelState => ({
 const frameA = createFrame();
 const projA = createProjectResult();
 const collisionOut = new Float32Array(4);
+const targets: InputTargets = { throttle: 0, brake: 0, steer: 0 };
+
+/**
+ * Pacejka-shaped tire curve, and the load sensitivity that makes weight
+ * transfer change the handling instead of just decorating it. Both live at
+ * module scope: as inner functions they were closures rebuilt on every substep.
+ */
+const pacejka = (alpha: number): number => TIRE_D * Math.sin(TIRE_C * Math.atan(TIRE_B * alpha));
+const loadSens = (fz: number, ref: number): number => clamp(1 - 0.3 * (fz / ref - 1), 0.6, 1.25);
 
 export class VehiclePhysics {
     readonly position = new Vector3();
@@ -193,7 +202,7 @@ export class VehiclePhysics {
 
     /** One fixed physics substep. Allocation-free. */
     step(dt: number, input: InputState, chunks: ChunkManager | null): void {
-        const targets = resolveInputTargets(input);
+        resolveInputTargets(input, targets);
 
         // 1. Input conditioning ------------------------------------------------
         this.throttle = moveTowards(this.throttle, targets.throttle, dt * 3.2);
@@ -294,9 +303,6 @@ export class VehiclePhysics {
         this.wheels[2].load = Math.max(0, fzRear * 0.5 - latTransfer * 0.5);
         this.wheels[3].load = Math.max(0, fzRear * 0.5 + latTransfer * 0.5);
 
-        // Tires lose grip as they are loaded up — this is what makes weight
-        // transfer actually change the handling rather than just decorate it.
-        const loadSens = (fz: number, ref: number): number => clamp(1 - 0.3 * (fz / ref - 1), 0.6, 1.25);
         const muFront = mu * loadSens(fzFront, axleFront);
         const muRear = mu * loadSens(fzRear, axleRear);
 
@@ -342,7 +348,6 @@ export class VehiclePhysics {
         // Combined slip: longitudinal demand eats into the lateral budget.
         const combined = clamp(1 - Math.pow(clamp(driveDemand / (maxDrive || 1), 0, 1), 2) * 0.55, 0.35, 1);
 
-        const pacejka = (alpha: number): number => TIRE_D * Math.sin(TIRE_C * Math.atan(TIRE_B * alpha));
         const targetFyF = -muFront * fzFront * pacejka(alphaF);
         const targetFyR = -muRear * fzRear * pacejka(alphaR) * combined;
 

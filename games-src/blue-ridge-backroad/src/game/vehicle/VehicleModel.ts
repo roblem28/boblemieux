@@ -129,7 +129,7 @@ export class VehicleModel {
     private readonly headlightBeams: Mesh[] = [];
     private lightsOn = 0;
 
-    constructor(assets: Assets, private readonly withInterior: boolean = true) {
+    constructor(assets: Assets) {
         const paint = new MeshStandardMaterial({
             color: new Color(0.14, 0.26, 0.3),
             roughness: 0.42,
@@ -388,7 +388,7 @@ export class VehicleModel {
         snorkel.translate(0.86, 1.6, 1.4);
         this.add(g, snorkel, m.trim);
 
-        if (this.withInterior) {
+        {
             // Interior — visible through the glass and in cockpit view.
             this.add(g, boxAt(1.66, 0.26, 0.5, 0, 1.42, 0.72), m.interior, false); // dash
             this.add(g, boxAt(1.5, 0.1, 0.34, 0, 1.28, 0.5), m.trim, false); // dash lower
@@ -443,25 +443,22 @@ export class VehicleModel {
 
         // Headlights fade up as the light goes.
         this.lightsOn = damp(this.lightsOn, clamp(nightFactor * 1.4, 0, 1), 2, dt);
-        for (const beam of this.headlightBeams) {
+        const lit = this.lightsOn > 0.02;
+        for (let i = 0; i < this.headlightBeams.length; i++) {
+            const beam = this.headlightBeams[i];
             (beam.material as MeshBasicMaterial).opacity = this.lightsOn * 0.075;
-            beam.visible = this.lightsOn > 0.02;
+            beam.visible = lit;
         }
-        for (const s of this.headlightGlare) {
-            (s.material as SpriteMaterial).opacity = this.lightsOn * 0.85;
-            s.visible = this.lightsOn > 0.02;
+        for (let i = 0; i < this.headlightGlare.length; i++) {
+            const sprite = this.headlightGlare[i];
+            (sprite.material as SpriteMaterial).opacity = this.lightsOn * 0.85;
+            sprite.visible = lit;
         }
     }
 
     /** World position of a wheel's contact patch, for the dust emitters. */
     wheelWorldPosition(i: number, target: Vector3): Vector3 {
         return this.dustAnchors[i].getWorldPosition(target);
-    }
-
-    setCockpitVisible(visible: boolean): void {
-        // In cockpit view the body would otherwise clip through the near plane.
-        this.bodyGroup.visible = true;
-        void visible;
     }
 
     dispose(): void {

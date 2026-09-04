@@ -396,6 +396,17 @@ export class RoadPath {
      * placement and the physics — so they cannot disagree.
      */
     crossHeight(frame: RoadFrame, l: number): number {
+        return this.crossHeightMacro(frame, l) + (Math.abs(l) <= frame.width * 0.5 ? this.roadDetail(frame.s, l) : 0);
+    }
+
+    /**
+     * The cross-section without the fine road relief. Slopes are taken from
+     * this, not from `crossHeight`: differentiating the ruts and potholes turns
+     * a few centimetres of texture into a tenth of a g of pseudo-random lateral
+     * gravity that flips sign every few metres, and the truck twitches. The
+     * relief is still felt, through the per-wheel ground height.
+     */
+    crossHeightMacro(frame: RoadFrame, l: number): number {
         const hw = frame.width * 0.5;
         const a = Math.abs(l);
         // The whole cross-section tilts with the road.
@@ -403,7 +414,7 @@ export class RoadPath {
 
         if (a <= hw) {
             const u = a / hw;
-            return y - CROWN * u * u + this.roadDetail(frame.s, l); // crowned carriageway
+            return y - CROWN * u * u; // crowned carriageway
         }
         y -= CROWN;
 
@@ -456,13 +467,12 @@ export class RoadPath {
     }
 
     /**
-     * d(crossHeight)/dl, by central difference. Used to build seam-free
-     * analytic vertex normals: both sides of a chunk boundary evaluate the very
-     * same function, so the shading matches exactly.
+     * The macro cross-slope, by central difference. This is what gravity is
+     * resolved against, so it deliberately excludes the fine relief.
      */
     crossSlope(frame: RoadFrame, l: number): number {
         const e = 0.15;
-        return (this.crossHeight(frame, l + e) - this.crossHeight(frame, l - e)) / (2 * e);
+        return (this.crossHeightMacro(frame, l + e) - this.crossHeightMacro(frame, l - e)) / (2 * e);
     }
 
     /** Which surface is at lateral offset `l`. */

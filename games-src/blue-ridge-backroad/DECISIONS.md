@@ -218,3 +218,93 @@ instance-pool contracts, and splitting them after the fact would have produced
 intermediate commits that did not run — which the plan explicitly forbids. The
 history is instead: the plan, the game, then one commit per round of review and
 QA findings. Each commit builds and passes the suite.
+
+---
+
+## Code review findings applied
+
+A second subagent reviewed the implementation with fresh context. Its findings
+and what was done:
+
+**D2.1 — Re-scattering a chunk left stale colliders behind.** Flipping a chunk's
+level-of-detail band released its instance blocks and re-scattered it, but never
+reset `colliderCount`, and the two passes consume the shared RNG differently. The
+result was rock colliders from the discarded layout surviving with no rocks
+attached: you got stopped by nothing, thirty metres from anything. Chunks now
+record a `baseColliderCount` after their event registers, and scatter resets to
+it. This happens during ordinary forward driving, so it was a live bug.
+
+**D2.2 — The touch control ref callbacks had unstable identity.** A fresh arrow
+function per render meant React tore the listeners down and rebuilt them on every
+unrelated state change — tapping Sound, opening Settings. Since the callback's
+`activeId` lives in its closure, a held control was released and could never come
+back, because the finger was already down and no further `pointerdown` would
+arrive. Wrapped in `useCallback`.
+
+**D2.3 — `Sky.dispose()` leaked the shadow map.** Each quality change builds a
+new `Sky`; the old one's depth render target (16 MB at 2048) was stranded.
+`LightShadow.dispose()` is now called.
+
+**D2.4 — Frame-loop allocations removed.** `resolveInputTargets` returned a fresh
+object every substep and now writes into a caller-owned record; the Pacejka curve
+and the load-sensitivity helper were closures rebuilt per substep and are now
+module-scope functions; the engine's harmonic array literal was inside the
+per-frame oscillator loop; `ChunkManager.update` allocated a two-element tuple per
+chunk per frame by destructuring a Map iteration, and `queryCollision` allocated
+an iterator on every substep to then discard all but three chunks — it now walks
+a cached near-chunk list.
+
+**D2.5 — Slopes are differentiated from a macro cross-section.** `crossSlope`
+central-differenced the full `crossHeight`, which includes ruts and potholes, so
+a few centimetres of surface texture became roughly a tenth of a g of lateral
+gravity flipping sign every few metres. `crossHeightMacro` omits the fine relief
+and is what gravity resolves against; the relief is still felt, through the
+per-wheel ground height, which is where it belongs.
+
+**D2.6 — Two latent leaks and a NaN path closed.** A trunk instance block was
+allocated even when the foliage allocation had failed, orphaning it permanently
+on the next iteration. `EventBuilder` wrote colliders past the end of the array
+while still advancing the count, and `queryCollision` used `|| 1e-4`, which
+treats NaN as falsy — a phantom collider would have written NaN straight into the
+vehicle position and killed the run. Colliders now go through a bounds-checked
+`Chunk.addCollider`, and the distance guard is `Math.max`.
+
+**D2.7 — Spawn moved to s = 420 and chunk indices clamped at zero.** `RoadPath`
+clamps below its start, so chunks at negative indices built every row from the
+same `s = 0` frame: a zero-area road with all of its trees stacked on one point,
+colliders included. Reversing from the old spawn reached it in about five
+seconds.
+
+**D2.8 — WebGL context loss is handled.** Backgrounding a phone tab or memory
+pressure drops the GL context routinely; without `webglcontextlost` /
+`webglcontextrestored` handlers the canvas stays black for the rest of the
+session and the renderer warns every frame.
+
+**D2.9 — Audio thumps are edge-triggered, and the context recovers.** `impact`
+and `landing` decay over several frames, so testing the level alone fired a fresh
+three-node thump every frame for the duration of one bump. An `onstatechange`
+handler now resumes a context that iOS suspended for a call or Siri, which
+otherwise silences the game for the session.
+
+**D2.10 — Shadow casters cut back, and `lodDistance` is actually used.** Every
+instanced pool cast shadows, and each pool's shadow pass draws its whole count —
+forest a kilometre ahead, far outside a 45-120 m shadow camera. Conifer canopies
+(alpha-tested, the most expensive thing in the pass), undergrowth and logs no
+longer cast. Separately, the LOD band was hard-coded at three chunks on every
+preset; it now derives from `preset.lodDistance`, so mobile really does carry
+detailed trees a shorter distance than desktop, as documented.
+
+**D2.11 — Event set-pieces are merged by material.** A fire tower was 76
+separate meshes and a cabin 40; two or three on screen roughly doubled the
+frame's draw calls, to a measured peak of 186. Each set-piece is now collapsed to
+one mesh per material at build time, which brought the peak over four miles of
+driving down to 119.
+
+**D2.12 — Dead code deleted rather than left to rot.** `util/pool.ts` (nothing
+imported it), several unused `Rng` and `mathx` helpers, `SPECIES_HEIGHT`,
+`isDrivableSurface`, `setCockpitVisible`, `Sky.attach`, the three `setPreset`
+methods superseded by the rebuild path, the unused `InputState` analogue fields,
+and the preset fields `bloom`, `drawDistance` and `terrainCols` that nothing
+read. `ARCHITECTURE.md` was corrected where it had drifted from the code: the
+module map listed ten files that do not exist, and the sample spacing, minimum
+radius, substep count and texture-caching claims were all wrong.

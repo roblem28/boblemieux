@@ -291,9 +291,6 @@ export const SPECIES_BUSH = 4;
 export const SPECIES_FERN = 5;
 export const SPECIES_COUNT = 6;
 
-/** Nominal height in metres of each species at scale 1. */
-export const SPECIES_HEIGHT: readonly number[] = [11, 15, 10, 9, 1.3, 0.55];
-
 export interface VegetationBlocks {
     /** Trunk block index per species (-1 where the species has no trunk). */
     trunk: Int16Array;
@@ -333,6 +330,9 @@ export class Vegetation {
     private readonly root: Object3D;
 
     constructor(scene: Scene, assets: Assets, blockCount: number) {
+        // Shadow casters are budgeted below: a pool's shadow pass draws its
+        // whole `count`, which spans road a kilometre ahead, far outside any
+        // shadow camera. Only the trunks and broadleaf canopies earn it.
         this.root = new Object3D();
         this.root.matrixAutoUpdate = true;
         scene.add(this.root);
@@ -376,8 +376,10 @@ export class Vegetation {
                 this.trunkPools.push(null);
             }
             const fp = new InstancePool(foliageGeos[i], foliageMats[i], block, blockCount);
-            // Scrub casting shadows is a lot of shadow-map work for very little.
-            fp.mesh.castShadow = !isScrub;
+            // Scrub casting shadows is a lot of shadow-map work for very little,
+            // and alpha-tested canopies are the most expensive thing in the
+            // shadow pass, so only the broadleaf species cast.
+            fp.mesh.castShadow = !isScrub && i !== SPECIES_PINE;
             this.foliagePools.push(fp);
             this.all.push(fp);
             this.root.add(fp.mesh);
@@ -385,6 +387,7 @@ export class Vegetation {
 
         this.rocks = new InstancePool(makeBoulder(83), assets.rockMat, ROCK_BLOCK, blockCount);
         this.logs = new InstancePool(makeLog(89), assets.woodMat, LOG_BLOCK, blockCount);
+        this.logs.mesh.castShadow = false;
         for (const p of [this.rocks, this.logs]) {
             this.all.push(p);
             this.root.add(p.mesh);

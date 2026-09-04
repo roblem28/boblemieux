@@ -6,8 +6,11 @@ const fade = (t: number): number => t * t * (3 - 2 * t);
 export const noise1 = (x: number, seed = 0): number => {
     const i = Math.floor(x);
     const f = x - i;
-    const a = hashFloat((i * 374761393 + seed * 668265263) | 0);
-    const b = hashFloat(((i + 1) * 374761393 + seed * 668265263) | 0);
+    // Math.imul, not `*`: at large seeds the float product exceeds 2^53 and the
+    // low bits are lost before the truncation, collapsing the noise.
+    const sk = Math.imul(seed, 668265263);
+    const a = hashFloat((Math.imul(i, 374761393) + sk) | 0);
+    const b = hashFloat((Math.imul(i + 1, 374761393) + sk) | 0);
     return a + (b - a) * fade(f);
 };
 

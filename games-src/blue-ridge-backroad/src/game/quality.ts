@@ -10,15 +10,12 @@ export interface QualityPreset {
     chunksAhead: number;
     chunksBehind: number;
     fogFar: number;
-    drawDistance: number;
     vegetationDensity: number;
     lodDistance: number;
     dustParticles: number;
     gravelParticles: number;
-    bloom: boolean;
     anisotropy: number;
     textureSize: number;
-    terrainCols: number;
     mountainLayers: number;
 }
 
@@ -33,15 +30,12 @@ export const PRESETS: Record<QualityName, QualityPreset> = {
         chunksAhead: 10,
         chunksBehind: 2,
         fogFar: 900,
-        drawDistance: 1400,
         vegetationDensity: 1,
         lodDistance: 140,
         dustParticles: 220,
         gravelParticles: 120,
-        bloom: true,
         anisotropy: 8,
         textureSize: 1024,
-        terrainCols: 30,
         mountainLayers: 3
     },
     balanced: {
@@ -54,15 +48,12 @@ export const PRESETS: Record<QualityName, QualityPreset> = {
         chunksAhead: 8,
         chunksBehind: 2,
         fogFar: 700,
-        drawDistance: 1100,
         vegetationDensity: 0.62,
         lodDistance: 100,
         dustParticles: 140,
         gravelParticles: 70,
-        bloom: false,
         anisotropy: 4,
         textureSize: 512,
-        terrainCols: 22,
         mountainLayers: 3
     },
     mobile: {
@@ -75,15 +66,12 @@ export const PRESETS: Record<QualityName, QualityPreset> = {
         chunksAhead: 6,
         chunksBehind: 2,
         fogFar: 480,
-        drawDistance: 900,
         vegetationDensity: 0.34,
         lodDistance: 70,
         dustParticles: 70,
         gravelParticles: 36,
-        bloom: false,
         anisotropy: 1,
         textureSize: 256,
-        terrainCols: 16,
         mountainLayers: 2
     }
 };

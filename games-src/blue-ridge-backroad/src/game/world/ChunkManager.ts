@@ -34,7 +34,6 @@ import {
 import { EventBuilder } from './events/EventBuilder';
 
 const MAX_COLLIDERS = 96;
-const LOD_NEAR_CHUNKS = 3; // chunks within this distance get full 3-D trees
 
 const UP = new Vector3(0, 1, 0);
 const EULER_HELPER = new Euler();
@@ -55,6 +54,14 @@ export class Chunk {
     /** x, y, z, radius per collider, in world space. */
     readonly colliders = new Float32Array(MAX_COLLIDERS * 4);
     colliderCount = 0;
+    /**
+     * Colliders owned by this chunk's discovery event, which survive a
+     * re-scatter. Scatter resets the count back to this before appending its
+     * own; without it, flipping level of detail leaves the previous layout's
+     * rock colliders behind with no rocks attached to them, and you get hit by
+     * nothing thirty metres from anything.
+     */
+    baseColliderCount = 0;
     lod = 0;
     live = false;
     eventKind = EVENT_NONE;
@@ -71,6 +78,17 @@ export class Chunk {
         this.terrain.matrixAutoUpdate = false;
     }
 
+    /** Add a world-space collider. Ignored once the chunk's array is full. */
+    addCollider(x: number, y: number, z: number, r: number): void {
+        if (this.colliderCount >= MAX_COLLIDERS) return;
+        const i = this.colliderCount * 4;
+        this.colliders[i] = x;
+        this.colliders[i + 1] = y;
+        this.colliders[i + 2] = z;
+        this.colliders[i + 3] = r;
+        this.colliderCount += 1;
+    }
+
     dispose(): void {
         this.road.geometry.dispose();
         this.terrain.geometry.dispose();
@@ -84,6 +102,10 @@ export class ChunkManager {
     private readonly slot: EventSlot = { index: 0, s: 0, kind: EVENT_NONE, side: 1 };
     private readonly events: EventBuilder;
     private centreIndex = 0;
+    /** Scratch, reused every frame so streaming allocates nothing. */
+    private readonly doomed: number[] = [];
+    /** The chunks close enough to collide with, refreshed once per frame. */
+    private readonly nearChunks: Chunk[] = [];
 
     constructor(
         private readonly scene: Scene,
@@ -109,8 +131,13 @@ export class ChunkManager {
         this.events.update(time, cameraPos);
     }
 
-    setPreset(preset: QualityPreset): void {
-        this.preset = preset;
+    /**
+     * How many chunks either side keep full 3-D trees. Derived from the
+     * preset's `lodDistance` rather than hard-coded, so mobile really does
+     * carry detailed trees a shorter distance than desktop.
+     */
+    private get lodNearChunks(): number {
+        return Math.max(1, Math.round(this.preset.lodDistance / CHUNK_LEN));
     }
 
     /** Build every chunk the vehicle needs right now, synchronously. */
@@ -126,21 +153,29 @@ export class ChunkManager {
     update(s: number, budget = 1): void {
         const centre = Math.floor(s / CHUNK_LEN);
         this.centreIndex = centre;
-        const lo = centre - this.preset.chunksBehind;
+        // Never below zero: chunk -1 would be built entirely from the clamped
+        // s = 0 frame.
+        const lo = Math.max(0, centre - this.preset.chunksBehind);
         const hi = centre + this.preset.chunksAhead;
 
         // Release anything outside the window first, so its blocks are free for
-        // the chunks we are about to build.
-        for (const [index, chunk] of this.chunks) {
-            if (index < lo || index > hi) {
-                this.release(chunk);
-                this.chunks.delete(index);
-            }
+        // the chunks we are about to build. Collecting the doomed keys into a
+        // reused array avoids the per-entry tuple that iterating a Map with
+        // destructuring allocates every frame.
+        this.doomed.length = 0;
+        for (const index of this.chunks.keys()) {
+            if (index < lo || index > hi) this.doomed.push(index);
+        }
+        for (let i = 0; i < this.doomed.length; i++) {
+            const index = this.doomed[i];
+            const chunk = this.chunks.get(index);
+            if (chunk) this.release(chunk);
+            this.chunks.delete(index);
         }
 
         // Re-evaluate level of detail for chunks that changed distance band.
         for (const chunk of this.chunks.values()) {
-            const lod = Math.abs(chunk.index - centre) <= LOD_NEAR_CHUNKS ? 0 : 1;
+            const lod = Math.abs(chunk.index - centre) <= this.lodNearChunks ? 0 : 1;
             if (lod !== chunk.lod && budget > 0) {
                 chunk.lod = lod;
                 this.releaseVegetation(chunk);
@@ -148,6 +183,8 @@ export class ChunkManager {
                 budget -= 1;
             }
         }
+
+        this.refreshNearChunks();
 
         let built = 0;
         // Nearest-first so the road under the vehicle always exists.
@@ -163,11 +200,20 @@ export class ChunkManager {
         }
     }
 
+    /** The +/-1 chunk window the physics tests against, cached once per frame. */
+    private refreshNearChunks(): void {
+        this.nearChunks.length = 0;
+        for (let i = this.centreIndex - 1; i <= this.centreIndex + 1; i++) {
+            const chunk = this.chunks.get(i);
+            if (chunk) this.nearChunks.push(chunk);
+        }
+    }
+
     private acquire(index: number, centre: number): Chunk {
         const chunk = this.pool.pop() ?? new Chunk(this.assets);
         chunk.index = index;
         chunk.sStart = index * CHUNK_LEN;
-        chunk.lod = Math.abs(index - centre) <= LOD_NEAR_CHUNKS ? 0 : 1;
+        chunk.lod = Math.abs(index - centre) <= this.lodNearChunks ? 0 : 1;
         chunk.colliderCount = 0;
         chunk.live = true;
 
@@ -192,6 +238,8 @@ export class ChunkManager {
         this.scene.add(chunk.terrain);
 
         this.buildEvent(chunk);
+        // Whatever the event registered is the floor a re-scatter resets to.
+        chunk.baseColliderCount = chunk.colliderCount;
         this.scatter(chunk);
         return chunk;
     }
@@ -207,6 +255,7 @@ export class ChunkManager {
         chunk.eventKind = EVENT_NONE;
         chunk.live = false;
         chunk.colliderCount = 0;
+        chunk.baseColliderCount = 0;
         this.pool.push(chunk);
     }
 
@@ -253,16 +302,6 @@ export class ChunkManager {
 
     // ---------------------------------------------------------------- scatter
 
-    private addCollider(chunk: Chunk, x: number, y: number, z: number, r: number): void {
-        if (chunk.colliderCount >= MAX_COLLIDERS) return;
-        const i = chunk.colliderCount * 4;
-        chunk.colliders[i] = x;
-        chunk.colliders[i + 1] = y;
-        chunk.colliders[i + 2] = z;
-        chunk.colliders[i + 3] = r;
-        chunk.colliderCount += 1;
-    }
-
     /**
      * Deterministic placement: the seed is derived from the chunk index, so a
      * chunk always looks identical no matter how many times it streams in.
@@ -272,6 +311,8 @@ export class ChunkManager {
         const density = this.preset.vegetationDensity;
         const rng = this.rng;
         rng.reseed(hash2(this.path.seed, chunk.index * 7919 + 13));
+        // Drop any colliders a previous scatter of this chunk left behind.
+        chunk.colliderCount = chunk.baseColliderCount;
 
         // LOD1 keeps the canopy and drops the trunk mesh — roughly 60 % of a
         // tree's triangles — and because the pools are global, the far level
@@ -308,11 +349,15 @@ export class ChunkManager {
             const used = chunk.blocks.used[species];
             if (used >= v.blockSizeFor(species)) continue;
             if (chunk.blocks.foliage[species] < 0) {
-                chunk.blocks.foliage[species] = v.foliagePools[species].allocBlock();
+                // Claim the foliage block first. Allocating the trunk block
+                // regardless would orphan it on the next iteration, turning a
+                // temporary pool shortage into a permanent leak.
+                const fb = v.foliagePools[species].allocBlock();
+                if (fb < 0) continue;
+                chunk.blocks.foliage[species] = fb;
                 const tp = v.trunkPools[species];
                 if (tp && !far) chunk.blocks.trunk[species] = tp.allocBlock();
             }
-            if (chunk.blocks.foliage[species] < 0) continue;
             tmpScale.setScalar(scale);
             tmpQuat.setFromEuler(EULER_HELPER.set(lean, yaw, lean * 0.6));
             tmpMatrix.compose(this.local(tmpPos), tmpQuat, tmpScale);
@@ -325,7 +370,7 @@ export class ChunkManager {
 
             // Only trunks close enough to hit are worth a collider.
             if (Math.abs(lateral) < 13 && species <= SPECIES_SNAG) {
-                this.addCollider(chunk, tmpPos.x, tmpPos.y, tmpPos.z, 0.45 * scale + 0.35);
+                chunk.addCollider(tmpPos.x, tmpPos.y, tmpPos.z, 0.45 * scale + 0.35);
             }
         }
 
@@ -364,7 +409,7 @@ export class ChunkManager {
                 v.rocks.set(chunk.blocks.rock, chunk.blocks.rockUsed, tmpMatrix);
                 chunk.blocks.rockUsed += 1;
                 if (big && Math.abs(lateral) < 11) {
-                    this.addCollider(chunk, tmpPos.x, tmpPos.y, tmpPos.z, scale * 0.85);
+                    chunk.addCollider(tmpPos.x, tmpPos.y, tmpPos.z, scale * 0.85);
                 }
             }
             v.rocks.clearFrom(chunk.blocks.rock, chunk.blocks.rockUsed);
@@ -471,8 +516,10 @@ export class ChunkManager {
     queryCollision(x: number, y: number, z: number, r: number, out: Float32Array): boolean {
         let hit = false;
         let bestPen = 0;
-        for (const chunk of this.chunks.values()) {
-            if (Math.abs(chunk.index - this.centreIndex) > 1) continue;
+        // Indexed loop over the cached near list: this runs once per physics
+        // substep, up to eight times a frame.
+        for (let ci = 0; ci < this.nearChunks.length; ci++) {
+            const chunk = this.nearChunks[ci];
             const c = chunk.colliders;
             for (let i = 0; i < chunk.colliderCount; i++) {
                 const o = i * 4;
@@ -483,7 +530,9 @@ export class ChunkManager {
                 const rr = c[o + 3] + r;
                 const d2 = dx * dx + dz * dz;
                 if (d2 >= rr * rr) continue;
-                const d = Math.sqrt(d2) || 1e-4;
+                // `|| 1e-4` would turn a NaN distance into a huge penetration
+                // and write NaN straight into the vehicle position.
+                const d = Math.max(Math.sqrt(d2), 1e-4);
                 const pen = rr - d;
                 if (pen > bestPen) {
                     bestPen = pen;
@@ -499,11 +548,11 @@ export class ChunkManager {
     }
 
     dispose(): void {
-        for (const chunk of this.chunks.values()) {
-            this.release(chunk);
-            chunk.dispose();
-        }
+        // release() parks the chunk in the pool, so disposing it here as well
+        // would dispose every live chunk's geometry twice.
+        for (const chunk of this.chunks.values()) this.release(chunk);
         this.chunks.clear();
+        this.nearChunks.length = 0;
         for (const chunk of this.pool) chunk.dispose();
         this.pool.length = 0;
         this.events.dispose();

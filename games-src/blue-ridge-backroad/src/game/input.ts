@@ -4,12 +4,6 @@
  * goes through React state and true multi-touch just works.
  */
 export interface InputState {
-    /** 0..1 */
-    throttle: number;
-    /** 0..1 */
-    brake: number;
-    /** -1 (left) .. 1 (right) */
-    steer: number;
     /** Set by a control, consumed by the game loop. */
     cycleCameraRequested: boolean;
     /** Held sources, tracked separately so keyboard and touch can coexist. */
@@ -24,9 +18,6 @@ export interface InputState {
 }
 
 export const createInputState = (): InputState => ({
-    throttle: 0,
-    brake: 0,
-    steer: 0,
     cycleCameraRequested: false,
     keyThrottle: false,
     keyBrake: false,
@@ -38,15 +29,27 @@ export const createInputState = (): InputState => ({
     touchRight: false
 });
 
-/** Collapse the held flags into the analogue targets the physics reads. */
-export const resolveInputTargets = (
-    input: InputState
-): { throttle: number; brake: number; steer: number } => {
-    const t = input.keyThrottle || input.touchThrottle ? 1 : 0;
-    const b = input.keyBrake || input.touchBrake ? 1 : 0;
+export interface InputTargets {
+    throttle: number;
+    brake: number;
+    /** -1 (left) .. 1 (right), in UI terms. */
+    steer: number;
+}
+
+/**
+ * Collapse the held flags into the analogue targets the physics reads.
+ *
+ * Writes into a caller-owned record rather than returning a literal: this is
+ * called on every physics substep, up to eight times a frame, and a fresh
+ * object each time is the single easiest allocation to leave in a hot loop.
+ */
+export const resolveInputTargets = (input: InputState, out: InputTargets): InputTargets => {
+    out.throttle = input.keyThrottle || input.touchThrottle ? 1 : 0;
+    out.brake = input.keyBrake || input.touchBrake ? 1 : 0;
     const left = input.keyLeft || input.touchLeft ? 1 : 0;
     const right = input.keyRight || input.touchRight ? 1 : 0;
-    return { throttle: t, brake: b, steer: right - left };
+    out.steer = right - left;
+    return out;
 };
 
 export interface KeyboardBinding {

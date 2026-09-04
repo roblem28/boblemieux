@@ -31,9 +31,9 @@ the shipped payload is code only.
 
 React owns **screens and chrome**; Three.js owns **the frame**.
 
-- `App.tsx` holds a small state machine: `title -> driving` (+ `paused`).
-- `<GameCanvas>` mounts a `<canvas>` and constructs the imperative `Game`
-  object once in an effect. React never re-renders during the game loop.
+- `App.tsx` holds a small state machine (`title -> driving`), renders the
+  `<canvas>`, and constructs the imperative `Game` once in a mount effect.
+  React never re-renders during the game loop.
 - The loop publishes telemetry (speed, odometer, gear, fps) into a mutable
   telemetry store. The HUD subscribes through a **10 Hz throttled**
   `useSyncExternalStore`, so gauge updates cost ~10 React renders/sec, not 60.
@@ -52,47 +52,46 @@ budget for zero benefit here — the scene graph is built by generators, not JSX
 ```
 src/
   main.tsx                 React root; StrictMode off (double-mount would build the world twice)
-  App.tsx                  screen state machine
+  App.tsx                  screen state machine, canvas host, window.brb debug handle
+  styles.css               all UI styling
   ui/
     TitleScreen.tsx        cinematic title + START ENGINE (also the audio unlock gesture)
     Hud.tsx                MPH dial, odometer, camera/sound/settings buttons, FPS (dev)
     TouchControls.tsx      pointer-event steering + pedals, multi-touch safe
-    SettingsPanel.tsx      quality preset override, FPS toggle
-    telemetry.ts           throttled external store (useSyncExternalStore)
+    SettingsPanel.tsx      quality preset override, FPS toggle, controls help
+    telemetry.ts           version-counter external store (useSyncExternalStore)
   game/
-    Game.ts                renderer, scene, clock, fixed-step accumulator, systems wiring
+    Game.ts                renderer, scene, fixed-step accumulator, systems wiring, tick(dt)
     quality.ts             preset table + auto-detection + localStorage override
-    input.ts               InputState, keyboard bindings, gamepad-ready shape
+    input.ts               InputState, keyboard bindings, allocation-free target resolution
     road/
-      RoadPath.ts          THE ROAD COORDINATE SYSTEM (section 4)
-      RoadMesh.ts          road + shoulder + ditch ribbon builder (pooled buffers)
+      RoadPath.ts          THE ROAD COORDINATE SYSTEM + cross-section + event schedule
+      ChunkGeometry.ts     road ribbon and terrain skirt builders (chunk-local, analytic normals)
     world/
-      ChunkManager.ts      streaming, pooling, lifecycle (section 5)
-      Chunk.ts             one chunk's meshes + instance slots + collider list
-      Terrain.ts           road-conforming terrain skirt geometry
-      Vegetation.ts        global instanced pools per species/LOD + slot allocator
-      Scatter.ts           deterministic per-chunk placement (rocks, branches, weeds)
-      Mountains.ts         3 parallax ridge layers, camera-locked in XZ
-      Sky.ts               gradient dome, sun disc, time-of-day driver
-      events/              discovery set-pieces (bridge, cabin, gas station, ...)
+      ChunkManager.ts      Chunk, streaming, pooling, deterministic scatter, collision query
+      Vegetation.ts        instanced pools per species, per-chunk instance blocks, rebasing
+      Assets.ts            every shared texture and material, built once per preset
+      Sky.ts               sky dome shader, sun, shadow camera, fog, parallax ridge layers
+      events/EventBuilder.ts   the seven discovery set-pieces, pooled and merged by material
     vehicle/
-      VehicleModel.ts      procedural body/glass/chrome/lights/interior, LOD0/LOD1
+      VehicleModel.ts      procedural body/glass/chrome/lights/interior/wheels, body LOD
       VehiclePhysics.ts    the model in section 6
-      Wheels.ts            spin, steer, suspension travel visuals
     camera/
       CameraRig.ts         chase / hood / cockpit, spring-damped, XR-safe
     fx/
-      DustSystem.ts        pooled point-sprite dust at wheel contacts
-      GravelSystem.ts      pooled gravel chips with ballistic arcs
+      Particles.ts         pooled point-sprite dust and gravel, origin-rebased
     audio/
       AudioEngine.ts       Web Audio graph, all procedural (section 8)
     util/
-      rng.ts               mulberry32 + hash-based deterministic noise
-      noise.ts             value/fbm noise used by road, terrain, textures
-      textures.ts          canvas-generated albedo/normal/roughness, cached
-      pool.ts              generic object pool + free-list slot allocator
-      mathx.ts             damping, clamp, moveTowards, spring
+      rng.ts               mulberry32 + integer hashes
+      noise.ts             value/fbm noise used by the road, terrain and textures
+      textures.ts          canvas-generated albedo/normal/roughness
+      mathx.ts             damping, clamp, moveTowards, smoothstep
 ```
+
+Terrain, road-mesh building, wheel animation, dust and gravel do not have files
+of their own: the first two live in `ChunkGeometry`, the third in
+`VehicleModel.sync`, and the last two are two pools inside `Particles`.
 
 ---
 
@@ -106,15 +105,22 @@ and streaming all the same number, with no curve reparameterisation error.
 ### Generation
 
 A deterministic seeded generator produces, for each sample `i` at
-`s = i * STEP` (`STEP = 4 m`):
+`s = i * STEP` (`STEP = 2 m`):
 
-- `kappa` — horizontal curvature (rad/m): a sum of 4 sine octaves of `s` with
-  seeded phases, clamped so the radius never drops below ~45 m (curves stay
-  readable from far enough away to react).
-- `grade` — longitudinal slope (rise/run), 3 octaves, clamped to +/-9 %.
-- `bank` — superelevation derived from curvature and a reference speed, then
-  smoothed, so curves are banked the way a real road is (outside edge high).
+- `kappa` — horizontal curvature (rad/m): three fbm octaves of `s` under a slow
+  envelope that opens genuine straights and closes twisty sections, clamped so
+  the radius never drops below 115 m. That floor is set by the top speed: at
+  mu ~= 1 a 55 m corner caps cornering at about 46 mph, which would make the
+  stated 155 mph unreachable anywhere on the road.
+- `grade` — longitudinal slope (rise/run), three octaves, clamped to +/-8.5 %.
+- `bank` — superelevation derived from curvature, clamped to 5.2 degrees and
+  rate-limited along `s`, so curves are banked outside-edge-high the way a real
+  road is and the ruled ribbon surface stays within millimetres of the analytic
+  height function.
 - `width` — 5.0–6.7 m (16–22 ft), slow noise.
+
+Curvature and grade are additionally multiplied by an event-flattening factor
+(section 5), which is why a bridge is never generated mid-corner.
 
 Heading is the running integral of curvature; elevation is the running integral
 of grade. Because both are integrals, samples are built **incrementally forward**
@@ -130,8 +136,11 @@ base-index offset, so memory is bounded regardless of distance driven.
 | `s` | distance along road |
 | `pos` | road centreline world position (x, y, z) |
 | `tangent` | unit direction of travel |
-| `right` | unit lateral, **rotated by the bank angle** |
+| `right` | unit lateral in the horizontal plane, to the driver's right |
+| `surfaceRight` | the same axis **rotated by the bank angle** — the surface across-vector |
 | `normal` | unit road surface normal (banked) |
+| `heading` | the running heading integral (never wraps) |
+| `sideBias` | which side of the road the hillside rises on |
 | `elevation` | centreline y |
 | `curvature` | signed rad/m |
 | `width` | full carriageway width |
@@ -143,8 +152,13 @@ own integral, so there are no angle-wrap issues).
 ### World <-> road mapping
 
 `RoadPath.project(worldPos, hintS)` does a bounded local search around the
-previous frame's `s` (the vehicle cannot move more than ~2 m per substep), then
-one Newton refinement against the tangent. Cost is O(1) and allocation-free.
+*previous projection's* `s` — never an integrated guess, which would break in
+reverse and on spins — and widens the window automatically when the nearest
+sample lands on its edge, which covers teleports and resumes. It then refines
+along the segment with a dot product against the tangent rather than a Newton
+step: Newton on this function divides by `1 - lateral * kappa`, which is zero at
+the centre of curvature, and the terrain skirt is wide enough to reach it.
+Cost is O(1) and allocation-free.
 `lateral` is signed metres from the centreline: `|lateral| < width/2` is the
 carriageway, `< width/2 + shoulder` is the gravel shoulder, beyond that is the
 drainage ditch and then open terrain — this is what the physics uses to pick a
@@ -153,6 +167,13 @@ surface friction coefficient.
 Surface height anywhere is `frame.pos.y + lateral * sin(bank)` plus the terrain
 skirt profile beyond the shoulder, so the vehicle, the mesh and the physics all
 agree on exactly one height function.
+
+There are two versions of it. `crossHeight` includes the fine road relief — tire
+ruts, washboard, shallow potholes — and is what the mesh and the per-wheel ground
+query use. `crossHeightMacro` omits it, and is what slopes are differentiated
+from: differentiating a few centimetres of pothole produces a tenth of a g of
+lateral gravity that changes sign every few metres, and the truck twitches down
+the road.
 
 ---
 
@@ -167,6 +188,11 @@ want = [chunkIndex - 2, chunkIndex + AHEAD]
 for i in want not live:   acquire()   (at most 1 build per frame; amortised)
 for i live not in want:   release()
 ```
+
+The same per-frame budget also covers re-scattering a chunk whose level of
+detail band changed, so a frame never builds more than one chunk's worth of
+work. `lo` is clamped to 0: chunk -1 would be built entirely from the clamped
+`s = 0` frame, collapsing every row onto one point.
 
 `acquire(i)`:
 1. Take a `Chunk` from the pool (or construct it on first use).
@@ -193,9 +219,12 @@ chunk `i` ends at `s = (i+1)*100` on the identical frame chunk `i+1` starts on.
 
 ## 6. Physics update order
 
-Fixed step `dt = 1/120 s`, accumulator, max 4 substeps per frame
-(spiral-of-death guard), remainder carried. No render interpolation — at 120 Hz
-the visual error is sub-pixel.
+Fixed step: `dt = 1/120 s` on high and balanced, `1/60 s` on mobile, with an
+accumulator, at most 8 substeps per frame and the raw frame delta clamped to
+0.1 s. If a frame needs more than 8 substeps the backlog is dropped rather than
+paid off, because running the simulation in slow motion for the next few seconds
+reads to the player as the engine losing power. No render interpolation — at
+120 Hz the visual error is sub-pixel.
 
 Per substep:
 
@@ -289,9 +318,15 @@ All continuous parameters go through `setTargetAtTime`, never per-frame
   no `.map/.filter` in anything called per frame or per substep.
 - Vegetation, rocks and debris live in **global `InstancedMesh` pools** with a
   free-list slot allocator, so ~20 000 plants cost ~10 draw calls, not 20 000.
-- Materials are shared and created once; textures are cached by key.
-- Shadow casting is limited to the vehicle plus near trees and structures, with a
-  bounded ortho camera that follows the vehicle.
+- Materials and textures are created once per quality preset and shared by
+  everything that uses them. Changing preset disposes the whole set and rebuilds
+  it; there is no cache across presets, because the textures are generated at a
+  different resolution for each.
+- Shadow casting is limited: the vehicle, structures, trunks and broadleaf
+  canopies cast; conifer canopies, undergrowth and fallen logs do not, because
+  alpha-tested foliage is the most expensive thing in the shadow pass. The ortho
+  shadow camera is bounded and follows the vehicle, snapped to texel increments
+  so shadows do not crawl at speed.
 - Target draw calls: < 120 HIGH, < 80 MOBILE. Target triangles: < 900 k HIGH.
 - `renderer.setAnimationLoop()` (not `requestAnimationFrame`) so WebXR can drive
   the loop unchanged.

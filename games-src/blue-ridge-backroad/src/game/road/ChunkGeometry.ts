@@ -2,7 +2,6 @@ import { BufferAttribute, BufferGeometry, Sphere, Vector3 } from 'three';
 import {
     DITCH_W,
     SHOULDER_W,
-    SURFACE_ROAD,
     STEP,
     createFrame,
     type RoadFrame,
@@ -64,8 +63,11 @@ const TERRAIN_COL_N = TERRAIN_OFFSETS.length;
 
 // -------------------------------------------------------------- scratch
 
-const MAX_ROWS = ROAD_ROWS + 2;
-const MAX_COLS = ROAD_COL_N + 2;
+// Sized for the larger of the two ribbons, with headroom: exact sizing meant
+// that adding one column would silently read past the end and produce NaN
+// normals rather than failing.
+const MAX_ROWS = Math.max(ROAD_ROWS, TERRAIN_ROWS) + 4;
+const MAX_COLS = Math.max(ROAD_COL_N, TERRAIN_COL_N) + 4;
 // Ghost-padded position grid: (rows + 2) x (cols + 2) x 3.
 const gx = new Float64Array(MAX_ROWS * MAX_COLS);
 const gy = new Float64Array(MAX_ROWS * MAX_COLS);
@@ -117,7 +119,9 @@ export const createRoadGeometry = (): BufferGeometry => {
     g.setAttribute('uv', new BufferAttribute(new Float32Array(n * 2), 2));
     g.setAttribute('color', new BufferAttribute(new Float32Array(n * 3), 3));
     g.setIndex(getRoadIndex());
-    g.boundingSphere = new Sphere(new Vector3(0, 0, 0), 400);
+    // The chunk spans 100 m of road and ~10 m either side of the centreline;
+    // an oversized sphere just weakens frustum culling across all 13 chunks.
+    g.boundingSphere = new Sphere(new Vector3(0, CHUNK_LEN * 0.5, CHUNK_LEN * 0.5), CHUNK_LEN);
     return g;
 };
 
@@ -129,7 +133,8 @@ export const createTerrainGeometry = (): BufferGeometry => {
     g.setAttribute('uv', new BufferAttribute(new Float32Array(n * 2), 2));
     g.setAttribute('color', new BufferAttribute(new Float32Array(n * 3), 3));
     g.setIndex(getTerrainIndex());
-    g.boundingSphere = new Sphere(new Vector3(0, 0, 0), 400);
+    // The skirt reaches ~75 m either side and climbs the hillside with it.
+    g.boundingSphere = new Sphere(new Vector3(0, CHUNK_LEN * 0.5, CHUNK_LEN * 0.5), 160);
     return g;
 };
 
@@ -370,6 +375,3 @@ export const buildTerrainChunk = (
     );
 };
 
-/** Exported so the scatter code can avoid dropping props onto the carriageway. */
-export const isDrivableSurface = (path: RoadPath, frame: RoadFrame, l: number): boolean =>
-    path.surfaceAt(frame, l) === SURFACE_ROAD;

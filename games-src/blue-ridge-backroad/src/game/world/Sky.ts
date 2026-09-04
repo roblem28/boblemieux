@@ -8,7 +8,6 @@ import {
     HemisphereLight,
     Mesh,
     MeshBasicMaterial,
-    Object3D,
     Scene,
     ShaderMaterial,
     Sprite,
@@ -269,7 +268,9 @@ export class Sky {
 
         // Keep the dome, ridges and sun sprite centred on the player.
         this.dome.position.set(focus.x, focus.y, focus.z);
-        for (const r of this.ridges) r.position.set(focus.x, focus.y - 30, focus.z);
+        for (let i = 0; i < this.ridges.length; i++) {
+            this.ridges[i].position.set(focus.x, focus.y - 30, focus.z);
+        }
         this.sunSprite.position
             .copy(this.sunDir)
             .multiplyScalar(1500)
@@ -292,11 +293,10 @@ export class Sky {
         this.sun.target.updateMatrixWorld();
     }
 
-    attach(target: Object3D): void {
-        void target;
-    }
-
     dispose(): void {
+        // The shadow map is a render target of its own — 16 MB at 2048 on high —
+        // and switching quality preset builds a whole new Sky.
+        this.sun.shadow.dispose();
         this.scene.remove(this.dome, this.sun, this.sun.target, this.hemi, this.sunSprite);
         for (const r of this.ridges) this.scene.remove(r);
         this.ridges.length = 0;

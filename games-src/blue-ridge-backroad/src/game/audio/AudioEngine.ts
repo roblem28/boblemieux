@@ -12,6 +12,8 @@ import type { VehiclePhysics } from '../vehicle/VehiclePhysics';
  */
 
 const NOISE_SECONDS = 2;
+/** Hoisted: this was an array literal inside the per-frame oscillator loop. */
+const HARMONICS = [0.5, 1, 2];
 
 const makeNoiseBuffer = (ctx: AudioContext): AudioBuffer => {
     const len = ctx.sampleRate * NOISE_SECONDS;
@@ -55,6 +57,7 @@ export class AudioEngine {
     private ambienceGain: GainNode | null = null;
     private noiseBuffer: AudioBuffer | null = null;
     private birdTimer = 0;
+    private thumpCooldown = 0;
     private started = false;
 
     muted = false;
@@ -164,6 +167,15 @@ export class AudioEngine {
         this.connectNoise(ctx, ambFilter, this.ambienceGain);
 
         this.master.gain.setTargetAtTime(this.muted ? 0.0001 : 0.85, ctx.currentTime, 0.6);
+
+        // iOS suspends the context on a phone call, Siri or a route change, with
+        // no visibilitychange to react to. Without this the game goes silent for
+        // the rest of the session.
+        ctx.onstatechange = (): void => {
+            if (this.ctx && this.ctx.state === 'suspended' && !document.hidden) {
+                void this.ctx.resume();
+            }
+        };
     }
 
     private connectNoise(ctx: AudioContext, filter: BiquadFilterNode, gain: GainNode): void {
@@ -236,7 +248,7 @@ export class AudioEngine {
         // Engine pitch tracks RPM; the filter opens with load.
         const fundamental = lerp(34, 108, rpmNorm);
         for (let i = 0; i < this.oscillators.length; i++) {
-            const mult = [0.5, 1, 2][i];
+            const mult = HARMONICS[i];
             this.oscillators[i].frequency.setTargetAtTime(
                 fundamental * mult * (1 + (i - 1) * 0.006),
                 now,
@@ -283,9 +295,17 @@ export class AudioEngine {
             this.ambienceGain.gain.setTargetAtTime(0.05 * (1 - clamp(speed / 30, 0, 0.85)), now, 0.4);
         }
 
-        // Impacts.
-        if (physics.impact > 0.2) this.thump(physics.impact);
-        if (physics.landing > 0.25) this.thump(physics.landing * 0.7);
+        // Impacts, edge-triggered. `impact` and `landing` decay over several
+        // frames, so testing the level alone fires a fresh three-node thump
+        // every frame for the duration of one bump.
+        this.thumpCooldown = Math.max(0, this.thumpCooldown - dt);
+        if (this.thumpCooldown === 0) {
+            const strength = Math.max(physics.impact > 0.2 ? physics.impact : 0, physics.landing > 0.25 ? physics.landing * 0.7 : 0);
+            if (strength > 0) {
+                this.thump(strength);
+                this.thumpCooldown = 0.12;
+            }
+        }
 
         this.birdTimer -= dt;
         if (this.birdTimer <= 0) {

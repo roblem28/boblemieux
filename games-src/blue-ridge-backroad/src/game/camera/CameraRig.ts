@@ -48,7 +48,7 @@ export class CameraRig {
         this.started = false;
     }
 
-    update(dt: number, physics: VehiclePhysics, model: VehicleModel, time: number): void {
+    update(dt: number, physics: VehiclePhysics, model: VehicleModel): void {
         const speed = Math.abs(physics.u);
         const speedT = smoothstep(0, 62, speed);
 
@@ -81,7 +81,6 @@ export class CameraRig {
             this.fov = damp(this.fov, lerp(62, 82, speedT), 3, dt);
         } else if (this.mode === 'hood') {
             model.hoodAnchor.getWorldPosition(desired);
-            model.chassis.getWorldPosition(scratch);
             const fwdX = Math.sin(physics.yaw);
             const fwdZ = Math.cos(physics.yaw);
             lookTarget.set(
@@ -93,8 +92,6 @@ export class CameraRig {
             this.fov = damp(this.fov, lerp(66, 84, speedT), 3, dt);
         } else {
             model.cockpitAnchor.getWorldPosition(desired);
-            const fwdX = Math.sin(physics.yaw);
-            const fwdZ = Math.cos(physics.yaw);
             // A little look-into-the-corner, which is what a driver actually does.
             const lean = clamp(physics.steer * 2.4 + physics.yawRate * 0.35, -0.5, 0.5);
             const lx = Math.sin(physics.yaw + lean);
@@ -104,8 +101,6 @@ export class CameraRig {
                 desired.y - 1.6 + physics.pitch * 10,
                 desired.z + lz * 30
             );
-            void fwdX;
-            void fwdZ;
             this.blend(dt, 30, 20);
             this.fov = damp(this.fov, lerp(68, 80, speedT), 3, dt);
         }
@@ -123,7 +118,6 @@ export class CameraRig {
             this.camera.fov = this.fov;
             this.camera.updateProjectionMatrix();
         }
-        void time;
     }
 
     private blend(dt: number, posRate: number, lookRate: number): void {

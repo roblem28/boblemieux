@@ -1,4 +1,4 @@
-import { useEffect, useRef, type JSX } from 'react';
+import { useCallback, useEffect, useRef, type JSX } from 'react';
 import type { InputState } from '../game/input';
 
 /**
@@ -13,7 +13,13 @@ import type { InputState } from '../game/input';
  *  - `touch-action: none` on the controls and a document-level non-passive
  *    `touchmove` preventDefault, so dragging never scrolls or rubber-bands;
  *  - the input flags are written straight into the mutable InputState, never
- *    through React state, so a press costs nothing and never re-renders.
+ *    through React state, so a press costs nothing and never re-renders;
+ *  - **the ref callback identity is stable.** React calls a changed ref
+ *    callback with `null` and then with the element, which tears down and
+ *    rebuilds the listeners. With a fresh arrow function per render, any
+ *    unrelated state change — tapping Sound, opening Settings — would release
+ *    a held control mid-corner, and since the finger is already down no further
+ *    `pointerdown` would ever arrive to restore it.
  */
 
 type Control = 'left' | 'right' | 'gas' | 'brake';
@@ -40,61 +46,64 @@ const apply = (input: InputState, control: Control, down: boolean): void => {
     }
 };
 
+const preventDefault = (e: Event): void => e.preventDefault();
+
 const useControlButton = (
     input: InputState,
     control: Control
 ): ((el: HTMLButtonElement | null) => void) => {
     const cleanup = useRef<(() => void) | null>(null);
 
-    return (el: HTMLButtonElement | null): void => {
-        cleanup.current?.();
-        cleanup.current = null;
-        if (!el) return;
+    return useCallback(
+        (el: HTMLButtonElement | null): void => {
+            cleanup.current?.();
+            cleanup.current = null;
+            if (!el) return;
 
-        let activeId: number | null = null;
+            let activeId: number | null = null;
 
-        const down = (e: PointerEvent): void => {
-            e.preventDefault();
-            if (activeId !== null) return;
-            activeId = e.pointerId;
-            try {
-                el.setPointerCapture(e.pointerId);
-            } catch {
-                /* capture is best-effort */
-            }
-            el.dataset.active = 'true';
-            apply(input, control, true);
-        };
-        const up = (e: PointerEvent): void => {
-            if (activeId !== e.pointerId) return;
-            activeId = null;
-            try {
-                if (el.hasPointerCapture(e.pointerId)) el.releasePointerCapture(e.pointerId);
-            } catch {
-                /* already released */
-            }
-            delete el.dataset.active;
-            apply(input, control, false);
-        };
+            const down = (e: PointerEvent): void => {
+                e.preventDefault();
+                if (activeId !== null) return;
+                activeId = e.pointerId;
+                try {
+                    el.setPointerCapture(e.pointerId);
+                } catch {
+                    /* capture is best-effort */
+                }
+                el.dataset.active = 'true';
+                apply(input, control, true);
+            };
+            const up = (e: PointerEvent): void => {
+                if (activeId !== e.pointerId) return;
+                activeId = null;
+                try {
+                    if (el.hasPointerCapture(e.pointerId)) el.releasePointerCapture(e.pointerId);
+                } catch {
+                    /* already released */
+                }
+                delete el.dataset.active;
+                apply(input, control, false);
+            };
 
-        el.addEventListener('pointerdown', down);
-        el.addEventListener('pointerup', up);
-        el.addEventListener('pointercancel', up);
-        el.addEventListener('lostpointercapture', up);
-        el.addEventListener('contextmenu', preventDefault);
+            el.addEventListener('pointerdown', down);
+            el.addEventListener('pointerup', up);
+            el.addEventListener('pointercancel', up);
+            el.addEventListener('lostpointercapture', up);
+            el.addEventListener('contextmenu', preventDefault);
 
-        cleanup.current = (): void => {
-            el.removeEventListener('pointerdown', down);
-            el.removeEventListener('pointerup', up);
-            el.removeEventListener('pointercancel', up);
-            el.removeEventListener('lostpointercapture', up);
-            el.removeEventListener('contextmenu', preventDefault);
-            apply(input, control, false);
-        };
-    };
+            cleanup.current = (): void => {
+                el.removeEventListener('pointerdown', down);
+                el.removeEventListener('pointerup', up);
+                el.removeEventListener('pointercancel', up);
+                el.removeEventListener('lostpointercapture', up);
+                el.removeEventListener('contextmenu', preventDefault);
+                apply(input, control, false);
+            };
+        },
+        [input, control]
+    );
 };
-
-const preventDefault = (e: Event): void => e.preventDefault();
 
 export const TouchControls = ({ input, visible }: Props): JSX.Element | null => {
     const leftRef = useControlButton(input, 'left');
@@ -118,7 +127,7 @@ export const TouchControls = ({ input, visible }: Props): JSX.Element | null => 
     if (!visible) return null;
 
     return (
-        <div className="touch-layer" aria-hidden="false">
+        <div className="touch-layer">
             <div className="touch-cluster touch-left">
                 <button ref={leftRef} className="touch-btn steer" type="button" aria-label="Steer left">
                     <span>&#10094;</span>

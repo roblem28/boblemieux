@@ -28,6 +28,7 @@ import {
     type EventSlot,
     type RoadPath
 } from '../../road/RoadPath';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { Rng } from '../../util/rng';
 import type { Assets } from '../Assets';
 import type { Chunk } from '../ChunkManager';
@@ -101,7 +102,13 @@ export class EventBuilder {
     build(slot: EventSlot, chunk: Chunk): Object3D | null {
         const pool = this.pools.get(slot.kind);
         let node = pool?.pop() ?? null;
-        if (!node) node = this.create(slot);
+        if (!node) {
+            node = this.create(slot);
+            // A fire tower is ~76 little meshes and a cabin ~40. Left as-is,
+            // two or three set-pieces on screen doubled the frame's draw calls.
+            // Merging by material collapses each one to a handful.
+            if (node && node.userData.noMerge !== true) this.flatten(node);
+        }
         if (!node) return null;
 
         this.path.sample(slot.s, frame);
@@ -119,12 +126,11 @@ export class EventBuilder {
         this.active.push({ node, kind: slot.kind, phase: (slot.index * 1.7) % 6.28 });
 
         // Structures are solid; register a collider so you cannot drive through.
+        // Goes through the chunk's bounds-checked adder: writing past the end of
+        // the typed array is silently dropped while the count still advances,
+        // which leaves a phantom collider that reads back as NaN.
         if (slot.kind === EVENT_CABIN || slot.kind === EVENT_GAS_STATION || slot.kind === EVENT_FIRE_TOWER) {
-            chunk.colliders[chunk.colliderCount * 4] = tmp.x;
-            chunk.colliders[chunk.colliderCount * 4 + 1] = tmp.y;
-            chunk.colliders[chunk.colliderCount * 4 + 2] = tmp.z;
-            chunk.colliders[chunk.colliderCount * 4 + 3] = 4.2;
-            chunk.colliderCount += 1;
+            chunk.addCollider(tmp.x, tmp.y, tmp.z, 4.2);
         }
         return node;
     }
@@ -161,7 +167,8 @@ export class EventBuilder {
     /** Animates the few kinds that move, and reports fog influence. */
     update(time: number, cameraPos: Vector3): void {
         let fog = 0;
-        for (const a of this.active) {
+        for (let ai = 0; ai < this.active.length; ai++) {
+            const a = this.active[ai];
             if (a.kind === EVENT_STRANGE_LIGHTS) {
                 for (let i = 0; i < a.node.children.length; i++) {
                     const c = a.node.children[i];
@@ -198,6 +205,44 @@ export class EventBuilder {
                 return this.buildStrangeLights();
             default:
                 return null;
+        }
+    }
+
+    /**
+     * Collapse a set-piece's child meshes into one mesh per material. The
+     * children are all direct children of the group and never move relative to
+     * it, so their transforms can be baked into the merged geometry.
+     */
+    private flatten(node: Object3D): void {
+        const byMaterial = new Map<Material, BufferGeometry[]>();
+        const originals: Mesh[] = [];
+        for (const child of node.children) {
+            if (!(child instanceof Mesh)) return; // anything unexpected: leave it alone
+            originals.push(child);
+        }
+        if (originals.length < 3) return;
+
+        for (const mesh of originals) {
+            mesh.updateMatrix();
+            const geo = mesh.geometry.clone();
+            geo.applyMatrix4(mesh.matrix);
+            const mat = mesh.material as Material;
+            const list = byMaterial.get(mat);
+            if (list) list.push(geo);
+            else byMaterial.set(mat, [geo]);
+        }
+
+        node.clear();
+        for (const [mat, geos] of byMaterial) {
+            const merged = geos.length === 1 ? geos[0] : mergeGeometries(geos, false);
+            if (geos.length > 1) for (const g of geos) g.dispose();
+            if (!merged) continue;
+            merged.computeBoundingSphere();
+            const mesh = new Mesh(merged, mat);
+            mesh.castShadow = true;
+            mesh.receiveShadow = true;
+            node.add(mesh);
+            this.owned.push(merged);
         }
     }
 
@@ -424,6 +469,9 @@ export class EventBuilder {
     /** Pale lights drifting between the trunks, well off the road. */
     private buildStrangeLights(): Object3D {
         const g = new Group();
+        // Each light is animated and faded individually, so this one keeps its
+        // separate children.
+        g.userData.noMerge = true;
         const rng = new Rng(4242);
         const geo = this.track(new SphereGeometry(0.28, 8, 6));
         for (let i = 0; i < 4; i++) {

@@ -30,6 +30,7 @@ const HARNESS = () => {
     const g = window.brb.game;
     g.stopLoop();
     window.__h = {
+        lastRun: { peakMph: 0, maxDraws: 0 },
         /**
          * Advance `seconds` of game time in exact 1/60 s frames. Rendering is
          * off by default: this suite runs on SwiftShader, where drawing a frame
@@ -62,8 +63,14 @@ const HARNESS = () => {
             const wantThrottle = !!fields.keyThrottle;
             const n = Math.round(seconds * 60);
             let peakMph = 0;
-            g.setRenderEnabled(false);
+            let maxDraws = 0;
             for (let i = 0; i < n; i++) {
+                // Draw every other second so renderer.info reflects the real
+                // scene periodically, without paying SwiftShader's price for
+                // every frame. A single sample at the end of a run misses the
+                // set-pieces that were on screen in the middle of it.
+                const render = i % 120 === 0;
+                g.setRenderEnabled(render);
                 const speed = Math.abs(p.u);
                 // Look further ahead the faster we are going, but always far
                 // enough to see the next corner.
@@ -98,11 +105,13 @@ const HARNESS = () => {
                 }
                 g.tick(1 / 60);
                 peakMph = Math.max(peakMph, Math.abs(p.u) * 2.2369362920544);
+                if (render) maxDraws = Math.max(maxDraws, g.drawCalls);
             }
             g.input.keyLeft = false;
             g.input.keyRight = false;
             g.input.keyBrake = false;
             g.setRenderEnabled(true);
+            this.lastRun = { peakMph, maxDraws };
             return peakMph;
         },
         /**
@@ -110,12 +119,41 @@ const HARNESS = () => {
          * starts from a known state rather than from wherever the previous one
          * abandoned it. Checks that begin in a ditch measure the ditch.
          */
-        recover(seconds = 16) {
-            this.release();
-            this.autopilot(seconds, { keyThrottle: true });
+        recover(seconds = 14) {
+            // Repeat until the truck is genuinely back on the carriageway. One
+            // pass is not always enough: from deep in the trees the first pass
+            // is spent getting unstuck rather than getting centred, and a check
+            // that starts wedged against a trunk measures the trunk.
+            for (let attempt = 0; attempt < 3; attempt++) {
+                this.release();
+                this.autopilot(seconds, { keyThrottle: true });
+                if (Math.abs(g.physics.lateral) < 3.5) break;
+            }
             this.release();
             this.sim(0.4);
             return Math.abs(g.physics.lateral);
+        },
+        /**
+         * Deliberately leave the carriageway, steering toward whichever side
+         * the truck is already on. Holding a fixed direction is unreliable:
+         * whether it takes you off the road depends on which way the road
+         * happens to be curving.
+         */
+        driveOffRoad(seconds) {
+            const p = g.physics;
+            this.release();
+            const n = Math.round(seconds * 60);
+            g.setRenderEnabled(false);
+            for (let i = 0; i < n; i++) {
+                g.input.keyThrottle = true;
+                const away = p.lateral >= 0;
+                g.input.keyRight = away;
+                g.input.keyLeft = !away;
+                g.tick(1 / 60);
+            }
+            g.input.keyLeft = false;
+            g.input.keyRight = false;
+            g.setRenderEnabled(true);
         },
         hold(fields, seconds) {
             for (const k of Object.keys(fields)) g.input[k] = fields[k];
@@ -141,6 +179,7 @@ const HARNESS = () => {
                 y: p.position.y,
                 z: p.position.z,
                 gear: p.gear,
+                offRoad: p.offRoad,
                 camera: g.cameraMode,
                 draws: g.drawCalls,
                 tris: g.triangles
@@ -239,24 +278,21 @@ const startDriving = async (page) => {
 
     // A9 — steering changes heading, and both directions work.
     await page.evaluate(() => {
-        window.__h.release();
-        window.__h.autopilot(5, { keyThrottle: true });
-        window.__h.release();
+        window.__h.recover();
         window.__h.hold({ keyThrottle: true }, 0.5);
     });
     const preLeft = await page.evaluate(() => window.__h.state());
-    await page.evaluate(() => window.__h.hold({ keyThrottle: true, keyLeft: true }, 1.2));
+    await page.evaluate(() => window.__h.hold({ keyThrottle: true, keyLeft: true }, 1.0));
     const postLeft = await page.evaluate(() => window.__h.state());
-    // Straighten up first: measuring the right turn from the end of a left turn
-    // means fighting the yaw rate the left turn built up, not measuring steering.
+    // Straighten up fully before the other direction: measuring a right turn
+    // from the end of a left one fights the yaw rate the left turn built up,
+    // which measures momentum rather than steering.
     await page.evaluate(() => {
-        window.__h.release();
-        window.__h.autopilot(4, { keyThrottle: true });
-        window.__h.release();
+        window.__h.recover();
         window.__h.hold({ keyThrottle: true }, 0.5);
     });
     const preRight = await page.evaluate(() => window.__h.state());
-    await page.evaluate(() => window.__h.hold({ keyThrottle: true, keyRight: true }, 1.2));
+    await page.evaluate(() => window.__h.hold({ keyThrottle: true, keyRight: true }, 1.0));
     const postRight = await page.evaluate(() => window.__h.state());
     // Yaw is a rotation about +Y, which in this right-handed, Y-up world turns
     // the truck LEFT. So steering left must increase yaw and steering right
@@ -311,8 +347,7 @@ const startDriving = async (page) => {
     // Steer off, then hold the throttle down in the weeds for long enough that
     // the comparison is between two settled speeds, not two transients.
     await page.evaluate(() => {
-        window.__h.release();
-        window.__h.hold({ keyThrottle: true, keyRight: true }, 2.4);
+        window.__h.driveOffRoad(2.6);
         window.__h.hold({ keyThrottle: true }, 6);
     });
     const offRoad = await page.evaluate(() => window.__h.state());
@@ -320,10 +355,12 @@ const startDriving = async (page) => {
         Number.isFinite(offRoad.x) && Number.isFinite(offRoad.y) && Number.isFinite(offRoad.z),
         'A12 leaving the road keeps the simulation finite'
     );
+    // Ask the vehicle whether a wheel is off the carriageway rather than
+    // guessing from a lateral threshold, which varies with the road width.
     check(
-        offRoad.mph < onRoadPeak * 0.6 && Math.abs(offRoad.lateral) > 4,
+        offRoad.offRoad && offRoad.mph < onRoadPeak * 0.6,
         'A12b off-road terrain costs speed',
-        `road peak ${onRoadPeak.toFixed(0)} -> off-road ${offRoad.mph.toFixed(0)} mph at lateral ${offRoad.lateral.toFixed(1)} m`
+        `road peak ${onRoadPeak.toFixed(0)} -> off-road ${offRoad.mph.toFixed(0)} mph, offRoad=${offRoad.offRoad}, lateral ${offRoad.lateral.toFixed(1)} m`
     );
 
     // A13 — a long unattended run stays stable and keeps streaming road.
@@ -336,7 +373,12 @@ const startDriving = async (page) => {
     check(long.miles > 0.6, 'A13 a 60 s run covers real distance', `${long.miles.toFixed(2)} mi`);
     check(Number.isFinite(long.s) && long.s > 1200, 'A13b road distance keeps advancing', `s=${long.s.toFixed(0)} m`);
     check(long.y > -400 && long.y < 400, 'A13c the truck stays on the terrain', `y=${long.y.toFixed(1)}`);
-    check(long.draws < 160, 'A13d draw calls stay inside budget', `draws=${long.draws}`);
+    const longRun = await page.evaluate(() => window.__h.lastRun);
+    check(
+        longRun.maxDraws > 0 && longRun.maxDraws < 140,
+        'A13d draw calls stay inside budget for the whole run',
+        `peak draws=${longRun.maxDraws}`
+    );
 
     // A14 — no console errors across all of the above.
     check(errors.length === 0, 'A14 no console errors while driving', errors.slice(0, 3).join(' | '));

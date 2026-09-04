@@ -3,9 +3,6 @@ export const clamp = (v: number, lo: number, hi: number): number =>
 
 export const lerp = (a: number, b: number, t: number): number => a + (b - a) * t;
 
-export const invLerp = (a: number, b: number, v: number): number =>
-    a === b ? 0 : (v - a) / (b - a);
-
 export const smoothstep = (edge0: number, edge1: number, x: number): number => {
     const t = clamp((x - edge0) / (edge1 - edge0 || 1e-6), 0, 1);
     return t * t * (3 - 2 * t);
@@ -23,13 +20,6 @@ export const moveTowards = (current: number, target: number, maxDelta: number): 
 };
 
 export const sign = (v: number): number => (v > 0 ? 1 : v < 0 ? -1 : 0);
-
-/** Signed value with a dead band removed, rescaled so the output still reaches 1. */
-export const deadzone = (v: number, dz: number): number => {
-    const a = Math.abs(v);
-    if (a <= dz) return 0;
-    return sign(v) * ((a - dz) / (1 - dz));
-};
 
 export const MPS_TO_MPH = 2.2369362920544;
 export const M_TO_MILES = 1 / 1609.344;
