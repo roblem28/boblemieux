@@ -6,6 +6,8 @@
 export interface InputState {
     /** Set by a control, consumed by the game loop. */
     cycleCameraRequested: boolean;
+    /** Put the truck back on the road. Set by R or the HUD button. */
+    recoverRequested: boolean;
     /** Held sources, tracked separately so keyboard and touch can coexist. */
     keyThrottle: boolean;
     keyBrake: boolean;
@@ -19,6 +21,7 @@ export interface InputState {
 
 export const createInputState = (): InputState => ({
     cycleCameraRequested: false,
+    recoverRequested: false,
     keyThrottle: false,
     keyBrake: false,
     keyLeft: false,
@@ -78,6 +81,9 @@ export const bindKeyboard = (input: InputState, target: EventTarget = window): K
                 return true;
             case 'KeyC':
                 if (down) input.cycleCameraRequested = true;
+                return true;
+            case 'KeyR':
+                if (down) input.recoverRequested = true;
                 return true;
             default:
                 return false;

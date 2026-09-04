@@ -23,6 +23,33 @@ export interface Telemetry {
     discovery: string;
     discoveryAge: number;
     quality: string;
+
+    /** Course ahead. Written in place; `previewVersion` tells the HUD it moved. */
+    previewOffset: Float32Array;
+    previewSeverity: Float32Array;
+    previewCount: number;
+    previewStep: number;
+    /** Fastest the road ahead allows, MPH, and whether you are over it. */
+    advisoryMph: number;
+    braking: boolean;
+    /** Signed curvature of the corner setting the advisory: <0 right, >0 left. */
+    advisoryCurvature: number;
+    advisoryDistance: number;
+
+    /** Mile-split timing. */
+    mile: number;
+    mileTime: number;
+    mileBest: number;
+    mileDirty: boolean;
+    lastSplitMile: number;
+    lastSplitTime: number;
+    lastSplitDelta: number;
+    lastSplitIsBest: boolean;
+    splitFlash: number;
+    totalTime: number;
+
+    /** Off the road and stopped for long enough to offer a way out. */
+    stuck: boolean;
 }
 
 export const telemetry: Telemetry = {
@@ -35,7 +62,29 @@ export const telemetry: Telemetry = {
     offRoad: false,
     discovery: '',
     discoveryAge: 0,
-    quality: 'high'
+    quality: 'high',
+
+    previewOffset: new Float32Array(0),
+    previewSeverity: new Float32Array(0),
+    previewCount: 0,
+    previewStep: 12,
+    advisoryMph: 0,
+    braking: false,
+    advisoryCurvature: 0,
+    advisoryDistance: 0,
+
+    mile: 0,
+    mileTime: 0,
+    mileBest: 0,
+    mileDirty: false,
+    lastSplitMile: -1,
+    lastSplitTime: 0,
+    lastSplitDelta: NaN,
+    lastSplitIsBest: false,
+    splitFlash: 0,
+    totalTime: 0,
+
+    stuck: false
 };
 
 let version = 0;

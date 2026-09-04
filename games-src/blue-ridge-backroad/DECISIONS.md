@@ -308,3 +308,77 @@ and the preset fields `bloom`, `drawDistance` and `terrainCols` that nothing
 read. `ARCHITECTURE.md` was corrected where it had drifted from the code: the
 module map listed ten files that do not exist, and the sample spacing, minimum
 radius, substep count and texture-caching claims were all wrong.
+
+---
+
+## Play-test feedback
+
+Four changes after the first real session.
+
+**D3.1 — Keyboard steering was far too sensitive; it is now progressive and
+asymmetric.** Lock used to wind on at 3.4/s and the road wheels slewed at
+4.5 rad/s regardless of speed, so a tap was very nearly full lock. Now the
+driver's intent winds *on* at 2.2/s and comes *off* at 3.8/s, and the road
+wheels slew at 3.0 rad/s at a standstill falling to 1.35 at 45 m/s. The
+asymmetry is the important half: it is how you actually steer — lock goes on
+deliberately and comes off fast — and it turns an on/off key into something
+that behaves like a progressive input. Maximum lock also came down from 32 to
+30 degrees.
+
+A **Steering** setting (Relaxed / Standard / Sharp) scales only the wind-on
+rate, never the available lock, so no setting can steer the truck into a spin
+that the others cannot. It persists in `localStorage`.
+
+**D3.2 — Getting unstuck off-road, in three parts.** The complaint was real: the
+truck could sit in a ditch with the throttle pinned and go nowhere.
+ - The transfer case now drives the front axle below walking pace and hands
+   back to rear-drive above about 9 m/s. That is what a 4x4 actually does, it
+   roughly doubles the traction available to crawl out, and it leaves the
+   power-on rear slide at speed untouched.
+ - Rolling resistance eases to a third of its value at a crawl. At speed it is
+   what makes leaving the road cost you; applied in full at 1 m/s it is what
+   makes the truck a paperweight.
+ - Ditch and grass rolling resistance came down from 0.22/0.19 to 0.18/0.15.
+
+Measured: from a standstill 6, 12 and 20 m off the road, the truck now covers
+35-48 m in eight seconds and reaches 19-30 mph — while on-road it still peaks
+above 130, so the off-road penalty is intact.
+
+**D3.3 — A recovery, deliberately limited.** Physics alone cannot cover being
+wedged against a tree, so `R` (and a button that appears only after ~1.4 s
+stopped off-road) puts the truck back on the centreline, facing forward,
+stopped. It keeps the odometer, so it is not a restart. The mile it is used in
+is marked *assisted* and can never set a personal best — otherwise the timer
+would reward using it.
+
+**D3.4 — "Course outline" implemented as a look-ahead map plus an advisory
+speed, not a track map.** The road is endless and procedurally generated, so
+there is no course to lay out. Instead the HUD shows the next 360 m as a
+to-scale top-down strip — the same metres-per-pixel across as along, so the
+shape on screen is the shape of the road — with each segment tinted by how much
+it will have to be slowed for.
+
+The number beside it answers the actual question. For every sample ahead it
+computes the speed that corner can be carried at, then walks that back through
+the braking distance available to reach it, and takes the minimum. That
+distinguishes a hairpin 300 m away (no action needed) from the same hairpin at
+40 m (brake now), which a raw curvature readout cannot. Exceeding it turns the
+panel amber and switches the caption to "Ease off". It is bounded by the
+truck's own top speed rather than reporting an arbitrarily large number on a
+straight.
+
+**D3.5 — "Lap times" implemented as mile splits.** There is no lap on an endless
+road. The stopwatch runs per mile instead, and because the world comes from a
+fixed seed, mile 7 is always the same stretch of mountain — so a personal best
+for a given mile is a real comparison rather than a coincidence. Best times per
+mile index persist in `localStorage`; the HUD shows the current mile's clock,
+its standing best and total elapsed, and flashes the split with a delta when a
+marker is crossed. Clearing them is in Settings.
+
+**D3.6 — The test harness had to change with the steering.** Its controller
+chased an absolute road-wheel angle, which worked when lock wound on and off at
+the same rate. With the new asymmetry it bled lock between taps and quietly
+understeered off the road — the autopilot's peak dropped from 134 mph to 34,
+which looked like a physics regression and was not. It now closes the loop on
+`steerInput`, the quantity the keys actually move. Worth recording because the
+failure mode was so convincingly disguised as a game bug.

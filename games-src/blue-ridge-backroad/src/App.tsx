@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type JSX } from 'react';
 import { Game } from './game/Game';
 import { detectQuality, initialQuality, saveQualityOverride, type QualityName } from './game/quality';
+import { loadSteerLevel, multiplierFor, saveSteerLevel, type SteerLevel } from './game/steering';
 import { TitleScreen } from './ui/TitleScreen';
 import { Hud } from './ui/Hud';
 import { TouchControls } from './ui/TouchControls';
@@ -22,6 +23,7 @@ export const App = (): JSX.Element => {
     const [showFps, setShowFps] = useState(false);
     const [settingsOpen, setSettingsOpen] = useState(false);
     const [quality, setQuality] = useState<QualityName>(() => initialQuality());
+    const [steering, setSteering] = useState<SteerLevel>(() => loadSteerLevel());
     const [detected] = useState<QualityName>(() => detectQuality());
     const [touch] = useState(() => isTouchDevice());
     const [error, setError] = useState<string | null>(null);
@@ -34,7 +36,7 @@ export const App = (): JSX.Element => {
         if (!canvas || gameRef.current) return;
         let game: Game | null = null;
         try {
-            game = new Game({ canvas, quality });
+            game = new Game({ canvas, quality, steerSensitivity: multiplierFor(steering) });
         } catch (err) {
             setError(err instanceof Error ? err.message : 'WebGL is unavailable in this browser.');
             return;
@@ -66,6 +68,20 @@ export const App = (): JSX.Element => {
             gameRef.current?.setMuted(next);
             return next;
         });
+    }, []);
+
+    const handleSteering = useCallback((level: SteerLevel) => {
+        setSteering(level);
+        saveSteerLevel(level);
+        gameRef.current?.setSteerSensitivity(multiplierFor(level));
+    }, []);
+
+    const handleRecover = useCallback(() => {
+        gameRef.current?.recover();
+    }, []);
+
+    const handleClearTimes = useCallback(() => {
+        gameRef.current?.clearBestTimes();
     }, []);
 
     const handleQuality = useCallback((name: QualityName) => {
@@ -127,6 +143,7 @@ export const App = (): JSX.Element => {
                         onCamera={handleCamera}
                         onSound={handleSound}
                         onSettings={() => setSettingsOpen(true)}
+                        onRecover={handleRecover}
                         muted={muted}
                         showFps={showFps}
                     />
@@ -137,9 +154,12 @@ export const App = (): JSX.Element => {
                 <SettingsPanel
                     quality={quality}
                     detected={detected}
+                    steering={steering}
                     showFps={showFps}
                     onQuality={handleQuality}
+                    onSteering={handleSteering}
                     onToggleFps={handleToggleFps}
+                    onClearTimes={handleClearTimes}
                     onClose={() => setSettingsOpen(false)}
                 />
             )}
@@ -150,10 +170,8 @@ export const App = (): JSX.Element => {
 // Only ever used if the canvas failed before the controls mounted; keeps the
 // touch layer from having to deal with a null input object.
 const FALLBACK_INPUT = {
-    throttle: 0,
-    brake: 0,
-    steer: 0,
     cycleCameraRequested: false,
+    recoverRequested: false,
     keyThrottle: false,
     keyBrake: false,
     keyLeft: false,

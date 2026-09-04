@@ -9,7 +9,7 @@ import {
     type RoadFrame,
     type RoadPath
 } from '../road/RoadPath';
-import { clamp, damp, moveTowards, smoothstep, DEG } from '../util/mathx';
+import { clamp, damp, lerp, moveTowards, smoothstep, DEG } from '../util/mathx';
 import type { InputState, InputTargets } from '../input';
 import { resolveInputTargets } from '../input';
 import type { ChunkManager } from '../world/ChunkManager';
@@ -67,8 +67,22 @@ const SURFACE_MU = [0.98, 0.72, 0.52, 0.47];
 // Rolling resistance. Off the carriageway it is deliberately punishing: the
 // spec asks for leaving the road to cost you a lot of speed, and bogging down
 // in the weeds is a far better way to express that than a scripted penalty.
-const SURFACE_ROLL = [0.016, 0.05, 0.22, 0.19];
+const SURFACE_ROLL = [0.016, 0.05, 0.18, 0.15];
 const SURFACE_ROUGH = [0.35, 0.75, 1, 0.9];
+
+/**
+ * Steering feel. Winding lock ON is deliberately slower than unwinding it:
+ * that asymmetry is what makes a keyboard's on/off input feel progressive
+ * rather than twitchy, and it is how you steer anyway — lock goes on gradually
+ * and comes off fast. The rate at which the road wheels follow also drops with
+ * speed, so a tap at 100 mph is a lane change, not a spin.
+ */
+const STEER_IN_RATE = 2.2; // how fast the driver's intent winds on, per second
+const STEER_RETURN_RATE = 3.8; // ...and how fast it unwinds
+const STEER_RATE_LOW = 3.0; // road-wheel slew at a standstill, rad/s
+const STEER_RATE_HIGH = 1.35; // ...and at 45 m/s
+const STEER_MAX_LOW = 30; // degrees of lock at a standstill
+const STEER_MAX_HIGH = 7.5; // ...and at 55 m/s
 
 const GEAR_RATIOS = [3.4, 2.05, 1.38, 1.0];
 const FINAL_DRIVE = 3.9;
@@ -171,12 +185,32 @@ export class VehiclePhysics {
     private fyRear = 0;
     /** Rear slip angle from the previous substep; gates the counter-steer allowance. */
     private rearSlip = 0;
+
+    /** Scales how quickly steering input winds on. Set from the settings panel. */
+    steerSensitivity = 1;
+    /** Seconds spent off the road and barely moving — the HUD offers a recovery. */
+    stuckTime = 0;
     private reverseHold = 0;
     private prevWheelY = [0, 0, 0, 0];
 
     constructor(private readonly path: RoadPath) {}
 
     reset(s: number): void {
+        this.placeOnRoad(s);
+        this.odometer = 0;
+    }
+
+    /**
+     * Put the truck back on the centreline at its current distance, stopped and
+     * facing forward. Keeps the odometer, so a recovery does not rewind the
+     * drive — it just stops you being wedged against a tree with no way out.
+     */
+    recover(): void {
+        this.placeOnRoad(this.s);
+        this.stuckTime = 0;
+    }
+
+    private placeOnRoad(s: number): void {
         this.path.sample(s, this.frame);
         this.path.surfacePoint(this.frame, 0, this.position);
         this.position.y += WHEEL_RADIUS;
@@ -187,9 +221,9 @@ export class VehiclePhysics {
         this.s = s;
         this.lateral = 0;
         this.steer = 0;
+        this.steerInput = 0;
         this.gear = 0;
         this.rpm = RPM_IDLE;
-        this.odometer = 0;
         this.fyFront = 0;
         this.fyRear = 0;
         this.rearSlip = 0;
@@ -207,12 +241,21 @@ export class VehiclePhysics {
         // 1. Input conditioning ------------------------------------------------
         this.throttle = moveTowards(this.throttle, targets.throttle, dt * 3.2);
         this.brake = moveTowards(this.brake, targets.brake, dt * 6);
-        this.steerInput = moveTowards(this.steerInput, targets.steer, dt * 3.4);
+        // Winding lock on is slow, taking it off is quick. `steerSensitivity`
+        // scales only the wind-on rate, so the Sharp setting is quicker to
+        // respond rather than capable of more lock.
+        const steerWant = targets.steer;
+        const windingOn =
+            steerWant !== 0 &&
+            (Math.abs(steerWant) > Math.abs(this.steerInput) ||
+                Math.sign(steerWant) !== Math.sign(this.steerInput));
+        const inputRate = windingOn ? STEER_IN_RATE * this.steerSensitivity : STEER_RETURN_RATE;
+        this.steerInput = moveTowards(this.steerInput, steerWant, dt * inputRate);
 
         const speed = Math.abs(this.u);
         // Steering authority falls off with speed, so the truck is placid at
         // 100 mph and darty at walking pace.
-        let steerMax = (32 - 24 * smoothstep(0, 55, speed)) * DEG;
+        let steerMax = (STEER_MAX_LOW - (STEER_MAX_LOW - STEER_MAX_HIGH) * smoothstep(0, 55, speed)) * DEG;
         // HANDEDNESS. This is a right-handed, Y-up world, so a positive rotation
         // about +Y takes forward (+Z) toward +X — which is the driver's LEFT.
         // Every angular quantity here follows that same rule: yaw, yawRate and
@@ -232,7 +275,8 @@ export class VehiclePhysics {
             steerMax = Math.min(steerMax + clamp(this.slipAmount * 0.8, 0, 10 * DEG), 30 * DEG);
         }
         const steerTarget = steerCmd * steerMax;
-        this.steer = moveTowards(this.steer, steerTarget, dt * 4.5);
+        const steerRate = lerp(STEER_RATE_LOW, STEER_RATE_HIGH, smoothstep(0, 45, speed));
+        this.steer = moveTowards(this.steer, steerTarget, dt * steerRate);
 
         // 2. Road query --------------------------------------------------------
         this.path.project(this.position.x, this.position.z, this.s, projA);
@@ -328,12 +372,20 @@ export class VehiclePhysics {
         }
         // Drag, rolling resistance and the grade.
         fx -= DRAG_K * this.u * Math.abs(this.u);
-        fx -= rollCoef * MASS * G * Math.sign(this.u) * Math.min(1, Math.abs(this.u) * 2);
+        // Rolling resistance eases off at walking pace. At speed it is what
+        // makes leaving the road cost you; at a crawl, applied in full, it is
+        // what makes a truck in a ditch unable to dig itself out.
+        const rollEase = 0.32 + 0.68 * Math.min(1, Math.abs(this.u) / 11);
+        fx -= rollCoef * MASS * G * Math.sign(this.u) * Math.min(1, Math.abs(this.u) * 2) * rollEase;
         fx += MASS * gLong;
 
         // Traction limit on the driven (rear) axle — this is what lets the
         // throttle break the rear loose on loose gravel.
-        const maxDrive = muRear * fzRear * 1.05;
+        // The transfer case drives the front axle at low speed, which is how a
+        // real 4x4 crawls out of a ditch. Above walking pace it is rear-drive
+        // again, which is what lets the throttle break the rear loose on gravel.
+        const fourWd = smoothstep(9, 2, Math.abs(this.u));
+        const maxDrive = (muRear * fzRear + muFront * fzFront * fourWd) * 1.05;
         const driveDemand = Math.abs(fx);
         const driveSat = driveDemand > maxDrive ? maxDrive / driveDemand : 1;
         if (fx > 0) fx *= driveSat;
@@ -456,6 +508,10 @@ export class VehiclePhysics {
             this.prevWheelY[i] = w.groundY;
             w.slipping = damp(w.slipping, this.slipAmount + Math.abs(wheelDrop) * 0.02, 8, dt);
         }
+
+        // Off the road and barely moving for a while: the HUD offers a way out.
+        if (this.offRoad && Math.abs(this.u) < 1.6) this.stuckTime += dt;
+        else this.stuckTime = Math.max(0, this.stuckTime - dt * 2);
 
         this.impact = Math.max(0, this.impact - dt * 3);
         this.landing = Math.max(0, this.landing - dt * 4);

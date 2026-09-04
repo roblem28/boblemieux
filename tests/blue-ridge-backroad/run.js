@@ -57,10 +57,12 @@ const HARNESS = () => {
          * game. Aiming ahead is what a driver actually does, and it is the only
          * way these tests say anything about the handling.
          */
-        autopilot(seconds, fields = {}) {
+        autopilot(seconds, fields = {}, lift = true) {
             const p = g.physics;
             for (const k of Object.keys(fields)) g.input[k] = fields[k];
-            const wantThrottle = !!fields.keyThrottle;
+            // `lift = false` steers but never backs off: the scenario the brake
+            // advisory exists to complain about.
+            const wantThrottle = !!fields.keyThrottle && lift;
             const n = Math.round(seconds * 60);
             let peakMph = 0;
             let maxDraws = 0;
@@ -84,16 +86,19 @@ const HARNESS = () => {
                 while (err < -Math.PI) err += Math.PI * 2;
                 // Yaw is left-positive, so a target to the left is a positive
                 // error and is corrected by steering left.
-                // Aim for a steering ANGLE and modulate the key to reach it,
-                // the way a player taps rather than holds. Holding a digital
-                // key to full lock at 60 mph spins any car, so a bang-bang
-                // controller measures nothing but its own crudeness.
-                // Pure pursuit alone has a steady-state offset toward the
-                // inside of a constant corner, which parks the truck in the
-                // ditch; the lateral term pulls it back to the centreline.
-                const desired = Math.max(-0.34, Math.min(0.34, err * 1.5 + p.lateral * 0.035));
-                g.input.keyLeft = p.steer < desired - 0.008;
-                g.input.keyRight = p.steer > desired + 0.008;
+                // Close the loop on `steerInput` — the driver's intent — rather
+                // than on the road-wheel angle. That is the quantity the keys
+                // move, and since winding lock on is slower than letting it
+                // off, a controller chasing an absolute angle bleeds lock
+                // between taps and quietly understeers off the road.
+                //
+                // `steerInput` is positive-right while `err` is positive-left,
+                // hence the negation. Pure pursuit alone has a steady-state
+                // offset toward the inside of a constant corner, which parks
+                // the truck in the ditch; the lateral term pulls it back.
+                const want = Math.max(-1, Math.min(1, -(err * 2.6 + p.lateral * 0.06)));
+                g.input.keyLeft = p.steerInput > want + 0.06;
+                g.input.keyRight = p.steerInput < want - 0.06;
 
                 if (wantThrottle) {
                     // Corner entry speed from the curvature ahead, with a
@@ -154,6 +159,55 @@ const HARNESS = () => {
             g.input.keyLeft = false;
             g.input.keyRight = false;
             g.setRenderEnabled(true);
+        },
+        /** Park the truck off the road at `lateral`, stopped and pointing along it. */
+        placeOffRoad(lateral) {
+            const p = g.physics;
+            g.recover();
+            const f = p.frame;
+            p.position.x += f.right.x * lateral;
+            p.position.z += f.right.z * lateral;
+            p.u = 0;
+            p.v = 0;
+            p.yawRate = 0;
+            this.sim(0.5);
+        },
+        /** Get the truck to roughly `mps` on the road, so taps are comparable. */
+        bringToSpeed(mps) {
+            const p = g.physics;
+            for (let i = 0; i < 40; i++) {
+                this.autopilot(1, { keyThrottle: true });
+                if (Math.abs(p.u) >= mps) break;
+            }
+            this.release();
+            this.sim(0.2);
+            return Math.abs(p.u);
+        },
+        /**
+         * Peak road-wheel angle from holding a steering key for `seconds`,
+         * measured from a centred wheel. Sensitivity scales how fast lock winds
+         * on, so starting with residual lock measures the residue instead.
+         */
+        steerTap(seconds, atSpeed = 16) {
+            const p = g.physics;
+            this.release();
+            p.steerInput = 0;
+            p.steer = 0;
+            // Available lock falls steeply with speed, so the speed has to be
+            // identical across taps or this compares steerMax, not sensitivity.
+            p.u = atSpeed;
+            p.v = 0;
+            g.input.keyRight = true;
+            const n = Math.round(seconds * 60);
+            g.setRenderEnabled(false);
+            let peak = 0;
+            for (let i = 0; i < n; i++) {
+                g.tick(1 / 60);
+                peak = Math.max(peak, Math.abs(p.steer));
+            }
+            g.setRenderEnabled(true);
+            g.input.keyRight = false;
+            return (peak * 180) / Math.PI;
         },
         hold(fields, seconds) {
             for (const k of Object.keys(fields)) g.input[k] = fields[k];
@@ -444,6 +498,182 @@ const startDriving = async (page) => {
         return [...found];
     });
     check(Array.isArray(events), 'A17 the event system is reachable');
+
+    // ------------------------------------------------- C: handling and timing
+
+    // C1 — steering is progressive: a tap is not full lock.
+    const steerCurve = await page.evaluate(() => {
+        window.__h.recover();
+        window.__h.bringToSpeed(16);
+        const short = window.__h.steerTap(0.15);
+        window.__h.recover();
+        window.__h.bringToSpeed(16);
+        const long = window.__h.steerTap(1.4);
+        window.__h.release();
+        return { short, long };
+    });
+    check(
+        steerCurve.short < steerCurve.long * 0.55,
+        'C1 steering winds on progressively rather than snapping to full lock',
+        `0.15 s -> ${steerCurve.short.toFixed(1)} deg, 1.4 s -> ${steerCurve.long.toFixed(1)} deg`
+    );
+    check(
+        steerCurve.short < 12,
+        'C1b a brief tap is a small steering input',
+        `${steerCurve.short.toFixed(1)} deg`
+    );
+
+    // C2 — the steering sensitivity setting actually changes the response.
+    const steerLevels = await page.evaluate(() => {
+        const out = {};
+        for (const [name, mult] of [['relaxed', 0.68], ['standard', 1], ['sharp', 1.6]]) {
+            g_setSens(mult);
+            window.__h.recover();
+            // Steering lock available falls with speed, so all three taps have
+            // to be taken from the same speed or this compares nothing.
+            window.__h.bringToSpeed(16);
+            out[name] = window.__h.steerTap(0.4);
+            window.__h.release();
+        }
+        g_setSens(1);
+        return out;
+        function g_setSens(v) {
+            window.brb.game.setSteerSensitivity(v);
+        }
+    });
+    check(
+        steerLevels.relaxed < steerLevels.standard && steerLevels.standard < steerLevels.sharp,
+        'C2 steering sensitivity levels differ in the right order',
+        JSON.stringify(steerLevels)
+    );
+
+    // C3 — a truck stopped off the road can drive itself out.
+    const unstick = await page.evaluate(() => {
+        const p = window.brb.game.physics;
+        const out = [];
+        for (const lateral of [-6, -12, -20]) {
+            window.__h.placeOffRoad(lateral);
+            const startS = p.s;
+            window.__h.hold({ keyThrottle: true }, 8);
+            window.__h.release();
+            out.push({ lateral, moved: p.s - startS });
+        }
+        return out;
+    });
+    check(
+        unstick.every((r) => r.moved > 12),
+        'C3 a truck stopped off the road can drive itself out',
+        unstick.map((r) => `${r.lateral}m -> ${r.moved.toFixed(0)}m`).join(', ')
+    );
+
+    // C4 — recovery puts it back on the road and marks the mile assisted.
+    const recovered = await page.evaluate(() => {
+        window.__h.placeOffRoad(-18);
+        const before = Math.abs(window.brb.game.physics.lateral);
+        window.brb.game.recover();
+        window.__h.sim(0.2);
+        return {
+            before,
+            after: Math.abs(window.brb.game.physics.lateral),
+            speed: Math.abs(window.brb.game.physics.u),
+            dirty: window.brb.telemetry.mileDirty
+        };
+    });
+    check(recovered.before > 8 && recovered.after < 1, 'C4 recovery returns the truck to the centreline', `${recovered.before.toFixed(1)} -> ${recovered.after.toFixed(2)} m`);
+    check(recovered.speed < 0.5, 'C4b recovery leaves the truck stopped', `${recovered.speed.toFixed(2)} m/s`);
+    check(recovered.dirty, 'C4c a recovered mile is marked assisted and cannot set a best');
+
+    // C5 — the R key triggers recovery through the real key binding.
+    await page.evaluate(() => window.__h.placeOffRoad(-16));
+    await page.keyboard.press('KeyR');
+    await page.evaluate(() => window.__h.sim(0.3));
+    const afterKey = await page.evaluate(() => Math.abs(window.brb.game.physics.lateral));
+    check(afterKey < 1, 'C5 R recovers the truck', `lateral=${afterKey.toFixed(2)} m`);
+
+    // C6 — the course preview produces a usable advisory.
+    const advisory = await page.evaluate(() => {
+        window.__h.recover();
+        window.__h.autopilot(12, { keyThrottle: true });
+        const t = window.brb.telemetry;
+        // Sample the advisory over a stretch of road so we see it vary.
+        const seen = [];
+        for (let i = 0; i < 40; i++) {
+            window.__h.autopilot(1, { keyThrottle: true });
+            seen.push(t.advisoryMph);
+        }
+        window.__h.release();
+        return {
+            count: t.previewCount,
+            step: t.previewStep,
+            min: Math.min(...seen),
+            max: Math.max(...seen),
+            offsetsVary: new Set([...t.previewOffset].map((v) => Math.round(v))).size
+        };
+    });
+    check(advisory.count >= 20 && advisory.step > 0, 'C6 the course preview is populated', `${advisory.count} samples at ${advisory.step} m`);
+    check(
+        advisory.min > 15 && advisory.max <= 156 && advisory.max - advisory.min > 8,
+        'C6b the advisory varies with the road ahead and is bounded by the truck',
+        `${advisory.min.toFixed(0)}-${advisory.max.toFixed(0)} mph`
+    );
+    check(advisory.offsetsVary > 2, 'C6c the preview traces a curved road, not a straight line', `${advisory.offsetsVary} distinct offsets`);
+
+    // C7 — the brake advisory tracks speed against the road ahead. Driving into
+    // it flat out would work too, but the truck crashes off the road within a
+    // few seconds and then never exceeds any advisory again, so the state is
+    // set directly and the readout checked both ways.
+    const brakeWarn = await page.evaluate(() => {
+        const t = window.brb.telemetry;
+        const p = window.brb.game.physics;
+        const MPS = 2.2369362920544;
+        window.__h.recover();
+        window.__h.autopilot(10, { keyThrottle: true });
+        window.__h.release();
+
+        p.u = (t.advisoryMph / MPS) * 1.7;
+        window.__h.sim(0.4);
+        const over = t.braking;
+        const overAdvisory = t.advisoryMph;
+
+        p.u = (t.advisoryMph / MPS) * 0.5;
+        window.__h.sim(0.4);
+        const under = t.braking;
+        return { over, under, overAdvisory };
+    });
+    check(brakeWarn.over, 'C7 the brake advisory fires when carrying too much speed for the road ahead', `advisory was ${brakeWarn.overAdvisory.toFixed(0)} mph`);
+    check(!brakeWarn.under, 'C7b and clears when the speed suits the road');
+
+    // C8 — mile splits are timed and recorded.
+    const splits = await page.evaluate(() => {
+        const t = window.brb.telemetry;
+        window.brb.game.clearBestTimes();
+        window.__h.recover();
+        const startMile = t.mile;
+        // Drive until a mile marker is crossed.
+        for (let i = 0; i < 200 && window.brb.telemetry.lastSplitMile < startMile; i++) {
+            window.__h.autopilot(2, { keyThrottle: true });
+        }
+        window.__h.release();
+        return {
+            lastSplitMile: t.lastSplitMile,
+            lastSplitTime: t.lastSplitTime,
+            mileTime: t.mileTime,
+            totalTime: t.totalTime
+        };
+    });
+    check(splits.lastSplitMile >= 0, 'C8 a mile split is recorded when a marker is crossed', `mile ${splits.lastSplitMile}`);
+    check(splits.lastSplitTime > 5 && splits.lastSplitTime < 600, 'C8b the split time is plausible', `${splits.lastSplitTime.toFixed(1)} s`);
+    check(splits.totalTime > splits.mileTime, 'C8c total elapsed exceeds the current mile time');
+
+    // C9 — the HUD renders the new panels.
+    const hudBits = await page.evaluate(() => ({
+        timing: !!document.querySelector('.timing'),
+        course: !!document.querySelector('.course-map'),
+        courseText: document.querySelector('.course-speed')?.textContent ?? ''
+    }));
+    check(hudBits.timing, 'C9 the mile timing panel is on screen');
+    check(hudBits.course, 'C9b the course-ahead map is on screen');
+    check(/\d/.test(hudBits.courseText), 'C9c the course map shows an advisory speed', hudBits.courseText);
 
     await page.close();
 

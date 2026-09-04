@@ -1,10 +1,13 @@
 import type { JSX } from 'react';
 import { useTelemetry } from './telemetry';
+import { CourseAhead } from './CourseAhead';
+import { formatDelta, formatTime } from '../game/splits';
 
 interface Props {
     onCamera: () => void;
     onSound: () => void;
     onSettings: () => void;
+    onRecover: () => void;
     muted: boolean;
     showFps: boolean;
 }
@@ -20,10 +23,11 @@ const TICKS = Array.from({ length: 17 }, (_, i) => {
     return { mph, angle, major: mph % 20 === 0 };
 });
 
-export const Hud = ({ onCamera, onSound, onSettings, muted, showFps }: Props): JSX.Element => {
+export const Hud = ({ onCamera, onSound, onSettings, onRecover, muted, showFps }: Props): JSX.Element => {
     const t = useTelemetry();
     const mph = Math.min(t.mph, DIAL_MAX);
     const needle = START_ANGLE + (mph / DIAL_MAX) * SWEEP;
+    const showSplit = t.splitFlash > 0 && t.lastSplitMile >= 0;
 
     return (
         <div className="hud">
@@ -45,11 +49,57 @@ export const Hud = ({ onCamera, onSound, onSettings, muted, showFps }: Props): J
                 )}
             </div>
 
+            {/* Mile timing. There is no lap on an endless road, so the clock
+                runs per mile against your own best for that same stretch. */}
+            <div className="timing">
+                <div className="timing-row">
+                    <span className="timing-label">Mile {t.mile + 1}</span>
+                    <span className="timing-value">{formatTime(t.mileTime)}</span>
+                </div>
+                <div className="timing-row timing-sub">
+                    <span className="timing-label">
+                        {t.mileDirty ? 'assisted' : t.mileBest > 0 ? 'best' : 'no best yet'}
+                    </span>
+                    <span className="timing-value">{t.mileBest > 0 ? formatTime(t.mileBest) : '--:--'}</span>
+                </div>
+                <div className="timing-row timing-sub">
+                    <span className="timing-label">total</span>
+                    <span className="timing-value">{formatTime(t.totalTime)}</span>
+                </div>
+            </div>
+
+            {showSplit && (
+                <div
+                    className={t.lastSplitIsBest ? 'split-flash split-best' : 'split-flash'}
+                    style={{ opacity: Math.min(1, t.splitFlash / 1.2) }}
+                >
+                    <span className="split-title">
+                        Mile {t.lastSplitMile + 1}
+                        {t.lastSplitIsBest ? ' — personal best' : ''}
+                    </span>
+                    <span className="split-time">{formatTime(t.lastSplitTime)}</span>
+                    {Number.isFinite(t.lastSplitDelta) && (
+                        <span className={t.lastSplitDelta <= 0 ? 'split-delta good' : 'split-delta bad'}>
+                            {formatDelta(t.lastSplitDelta)}
+                        </span>
+                    )}
+                </div>
+            )}
+
             {t.discoveryAge > 0 && (
                 <div className="discovery" style={{ opacity: Math.min(1, t.discoveryAge / 1.2) }}>
                     <span className="discovery-label">You found</span>
                     <span className="discovery-name">{t.discovery}</span>
                 </div>
+            )}
+
+            <CourseAhead t={t} />
+
+            {t.stuck && (
+                <button className="recover-btn" type="button" onClick={onRecover}>
+                    <span className="recover-key">R</span>
+                    Back to the road
+                </button>
             )}
 
             <div className="gauge-cluster">

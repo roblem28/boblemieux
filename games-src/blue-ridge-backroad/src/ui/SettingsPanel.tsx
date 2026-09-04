@@ -1,12 +1,16 @@
 import type { JSX } from 'react';
 import { PRESETS, type QualityName } from '../game/quality';
+import { STEER_LEVELS, type SteerLevel } from '../game/steering';
 
 interface Props {
     quality: QualityName;
     detected: QualityName;
+    steering: SteerLevel;
     showFps: boolean;
     onQuality: (q: QualityName) => void;
+    onSteering: (s: SteerLevel) => void;
     onToggleFps: () => void;
+    onClearTimes: () => void;
     onClose: () => void;
 }
 
@@ -21,14 +25,32 @@ const SUMMARY: Record<QualityName, string> = {
 export const SettingsPanel = ({
     quality,
     detected,
+    steering,
     showFps,
     onQuality,
+    onSteering,
     onToggleFps,
+    onClearTimes,
     onClose
 }: Props): JSX.Element => (
     <div className="modal-backdrop" onPointerDown={onClose}>
         <div className="modal" onPointerDown={(e) => e.stopPropagation()}>
             <h2>Settings</h2>
+
+            <h3>Steering</h3>
+            <div className="segmented">
+                {STEER_LEVELS.map((level) => (
+                    <button
+                        key={level.name}
+                        type="button"
+                        className={level.name === steering ? 'segment selected' : 'segment'}
+                        onClick={() => onSteering(level.name)}
+                    >
+                        {level.label}
+                    </button>
+                ))}
+            </div>
+            <p className="setting-note">{STEER_LEVELS.find((l) => l.name === steering)?.detail}</p>
 
             <h3>Quality</h3>
             <div className="quality-list">
@@ -48,6 +70,12 @@ export const SettingsPanel = ({
                 ))}
             </div>
 
+            <h3>Times</h3>
+            <button type="button" className="toggle-row" onClick={onClearTimes}>
+                <span>Clear best mile times</span>
+                <span className="row-action">Reset</span>
+            </button>
+
             <h3>Developer</h3>
             <button type="button" className="toggle-row" onClick={onToggleFps}>
                 <span>Show FPS counter</span>
@@ -64,6 +92,8 @@ export const SettingsPanel = ({
                 <dd>Steer</dd>
                 <dt>C</dt>
                 <dd>Change camera</dd>
+                <dt>R</dt>
+                <dd>Back to the road when stuck</dd>
             </dl>
 
             <button type="button" className="primary" onClick={onClose}>

@@ -18,6 +18,8 @@ import { CameraRig, CAMERA_LABELS, type CameraMode } from './camera/CameraRig';
 import { Particles } from './fx/Particles';
 import { AudioEngine } from './audio/AudioEngine';
 import { PRESETS, type QualityName, type QualityPreset } from './quality';
+import { CoursePreview, PREVIEW_STEP } from './road/CoursePreview';
+import { SplitTimer } from './splits';
 import { bindKeyboard, createInputState, type InputState, type KeyboardBinding } from './input';
 import { telemetry, publishTelemetry } from '../ui/telemetry';
 import { MPS_TO_MPH, M_TO_MILES, clamp } from './util/mathx';
@@ -34,6 +36,7 @@ export interface GameOptions {
     canvas: HTMLCanvasElement;
     quality: QualityName;
     seed?: number;
+    steerSensitivity?: number;
     onCameraChange?: (mode: CameraMode) => void;
     onDiscovery?: (name: string) => void;
 }
@@ -79,6 +82,8 @@ export class Game {
     private readonly rebaseAnchor = new Vector3();
     private readonly options: GameOptions;
     private readonly probeFrame = createFrame();
+    private readonly preview: CoursePreview;
+    private readonly splits = new SplitTimer();
 
     constructor(options: GameOptions) {
         this.options = options;
@@ -108,7 +113,13 @@ export class Game {
         this.scene.add(this.model.root);
         this.particles = new Particles(this.scene, this.assets, this.preset);
         this.rig = new CameraRig(this.aspect);
+        this.preview = new CoursePreview(this.path);
         this.keys = bindKeyboard(this.input);
+        this.physics.steerSensitivity = options.steerSensitivity ?? 1;
+        telemetry.previewOffset = this.preview.offset;
+        telemetry.previewSeverity = this.preview.severity;
+        telemetry.previewCount = this.preview.offset.length;
+        telemetry.previewStep = PREVIEW_STEP;
 
         // Well clear of s = 0: RoadPath clamps below its start, so a chunk built
         // there would collapse every row onto the same frame - a zero-area road
@@ -163,6 +174,7 @@ export class Game {
         this.clockLast = performance.now();
         this.rig.set('chase');
         this.options.onCameraChange?.(this.rig.mode);
+        this.splits.reset();
         this.audio.start();
     }
 
@@ -216,6 +228,27 @@ export class Game {
         this.audio.setMuted(muted);
     }
 
+    setSteerSensitivity(value: number): void {
+        this.physics.steerSensitivity = value;
+    }
+
+    /**
+     * Put the truck back on the road. The mile under way is marked assisted, so
+     * a recovery can never buy a personal best.
+     */
+    recover(): void {
+        this.physics.recover();
+        this.splits.invalidate();
+        telemetry.stuck = false;
+        publishTelemetry();
+    }
+
+    clearBestTimes(): void {
+        this.splits.forgetBests();
+        telemetry.mileBest = 0;
+        publishTelemetry();
+    }
+
     // ---------------------------------------------------------------- frame
 
     private frame = (now: number): void => {
@@ -239,6 +272,10 @@ export class Game {
             this.input.cycleCameraRequested = false;
             if (this.driving) this.cycleCamera();
         }
+        if (this.input.recoverRequested) {
+            this.input.recoverRequested = false;
+            if (this.driving) this.recover();
+        }
 
         if (this.driving) {
             this.stepPhysics(dt);
@@ -249,6 +286,14 @@ export class Game {
             this.focus.copy(this.physics.position);
             this.audio.update(dt, this.physics);
             this.checkDiscovery();
+            const split = this.splits.update(dt, this.physics.odometer);
+            if (split.completedMile >= 0) {
+                telemetry.lastSplitMile = split.completedMile;
+                telemetry.lastSplitTime = split.time;
+                telemetry.lastSplitDelta = split.delta;
+                telemetry.lastSplitIsBest = split.isBest;
+                telemetry.splitFlash = 5;
+            }
         } else {
             this.rig.cinematic(this.elapsed, this.model.root);
             this.model.sync(this.physics, dt, this.sky.night);
@@ -282,6 +327,21 @@ export class Game {
             telemetry.gear = this.physics.gear + 1;
             telemetry.offRoad = this.physics.offRoad;
             telemetry.discoveryAge = Math.max(0, telemetry.discoveryAge - 0.1);
+            telemetry.splitFlash = Math.max(0, telemetry.splitFlash - 0.1);
+            telemetry.stuck = this.physics.stuckTime > 1.4;
+
+            // The road ahead only needs refreshing at the HUD's rate.
+            this.preview.update(this.physics.s, Math.abs(this.physics.u));
+            telemetry.advisoryMph = this.preview.advisorySpeed * MPS_TO_MPH;
+            telemetry.braking = this.preview.braking && this.driving;
+            telemetry.advisoryCurvature = this.preview.advisoryCurvature;
+            telemetry.advisoryDistance = this.preview.advisoryDistance;
+
+            telemetry.mile = this.splits.currentMile;
+            telemetry.mileTime = this.splits.currentMileTime;
+            telemetry.mileBest = this.splits.currentMileBest;
+            telemetry.mileDirty = this.splits.currentMileDirty;
+            telemetry.totalTime = this.splits.elapsed;
             publishTelemetry();
         }
     }
