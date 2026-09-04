@@ -53,9 +53,12 @@ export class Assets {
 
     private readonly owned: (Texture | Material)[] = [];
 
-    constructor(preset: QualityPreset) {
+    constructor(preset: QualityPreset, maxAnisotropy = 16) {
         const size = preset.textureSize;
-        const aniso = preset.anisotropy;
+        // Anisotropic filtering is the whole game for a road seen at a grazing
+        // angle: without it the sampler drops to a low mip a few metres ahead of
+        // the camera and the near road washes out to flat grey.
+        const aniso = Math.max(1, Math.min(preset.anisotropy, maxAnisotropy));
         const small = Math.max(128, size >> 1);
 
         this.gravel = makeGravel(size, aniso);

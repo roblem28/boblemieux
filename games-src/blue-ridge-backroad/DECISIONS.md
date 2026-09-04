@@ -492,3 +492,44 @@ D3.2 untouched.
 not the same achievement, and one leaderboard for both is worse than none. The
 storage keys carry the level, and the version moved with the road widening,
 which changed every time anyway.
+
+---
+
+## Play-test feedback, round three
+
+**D6.1 — The foggy hollow is a stretch, not a moment, and its fog comes from the
+schedule.** It lasted about a second because the density was a falloff from the
+set-piece's *position* — a 90 m radius around a point, peaking instantaneously.
+It is now 320 m of road with a 200 m plateau at full density, and the value is
+computed by `RoadPath.fogAt(s)` from the deterministic schedule rather than from
+the mesh.
+
+That last part matters for more than tidiness: the hollow is longer than the
+streaming window is deep behind the vehicle, so tying visibility to a loaded
+object made the fog vanish the moment the chunk holding it was released — which
+is roughly when you were in the middle of it. A pure function of `s` has no such
+edge.
+
+Visibility drops to about 50 m inside, which at speed is under a second of road.
+The course-ahead strip still works, so there is a way through if you read it and
+slow down — the fog takes away your eyes, not your instruments.
+
+The mist banks are now laid out along the road in world space rather than
+clustered at a point, because over 300 m the road curves well away from the
+straight line the node is oriented along.
+
+**D6.2 — The grey band at the bottom of the screen was the road, not the GPU.**
+Reported as "maybe the screen or vid card can't keep up". It was not a
+performance problem: at 60 fps the near road was washing out to a flat grey
+sheet. Two causes, both about a surface seen at a grazing angle:
+
+ - anisotropic filtering was only 4x on Balanced, so a few metres ahead of the
+   bumper the sampler dropped to a low mip and averaged the gravel to nothing.
+   It is now 16/8/2 by preset, clamped to what the GPU actually supports;
+ - and there was nothing in the road's *vertex* colours at metre scale to
+   survive that averaging. Two more noise scales were added, both kept well
+   above the 2 m row spacing so they do not alias.
+
+Worth recording that the first hypothesis — dust particles filling the lower
+screen — was wrong, and cheap to disprove: hiding the particle systems changed
+the bottom strip's mean brightness by 0.5 out of 255.

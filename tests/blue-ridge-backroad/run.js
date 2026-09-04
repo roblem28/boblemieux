@@ -769,6 +769,57 @@ const startDriving = async (page) => {
         check(st.mean > 12 && st.mean < 235, `E1c the ${view} view is neither black nor blown out`, JSON.stringify(st));
     }
 
+    // ------------------------------------------- G: the foggy hollow, and grip
+
+    // G1 — a hollow is a stretch of road, not a landmark you pass in a second.
+    const hollow = await page.evaluate(() => {
+        const g = window.brb.game;
+        let centre = -1;
+        for (let s = 500; s < 40000; s += 5) {
+            if (g.fogAtForTest(s) > 0.99) {
+                centre = s;
+                break;
+            }
+        }
+        if (centre < 0) return { found: false, centre: 0, span: 0, core: 0, open: 1 };
+        let span = 0;
+        let core = 0;
+        for (let s = centre - 500; s < centre + 500; s += 2) {
+            const f = g.fogAtForTest(s);
+            if (f > 0.02) span += 2;
+            if (f > 0.95) core += 2;
+        }
+        return { found: true, centre, span, core, open: g.fogAtForTest(centre + 900) };
+    });
+    check(hollow.found, 'G1 the schedule contains a foggy hollow');
+    check(hollow.span > 250, 'G1b it covers a real stretch of road', `${hollow.span} m of fog`);
+    check(hollow.core > 140, 'G1c with a plateau at full density, not a spike', `${hollow.core} m at full`);
+    check(hollow.open < 0.02, 'G1d and open road either side is clear', `${hollow.open}`);
+
+    // G2 — driving into it actually cuts how far you can see.
+    const visibility = await page.evaluate((centre) => {
+        const g = window.brb.game;
+        const p = g.physics;
+        g.restartFree();
+        p.reset(centre - 900);
+        window.__h.sim(0.4);
+        const clear = g.fogFarForTest;
+        p.reset(centre);
+        window.__h.sim(0.4);
+        const inFog = g.fogFarForTest;
+        return { clear, inFog };
+    }, hollow.centre);
+    check(
+        visibility.inFog < visibility.clear * 0.25 && visibility.inFog < 90,
+        'G2 visibility collapses inside the hollow',
+        `${visibility.clear.toFixed(0)} m -> ${visibility.inFog.toFixed(0)} m`
+    );
+
+    // G3 — the road texture is filtered anisotropically. Without it the surface
+    // ahead of the bumper mips down to flat grey at a grazing angle.
+    const aniso = await page.evaluate(() => window.brb.game.anisotropyForTest);
+    check(aniso >= 4, 'G3 the road is filtered anisotropically', `anisotropy=${aniso}`);
+
     // ---------------------------------------------------------- F: difficulty
 
     // F1 — the four levels exist and are selectable.

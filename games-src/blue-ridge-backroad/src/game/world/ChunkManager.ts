@@ -121,11 +121,6 @@ export class ChunkManager {
         return this.chunks.values();
     }
 
-    /** How deep the camera is inside a foggy hollow, 0..1. */
-    get fogBoost(): number {
-        return this.events.fogBoost;
-    }
-
     /** Animates the set-pieces that move (drifting lights, mist). */
     updateEvents(time: number, cameraPos: Vector3): void {
         this.events.update(time, cameraPos);

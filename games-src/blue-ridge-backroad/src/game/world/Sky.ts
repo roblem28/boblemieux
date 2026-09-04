@@ -263,8 +263,11 @@ export class Sky {
             lerp(0.78, 0.62, warm) * lerp(1, 0.9, fogBoost)
         );
         fog.color.copy(this.fogColor);
-        fog.near = lerp(45, 6, fogBoost);
-        fog.far = lerp(this.preset.fogFar * lerp(1, 0.78, warm), 95, fogBoost);
+        // Deep in a hollow you can see about fifty metres, which at speed is
+        // under a second of road. That is the challenge — the course-ahead strip
+        // still works, so there is a way through if you read it and slow down.
+        fog.near = lerp(45, 3, fogBoost);
+        fog.far = lerp(this.preset.fogFar * lerp(1, 0.78, warm), 52, fogBoost);
 
         // Keep the dome, ridges and sun sprite centred on the player.
         this.dome.position.set(focus.x, focus.y, focus.z);

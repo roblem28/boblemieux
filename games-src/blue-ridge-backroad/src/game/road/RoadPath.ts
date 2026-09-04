@@ -60,6 +60,9 @@ export const EVENT_NAMES: readonly string[] = [
 ];
 
 const EVENT_SPACING = 640; // metres between candidate slots
+/** A foggy hollow is a stretch of road, not a landmark you pass in a second. */
+export const HOLLOW_SPAN = 320; // total length, metres
+const HOLLOW_CORE = 100; // full density within this of the centre
 const EVENT_FLAT_SPAN = 46; // fully flat road either side of the centre
 const EVENT_TAPER = 55; // taper back to normal curvature over this distance
 
@@ -150,13 +153,12 @@ export class RoadPath {
      * bridge landed mid-corner.
      */
     eventSlot(index: number, out: EventSlot): EventSlot {
-        const r = hashFloat((index * 2654435761) ^ (this.seed * 40503));
         const r2 = hashFloat((index * 1597334677) ^ (this.seed * 22695477));
         out.index = index;
         // Jitter the centre so events do not feel metronomic.
-        out.s = index * EVENT_SPACING + (r2 - 0.5) * EVENT_SPACING * 0.45;
+        out.s = this.slotCentre(index);
         // The first slot is skipped so the drive starts on plain road.
-        out.kind = index <= 0 ? EVENT_NONE : r < 0.62 ? Math.floor(r * 1000) % EVENT_COUNT : EVENT_NONE;
+        out.kind = this.slotKind(index);
         out.side = r2 < 0.5 ? -1 : 1;
         return out;
     }
@@ -164,6 +166,38 @@ export class RoadPath {
     /** Slot index nearest to a distance. */
     static slotIndexFor(s: number): number {
         return Math.round(s / EVENT_SPACING);
+    }
+
+    /** What kind of event slot `index` holds. Pure function of the seed. */
+    private slotKind(index: number): number {
+        if (index <= 0) return EVENT_NONE;
+        const r = hashFloat((index * 2654435761) ^ (this.seed * 40503));
+        return r < 0.62 ? Math.floor(r * 1000) % EVENT_COUNT : EVENT_NONE;
+    }
+
+    /** Where slot `index` sits along the road. */
+    private slotCentre(index: number): number {
+        const r2 = hashFloat((index * 1597334677) ^ (this.seed * 22695477));
+        return index * EVENT_SPACING + (r2 - 0.5) * EVENT_SPACING * 0.45;
+    }
+
+    /**
+     * Fog density at distance `s`: 0 on open road, 1 deep inside a hollow.
+     *
+     * Taken from the schedule rather than from the set-piece's mesh, so it does
+     * not depend on that chunk still being streamed in — the hollow is longer
+     * than the streaming window is deep behind you, and tying visibility to a
+     * loaded object made the fog vanish the moment you were through it.
+     */
+    fogAt(s: number): number {
+        const n = Math.round(s / EVENT_SPACING);
+        let f = 0;
+        for (let i = n - 1; i <= n + 1; i++) {
+            if (this.slotKind(i) !== EVENT_FOGGY_HOLLOW) continue;
+            const d = Math.abs(s - this.slotCentre(i));
+            f = Math.max(f, 1 - smoothstep(HOLLOW_CORE, HOLLOW_SPAN * 0.5, d));
+        }
+        return f;
     }
 
     /**
@@ -174,12 +208,9 @@ export class RoadPath {
         const n = Math.round(s / EVENT_SPACING);
         let f = 1;
         for (let i = n - 1; i <= n + 1; i++) {
-            const r = hashFloat((i * 2654435761) ^ (this.seed * 40503));
-            const kind = i <= 0 ? EVENT_NONE : r < 0.62 ? Math.floor(r * 1000) % EVENT_COUNT : EVENT_NONE;
+            const kind = this.slotKind(i);
             if (kind === EVENT_NONE || !FLATTENING_EVENTS.has(kind)) continue;
-            const r2 = hashFloat((i * 1597334677) ^ (this.seed * 22695477));
-            const centre = i * EVENT_SPACING + (r2 - 0.5) * EVENT_SPACING * 0.45;
-            const d = Math.abs(s - centre);
+            const d = Math.abs(s - this.slotCentre(i));
             if (d >= EVENT_FLAT_SPAN + EVENT_TAPER) continue;
             f = Math.min(f, smoothstep(EVENT_FLAT_SPAN, EVENT_FLAT_SPAN + EVENT_TAPER, d));
         }

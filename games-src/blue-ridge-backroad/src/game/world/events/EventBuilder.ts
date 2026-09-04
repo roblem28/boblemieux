@@ -23,6 +23,7 @@ import {
     EVENT_GAS_STATION,
     EVENT_JUNKED_TRUCK,
     EVENT_STRANGE_LIGHTS,
+    HOLLOW_SPAN,
     SHOULDER_W,
     createFrame,
     type EventSlot,
@@ -59,9 +60,6 @@ export class EventBuilder {
     private readonly darkWoodMat: MeshStandardMaterial;
     private readonly roofMat: MeshStandardMaterial;
     private readonly paintMat: MeshStandardMaterial;
-
-    /** Set while the vehicle is inside a foggy hollow; the game reads it. */
-    fogBoost = 0;
 
     constructor(
         private readonly scene: Scene,
@@ -122,6 +120,10 @@ export class EventBuilder {
             node.rotation.y += slot.side > 0 ? -Math.PI * 0.5 : Math.PI * 0.5;
         }
         node.updateMatrixWorld(true);
+        // A hollow is a corridor, so its mist banks are laid out along the road
+        // rather than clustered at a point. Done here, not at build time,
+        // because the node is pooled and reused at different places on the road.
+        if (slot.kind === EVENT_FOGGY_HOLLOW) this.layoutHollow(node, slot.s);
         this.scene.add(node);
         this.active.push({ node, kind: slot.kind, phase: (slot.index * 1.7) % 6.28 });
 
@@ -164,9 +166,31 @@ export class EventBuilder {
         pool.push(node);
     }
 
-    /** Animates the few kinds that move, and reports fog influence. */
+    /**
+     * Lay a hollow's mist banks along the road it covers. Positions are worked
+     * out in world space from the road itself and then brought into the node's
+     * local space, because over 300 m the road curves well away from the
+     * straight line the node is oriented along.
+     */
+    private layoutHollow(node: Object3D, centreS: number): void {
+        const n = node.children.length;
+        for (let i = 0; i < n; i++) {
+            const frac = n > 1 ? i / (n - 1) - 0.5 : 0;
+            this.path.sample(centreS + frac * HOLLOW_SPAN * 0.92, frame);
+            // Deterministic spread across and above the road.
+            const lateral = ((i * 7) % 17) - 8;
+            this.path.surfacePoint(frame, lateral, tmp);
+            tmp.y += 1.1 + (i % 4) * 1.5;
+            node.worldToLocal(tmp);
+            const child = node.children[i];
+            child.position.copy(tmp);
+            child.rotation.set(0, i * 0.9, 0);
+        }
+    }
+
+    /** Animates the few kinds that move. */
     update(time: number, cameraPos: Vector3): void {
-        let fog = 0;
+        void cameraPos;
         for (let ai = 0; ai < this.active.length; ai++) {
             const a = this.active[ai];
             if (a.kind === EVENT_STRANGE_LIGHTS) {
@@ -177,12 +201,8 @@ export class EventBuilder {
                     const m = (c as Mesh).material as MeshBasicMaterial;
                     m.opacity = 0.35 + 0.45 * (0.5 + 0.5 * Math.sin(time * 2.3 + i));
                 }
-            } else if (a.kind === EVENT_FOGGY_HOLLOW) {
-                const d = a.node.position.distanceTo(cameraPos);
-                if (d < 90) fog = Math.max(fog, 1 - d / 90);
             }
         }
-        this.fogBoost = fog;
     }
 
     // ------------------------------------------------------------- builders
@@ -455,14 +475,17 @@ export class EventBuilder {
     /** A hollow full of standing mist. */
     private buildFoggyHollow(): Object3D {
         const g = new Group();
-        for (let i = 0; i < 14; i++) {
-            const s = 22 + (i % 5) * 9;
-            const p = new Mesh(this.track(new PlaneGeometry(s, s * 0.42)), this.fogMat);
-            p.position.set(Math.sin(i * 2.1) * 16, 1.2 + (i % 3) * 1.6, Math.cos(i * 1.3) * 26);
-            p.rotation.y = i * 0.9;
+        // Positions are overwritten by layoutHollow when the node is attached;
+        // what matters here is how many banks there are and how big.
+        for (let i = 0; i < 30; i++) {
+            const s = 30 + (i % 5) * 11;
+            const p = new Mesh(this.track(new PlaneGeometry(s, s * 0.46)), this.fogMat);
             p.renderOrder = 3;
             g.add(p);
         }
+        // Every bank is repositioned individually, so this one keeps its
+        // children rather than being merged by material.
+        g.userData.noMerge = true;
         return g;
     }
 

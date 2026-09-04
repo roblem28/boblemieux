@@ -286,8 +286,18 @@ const roadColor = (frame: RoadFrame, l: number, out: Float32Array): void => {
     const centre = Math.exp(-a * a * 3.4);
     const mud = clamp(fbm1(frame.s / 17 + l * 0.6, 2, 907) * 1.5 - 0.45, 0, 1);
     const shoulder = smoothstep(hw - 0.5, hw + SHOULDER_W, a);
+    // Variation at two scales the texture cannot provide. Near the camera the
+    // gravel map is sampled at a grazing angle and mips down to a flat average,
+    // so without something in the vertex colours the road ahead of the bumper
+    // reads as a sheet of grey. These are per-vertex, so no mip level can wash
+    // them out. Both wavelengths stay well above the 2 m row spacing, or they
+    // would simply alias.
+    const grainWide = fbm1(frame.s / 41 - l * 0.2, 2, 917);
+    const grainNear = fbm1(frame.s / 6 + l * 0.9, 2, 913);
 
-    const base = 1.06 + centre * 0.12 - track * 0.24 - mud * 0.3 - shoulder * 0.12;
+    const base =
+        1.06 + centre * 0.12 - track * 0.24 - mud * 0.3 - shoulder * 0.12 +
+        grainWide * 0.075 + grainNear * 0.085;
     out[0] = base;
     out[1] = base * (1 - mud * 0.06) * (1 - track * 0.02);
     out[2] = base * (1 - mud * 0.16) * (1 - track * 0.05);

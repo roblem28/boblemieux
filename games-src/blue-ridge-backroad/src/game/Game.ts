@@ -124,7 +124,7 @@ export class Game {
         this.splits = new SplitTimer(this.difficultyName);
         this.stage = new Stage(this.difficultyName);
         this.path = new RoadPath(options.seed ?? 20260904);
-        this.assets = new Assets(this.preset);
+        this.assets = new Assets(this.preset, this.renderer.capabilities.getMaxAnisotropy());
         this.vegetation = new Vegetation(this.scene, this.assets, this.preset.chunksAhead + this.preset.chunksBehind + 4);
         this.chunks = new ChunkManager(this.scene, this.path, this.assets, this.vegetation, this.preset);
         this.sky = new Sky(this.scene, this.assets, this.preset);
@@ -220,7 +220,7 @@ export class Game {
         this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, this.preset.pixelRatioCap));
         this.renderer.shadowMap.enabled = this.preset.shadows;
 
-        this.assets = new Assets(this.preset);
+        this.assets = new Assets(this.preset, this.renderer.capabilities.getMaxAnisotropy());
         this.vegetation = new Vegetation(
             this.scene,
             this.assets,
@@ -435,7 +435,7 @@ export class Game {
         }
 
         this.chunks.updateEvents(this.elapsed, this.rig.camera.position);
-        this.sky.update(this.physics.odometer, this.focus, this.chunks.fogBoost);
+        this.sky.update(this.physics.odometer, this.focus, this.path.fogAt(this.physics.s));
         if (this.renderEnabled && !this.contextLost) this.renderer.render(this.scene, this.rig.camera);
 
         this.fpsAccum += dt;
@@ -485,6 +485,11 @@ export class Game {
         }
     }
 
+    /** Diagnostics: hide the dust and gravel, to isolate what they contribute. */
+    setDustEnabled(enabled: boolean): void {
+        this.particles.setVisible(enabled);
+    }
+
     /** Simulate without drawing. Only the test harness ever turns this off. */
     setRenderEnabled(enabled: boolean): void {
         this.renderEnabled = enabled;
@@ -525,6 +530,21 @@ export class Game {
 
     get roadMinS(): number {
         return this.path.minS;
+    }
+
+    /** Live fog distance and texture filtering, for the suite. */
+    get fogFarForTest(): number {
+        const fog = this.scene.fog as { far?: number } | null;
+        return fog && typeof fog.far === 'number' ? fog.far : 0;
+    }
+
+    get anisotropyForTest(): number {
+        return this.assets.gravel.map.anisotropy;
+    }
+
+    /** Fog density from the schedule at a distance, for the suite. */
+    fogAtForTest(s: number): number {
+        return this.path.fogAt(s);
     }
 
     /** Carriageway width at a distance, for diagnostics and the suite. */

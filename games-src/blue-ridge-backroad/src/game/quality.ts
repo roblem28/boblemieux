@@ -34,7 +34,7 @@ export const PRESETS: Record<QualityName, QualityPreset> = {
         lodDistance: 140,
         dustParticles: 220,
         gravelParticles: 120,
-        anisotropy: 8,
+        anisotropy: 16,
         textureSize: 1024,
         mountainLayers: 3
     },
@@ -52,7 +52,7 @@ export const PRESETS: Record<QualityName, QualityPreset> = {
         lodDistance: 100,
         dustParticles: 140,
         gravelParticles: 70,
-        anisotropy: 4,
+        anisotropy: 8,
         textureSize: 512,
         mountainLayers: 3
     },
@@ -70,7 +70,7 @@ export const PRESETS: Record<QualityName, QualityPreset> = {
         lodDistance: 70,
         dustParticles: 70,
         gravelParticles: 36,
-        anisotropy: 1,
+        anisotropy: 2,
         textureSize: 256,
         mountainLayers: 2
     }

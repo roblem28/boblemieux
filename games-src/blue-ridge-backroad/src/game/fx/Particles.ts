@@ -206,6 +206,12 @@ export class Particles {
         scene.add(this.dust.points, this.gravel.points);
     }
 
+    /** Diagnostics only: hide the particle systems without tearing them down. */
+    setVisible(visible: boolean): void {
+        this.dust.points.visible = visible;
+        this.gravel.points.visible = visible;
+    }
+
     update(dt: number, physics: VehiclePhysics, model: VehicleModel): void {
         // Move the local origin with the vehicle and fold the delta into the
         // particle integration, so stored positions stay small.
