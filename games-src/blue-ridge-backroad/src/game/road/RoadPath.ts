@@ -2,6 +2,7 @@ import { Vector3 } from 'three';
 import { fbm1 } from '../util/noise';
 import { hashFloat } from '../util/rng';
 import { clamp, smoothstep } from '../util/mathx';
+import { ChapterSchedule } from '../world/chapters';
 
 /**
  * THE ROAD COORDINATE SYSTEM.
@@ -123,6 +124,13 @@ export interface EventSlot {
 
 export class RoadPath {
     readonly seed: number;
+    /**
+     * Long-form character of the road. Consulted by the shape functions below,
+     * and a pure function of distance, so regenerating the road from the origin
+     * reproduces exactly the same road — which matters, because `rewind()` does
+     * precisely that.
+     */
+    readonly chapters: ChapterSchedule;
 
     // Ring-buffer sample table. Index i lives at slot (i % RING).
     private readonly px = new Float64Array(RING);
@@ -141,6 +149,7 @@ export class RoadPath {
 
     constructor(seed: number) {
         this.seed = seed >>> 0;
+        this.chapters = new ChapterSchedule(this.seed);
         this.ensure(1000);
     }
 
@@ -197,7 +206,9 @@ export class RoadPath {
             const d = Math.abs(s - this.slotCentre(i));
             f = Math.max(f, 1 - smoothstep(HOLLOW_CORE, HOLLOW_SPAN * 0.5, d));
         }
-        return f;
+        // A chapter can lay a baseline haze over everything; a hollow inside one
+        // is thicker still.
+        return Math.max(f, this.chapters.paramsAt(s).fogBias);
     }
 
     /**
@@ -223,7 +234,11 @@ export class RoadPath {
     private curvatureAt(s: number): number {
         // A slow envelope opens genuine straights and closes twisty sections, so
         // the road has rhythm and there are places to reach top speed.
-        const env = 0.22 + 0.78 * smoothstep(-0.4, 0.5, fbm1(s / 1100, 2, this.seed + 3));
+        const noiseEnv = 0.22 + 0.78 * smoothstep(-0.4, 0.5, fbm1(s / 1100, 2, this.seed + 3));
+        // A chapter replaces the envelope; the noise then only adds local
+        // variety within it, so the chapter's character always dominates.
+        const twist = this.chapters.paramsAt(s).twistiness;
+        const env = twist < 0 ? noiseEnv : twist * (0.55 + 0.45 * noiseEnv);
         const k =
             0.66 * fbm1(s / 340, 1, this.seed + 11) +
             0.26 * fbm1(s / 140, 1, this.seed + 23) +
@@ -237,7 +252,8 @@ export class RoadPath {
             0.72 * fbm1(s / 430, 1, this.seed + 61) +
             0.28 * fbm1(s / 155, 1, this.seed + 71) +
             0.07 * fbm1(s / 48, 1, this.seed + 83);
-        return clamp(g * MAX_GRADE * 1.35, -MAX_GRADE, MAX_GRADE) * this.flatten(s);
+        const scale = this.chapters.paramsAt(s).gradeScale;
+        return clamp(g * scale * MAX_GRADE * 1.35, -MAX_GRADE, MAX_GRADE) * this.flatten(s);
     }
 
     private widthAt(s: number): number {
@@ -245,7 +261,11 @@ export class RoadPath {
         // the original spec asked for at 16-22 ft — but at 90 mph on gravel
         // that left no room to place the truck, and playing it is the test that
         // matters. See DECISIONS D5.1.
-        return 7.3 + 2.1 * (0.5 + 0.5 * fbm1(s / 300, 2, this.seed + 101));
+        const n01 = 0.5 + 0.5 * fbm1(s / 300, 2, this.seed + 101);
+        const target = this.chapters.paramsAt(s).widthTarget;
+        // A chapter sets the width and the noise varies it by half a metre or
+        // so; with no chapter the noise owns the whole 24-31 ft range.
+        return target < 0 ? 7.3 + 2.1 * n01 : target + (n01 - 0.5) * 0.9;
     }
 
     // ------------------------------------------------------------- generate

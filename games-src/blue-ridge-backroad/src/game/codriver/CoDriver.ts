@@ -56,6 +56,18 @@ export class CoDriver {
         if (mode !== 'voice') this.speech.stop();
     }
 
+    /**
+     * Say something that is not a corner — a surface change, say. Takes
+     * priority over the next pace note, because it is rarer and more useful.
+     */
+    announce(text: string): void {
+        if (this.mode === 'off' || !text) return;
+        this.note = text;
+        this.noteAge = NOTE_LIFE;
+        this.sinceLastCall = 0;
+        if (this.mode === 'voice') this.speech.say(text);
+    }
+
     /** Forget everything called; used when the drive restarts elsewhere. */
     reset(): void {
         this.calledCount = 0;

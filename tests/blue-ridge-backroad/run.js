@@ -769,6 +769,185 @@ const startDriving = async (page) => {
         check(st.mean > 12 && st.mean < 235, `E1c the ${view} view is neither black nor blown out`, JSON.stringify(st));
     }
 
+    // -------------------------------------------------------- J: road chapters
+
+    // J1 — off by default, and off means the road is exactly as it was.
+    const chapterDefaults = await page.evaluate(() => {
+        const g = window.brb.game;
+        g.setChaptersEnabled(false);
+        const c = g.chapterAtForTest(4000);
+        return { enabled: g.chaptersEnabled, label: c.label, twist: c.twistiness, fog: c.fogBias, grip: c.grip };
+    });
+    check(!chapterDefaults.enabled, 'J1 chapters are off by default');
+    check(
+        chapterDefaults.label === '' && chapterDefaults.twist < 0 && chapterDefaults.fog === 0 && chapterDefaults.grip === 1,
+        'J1b with them off the road is untouched',
+        JSON.stringify(chapterDefaults)
+    );
+
+    // J2 — each of the eight is reachable and they never repeat back to back.
+    const schedule = await page.evaluate(() => {
+        const g = window.brb.game;
+        g.setChaptersEnabled(true);
+        const labels = [];
+        for (let slot = 1; slot < 60; slot++) labels.push(g.chapterAtForTest(slot * 1400 + 700).label);
+        let backToBack = 0;
+        for (let i = 1; i < labels.length; i++) if (labels[i] === labels[i - 1]) backToBack += 1;
+        return { distinct: new Set(labels).size, backToBack, first: labels.slice(0, 6) };
+    });
+    check(schedule.distinct >= 7, 'J2 the schedule reaches nearly all eight chapters', `${schedule.distinct} distinct in 59 slots`);
+    check(schedule.backToBack === 0, 'J2b no chapter follows itself', `${schedule.backToBack} repeats`);
+
+    // J3 — the chapters actually change the road. Measured at chapter midpoints,
+    // clear of the ramp.
+    const measured = await page.evaluate(() => {
+        const g = window.brb.game;
+        g.setChaptersEnabled(true);
+        // The ring prunes behind the vehicle, and sampling a distance it has
+        // dropped silently clamps to the oldest surviving frame. Reset first,
+        // then walk forward, so every sample is real road.
+        window.__h.hardReset();
+        const acc = {};
+        // Several occurrences of each chapter: one slot measures where that
+        // chapter happened to land as much as what the chapter is.
+        for (let slot = 1; slot < 56; slot++) {
+            const mid = slot * 1400 + 700;
+            const c = g.chapterAtForTest(mid);
+            let kSum = 0;
+            let wSum = 0;
+            let n = 0;
+            for (let s = slot * 1400 + 520; s < (slot + 1) * 1400 - 120; s += 10) {
+                kSum += Math.abs(g.roadPointAt(s).curvature);
+                wSum += g.roadWidthAt(s);
+                n += 1;
+            }
+            const e = acc[c.name] ?? {
+                declaredTwist: c.twistiness,
+                declaredWidth: c.widthTarget,
+                kappa: 0,
+                width: 0,
+                runs: 0,
+                fog: c.fogBias,
+                tod: c.timeOfDay,
+                grip: c.grip,
+                surface: c.surface
+            };
+            e.kappa += kSum / n;
+            e.width += wSum / n;
+            e.runs += 1;
+            acc[c.name] = e;
+        }
+        const byName = {};
+        for (const [name, e] of Object.entries(acc)) {
+            byName[name] = {
+                declaredTwist: e.declaredTwist,
+                declaredWidth: e.declaredWidth,
+                meanKappa: e.kappa / e.runs,
+                meanWidth: e.width / e.runs,
+                runs: e.runs,
+                fog: e.fog,
+                tod: e.tod,
+                grip: e.grip,
+                surface: e.surface
+            };
+        }
+        return byName;
+    });
+    const names = Object.keys(measured);
+    check(names.length >= 7, 'J3 measured most of the chapters', `${names.length} chapters`);
+
+    const twistiest = names.reduce((a, b) => (measured[a].declaredTwist > measured[b].declaredTwist ? a : b));
+    const straightest = names.reduce((a, b) => (measured[a].declaredTwist < measured[b].declaredTwist ? a : b));
+    check(
+        measured[twistiest].meanKappa > measured[straightest].meanKappa * 3,
+        'J3b the twistiest chapter is markedly twistier than the straightest',
+        `${twistiest}=${measured[twistiest].meanKappa.toFixed(5)} vs ${straightest}=${measured[straightest].meanKappa.toFixed(5)}`
+    );
+
+    // Width is the most reliable lever, so it gets the strict ordering check.
+    const byWidth = names.slice().sort((a, b) => measured[a].declaredWidth - measured[b].declaredWidth);
+    let widthOrdered = true;
+    for (let i = 1; i < byWidth.length; i++) {
+        // Half a metre of tolerance: the generator still varies width by about
+        // +/-0.45 m within a chapter, so two chapters set a few centimetres
+        // apart can legitimately swap.
+        if (measured[byWidth[i]].meanWidth < measured[byWidth[i - 1]].meanWidth - 0.5) widthOrdered = false;
+    }
+    check(
+        widthOrdered,
+        'J3c measured width follows the declared order',
+        byWidth.map((n) => `${n}:${measured[n].meanWidth.toFixed(2)}`).join(' ')
+    );
+
+    check(
+        names.some((n) => measured[n].fog > 0.5) && names.some((n) => measured[n].fog === 0),
+        'J3d chapters differ in fog'
+    );
+    check(
+        Math.max(...names.map((n) => measured[n].tod)) - Math.min(...names.map((n) => measured[n].tod)) > 0.6,
+        'J3e chapters differ in time of day'
+    );
+    check(
+        names.some((n) => measured[n].grip < 0.9) && names.some((n) => measured[n].grip === 1),
+        'J3f chapters differ in surface grip'
+    );
+
+    // J4 — determinism. The road must survive being regenerated from the origin,
+    // because a jump back to a pruned distance does exactly that.
+    const deterministic = await page.evaluate(() => {
+        const g = window.brb.game;
+        g.setChaptersEnabled(true);
+        window.__h.hardReset();
+        const before = [];
+        for (let s = 3000; s < 3400; s += 20) {
+            const p = g.roadPointAt(s);
+            before.push([+p.x.toFixed(3), +p.y.toFixed(3), +p.z.toFixed(3)]);
+        }
+        // Drive far enough to prune the ring past this stretch, then come back.
+        const p = g.physics;
+        g.restartFree();
+        for (let i = 0; i < 30 && p.s < 10000; i++) window.__h.autopilot(30, { keyThrottle: true });
+        window.__h.release();
+        const drovenTo = p.s;
+        g.restartFree();
+        window.__h.sim(0.3);
+        const after = [];
+        for (let s = 3000; s < 3400; s += 20) {
+            const q = g.roadPointAt(s);
+            after.push([+q.x.toFixed(3), +q.y.toFixed(3), +q.z.toFixed(3)]);
+        }
+        let maxDelta = 0;
+        for (let i = 0; i < before.length; i++) {
+            for (let k = 0; k < 3; k++) maxDelta = Math.max(maxDelta, Math.abs(before[i][k] - after[i][k]));
+        }
+        return { drovenTo, maxDelta };
+    });
+    check(deterministic.drovenTo > 8400, 'J4 drove far enough to prune the ring', `s=${deterministic.drovenTo.toFixed(0)}`);
+    check(
+        deterministic.maxDelta < 0.01,
+        'J4b a chaptered road regenerates identically from the origin',
+        `max drift ${deterministic.maxDelta.toFixed(4)} m`
+    );
+
+    // J5 — the timed stage always ignores chapters, so its times stay comparable.
+    const stageNeutral = await page.evaluate(() => {
+        const g = window.brb.game;
+        g.setChaptersEnabled(true);
+        g.restartStage();
+        window.__h.sim(0.3);
+        const c = g.chapterAtForTest(window.brb.game.physics.s);
+        const label = window.brb.telemetry.chapter;
+        g.setMode('free');
+        return { twist: c.twistiness, grip: c.grip, label };
+    });
+    check(
+        stageNeutral.twist < 0 && stageNeutral.grip === 1 && stageNeutral.label === '',
+        'J5 the timed stage runs on neutral road whatever the chapter setting',
+        JSON.stringify(stageNeutral)
+    );
+
+    await page.evaluate(() => window.brb.game.setChaptersEnabled(false));
+
     // ------------------------------------------------------ H: the co-driver
 
     // H1 — the analysis finds corners where the road turns and nothing where it
@@ -848,7 +1027,7 @@ const startDriving = async (page) => {
         let last = '';
         let repeats = 0;
         g.setRenderEnabled(false);
-        for (let i = 0; i < 60 * 90; i++) {
+        for (let i = 0; i < 60 * 150; i++) {
             const speed = Math.abs(p.u);
             const ahead = Math.max(11, speed * 1.7);
             const t = g.roadPointAt(p.s + ahead);

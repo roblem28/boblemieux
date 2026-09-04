@@ -30,6 +30,13 @@ export const App = (): JSX.Element => {
     const [mode, setMode] = useState<GameMode>('free');
     const [difficulty, setDifficulty] = useState<DifficultyName>(() => loadDifficulty());
     const [coDriver, setCoDriver] = useState<CoDriverMode>(() => loadCoDriverMode());
+    const [chapters, setChapters] = useState(() => {
+        try {
+            return localStorage.getItem('brb.chapters') === 'on';
+        } catch {
+            return false;
+        }
+    });
     const [speechAvailable, setSpeechAvailable] = useState(true);
     const [stageBest, setStageBest] = useState(0);
     const [detected] = useState<QualityName>(() => detectQuality());
@@ -50,6 +57,7 @@ export const App = (): JSX.Element => {
                 steerSensitivity: multiplierFor(steering),
                 difficulty,
                 coDriver,
+                chapters,
                 // Only for the automated checks, which sample the rendered frame.
                 preserveDrawingBuffer: new URLSearchParams(window.location.search).has('debug')
             });
@@ -129,6 +137,16 @@ export const App = (): JSX.Element => {
         setCoDriver(next);
         saveCoDriverMode(next);
         gameRef.current?.setCoDriverMode(next);
+    }, []);
+
+    const handleChapters = useCallback((on: boolean) => {
+        setChapters(on);
+        try {
+            localStorage.setItem('brb.chapters', on ? 'on' : 'off');
+        } catch {
+            /* private mode */
+        }
+        gameRef.current?.setChaptersEnabled(on);
     }, []);
 
     const handleRecover = useCallback(() => {
@@ -230,6 +248,8 @@ export const App = (): JSX.Element => {
                     coDriver={coDriver}
                     onCoDriver={handleCoDriver}
                     speechAvailable={speechAvailable}
+                    chapters={chapters}
+                    onChapters={handleChapters}
                     quality={quality}
                     detected={detected}
                     steering={steering}

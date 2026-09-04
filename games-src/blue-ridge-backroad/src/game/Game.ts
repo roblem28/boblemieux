@@ -47,6 +47,7 @@ export interface GameOptions {
     steerSensitivity?: number;
     difficulty?: DifficultyName;
     coDriver?: CoDriverMode;
+    chapters?: boolean;
     /**
      * Keeps the drawing buffer readable after compositing, so tests can sample
      * what was actually rendered. Off in normal play — it costs a copy per
@@ -88,6 +89,15 @@ export class Game {
      * thousands of times slower than the physics step it is verifying.
      */
     private renderEnabled = true;
+    private chaptersWanted = false;
+    /**
+     * Set when something that changes how the road is generated has changed.
+     * The next teleport regenerates the whole road rather than only the part
+     * the ring has pruned — otherwise the ring keeps samples made under the old
+     * setting, and the first rewind that does happen silently produces a road
+     * different from the one that was driven.
+     */
+    private worldDirty = false;
     private contextLost = false;
 
     private fpsAccum = 0;
@@ -103,6 +113,8 @@ export class Game {
     private readonly stage: Stage;
     private readonly coDriver = new CoDriver();
     private difficultyName: DifficultyName;
+    /** The surface the co-driver last called, so a change can be announced. */
+    private lastSurface = '';
     private mode: GameMode = 'free';
 
     constructor(options: GameOptions) {
@@ -143,6 +155,8 @@ export class Game {
         this.physics.difficulty = difficultyFor(this.difficultyName);
         telemetry.difficulty = this.physics.difficulty.label;
         this.coDriver.setMode(options.coDriver ?? 'text');
+        this.chaptersWanted = options.chapters ?? false;
+        this.path.chapters.enabled = this.chaptersWanted;
         telemetry.previewOffset = this.preview.offset;
         telemetry.previewSeverity = this.preview.severity;
         telemetry.previewCount = this.preview.offset.length;
@@ -261,6 +275,47 @@ export class Game {
         this.physics.steerSensitivity = value;
     }
 
+    /**
+     * Chapters are opt-in and only ever apply to the free drive. They change how
+     * long a mile takes, so leaving them on by default would quietly make every
+     * recorded mile split incomparable with the last.
+     */
+    setChaptersEnabled(enabled: boolean): void {
+        if (enabled === this.chaptersWanted) return;
+        this.chaptersWanted = enabled;
+        this.worldDirty = true;
+        if (this.mode === 'stage') return;
+        // Restart rather than toggle in place. The sample ring would otherwise
+        // hold road generated under two different settings, and regenerating it
+        // — which happens whenever the vehicle jumps back past the ring — would
+        // produce a different road from the one that was driven. Determinism is
+        // the property the timing system rests on, so the setting is applied at
+        // a restart or not at all.
+        this.restartFree();
+    }
+
+    get chaptersEnabled(): boolean {
+        return this.chaptersWanted;
+    }
+
+    /** Chapter label at a distance, for diagnostics and the suite. */
+    chapterAtForTest(s: number): unknown {
+        const c = this.path.chapters.chapterAt(s);
+        const p = this.path.chapters.paramsAt(s);
+        return {
+            name: c.name,
+            label: c.label,
+            twistiness: +p.twistiness.toFixed(3),
+            gradeScale: +p.gradeScale.toFixed(3),
+            widthTarget: +p.widthTarget.toFixed(2),
+            fogBias: +p.fogBias.toFixed(3),
+            timeOfDay: +p.timeOfDay.toFixed(3),
+            grip: +p.grip.toFixed(3),
+            drag: +p.drag.toFixed(3),
+            surface: this.path.chapters.surfaceAt(s).name
+        };
+    }
+
     setCoDriverMode(mode: CoDriverMode): void {
         this.coDriver.setMode(mode);
         if (mode === 'off') {
@@ -321,6 +376,12 @@ export class Game {
     /** Back to the start line, clock stopped, world identical to last time. */
     restartStage(): void {
         this.mode = 'stage';
+        // Switching between chaptered and neutral road changes the generator.
+        if (this.path.chapters.enabled) this.worldDirty = true;
+        // The stage is always the same two miles of neutral road. Chapters
+        // would make one run's road different from the next, and the whole
+        // point of a stage time is that it is comparable.
+        this.path.chapters.enabled = false;
         this.teleportTo(STAGE_START_S);
         this.stage.arm();
         this.physics.handbrake = true;
@@ -336,6 +397,8 @@ export class Game {
 
     restartFree(): void {
         this.mode = 'free';
+        if (this.path.chapters.enabled !== this.chaptersWanted) this.worldDirty = true;
+        this.path.chapters.enabled = this.chaptersWanted;
         this.teleportTo(FREE_START_S);
         this.physics.handbrake = false;
         telemetry.mode = 'free';
@@ -350,11 +413,15 @@ export class Game {
      */
     private teleportTo(s: number): void {
         this.coDriver.reset();
+        this.lastSurface = '';
         // The sample ring prunes behind the vehicle, so jumping back to a
         // distance it has discarded would silently clamp to whatever the oldest
         // live sample happens to be. Regenerate first; it is deterministic, so
         // the stage is the same two miles however far you drove beforehand.
-        if (s < this.path.minS + 200) this.path.rewind(s);
+        if (this.worldDirty || s < this.path.minS + 200) {
+            this.path.rewind(s);
+            this.worldDirty = false;
+        }
         this.physics.reset(s);
         this.splits.reset();
         this.lastEventChunk = Number.NaN;
@@ -454,7 +521,12 @@ export class Game {
         }
 
         this.chunks.updateEvents(this.elapsed, this.rig.camera.position);
-        this.sky.update(this.physics.odometer, this.focus, this.path.fogAt(this.physics.s));
+        this.sky.update(
+            this.physics.odometer,
+            this.focus,
+            this.path.fogAt(this.physics.s),
+            this.path.chapters.paramsAt(this.physics.s).timeOfDay
+        );
         if (this.renderEnabled && !this.contextLost) this.renderer.render(this.scene, this.rig.camera);
 
         this.fpsAccum += dt;
@@ -479,6 +551,22 @@ export class Game {
             // The road ahead only needs refreshing at the HUD's rate, and the
             // co-driver reads the same data — a note is a pure function of it.
             this.preview.update(this.physics.s, Math.abs(this.physics.u));
+
+            // Chapter parameters that are not baked into the road itself: the
+            // surface under the tires, and where the sun is.
+            const chapter = this.path.chapters.paramsAt(this.physics.s);
+            this.physics.surfaceGrip = chapter.grip;
+            this.physics.surfaceDrag = chapter.drag;
+            telemetry.chapter = this.path.chapters.labelAt(this.physics.s);
+
+            const surface = this.path.chapters.surfaceAt(this.physics.s);
+            if (surface.name !== this.lastSurface) {
+                // Not on the first tick of a drive — announcing "surface dry"
+                // the instant you set off is noise.
+                if (this.lastSurface !== '') this.coDriver.announce(surface.call);
+                this.lastSurface = surface.name;
+            }
+
             this.coDriver.update(0.1, this.physics.s, Math.abs(this.physics.u), this.preview);
             telemetry.paceNote = this.coDriver.note;
             telemetry.paceNoteAge = this.coDriver.noteAge;

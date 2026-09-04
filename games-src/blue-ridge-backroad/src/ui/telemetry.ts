@@ -58,6 +58,8 @@ export interface Telemetry {
     /** The co-driver's current call, and how long it has left on screen. */
     paceNote: string;
     paceNoteAge: number;
+    /** Label of the road chapter in force, or '' when chapters are off. */
+    chapter: string;
     stageName: string;
     stageState: string;
     stageElapsed: number;
@@ -109,6 +111,7 @@ export const telemetry: Telemetry = {
     difficulty: 'Medium',
     paceNote: '',
     paceNoteAge: 0,
+    chapter: '',
     stageName: '',
     stageState: 'armed',
     stageElapsed: 0,

@@ -207,6 +207,14 @@ export class VehiclePhysics {
     stuckTime = 0;
     /** How forgiving the truck is. Set from the settings panel. */
     difficulty: Difficulty = difficultyFor(DEFAULT_DIFFICULTY);
+    /**
+     * What the road surface is like right now — set by the active chapter, and
+     * announced to the player. Deliberately separate from `difficulty`: the
+     * handling parameters belong to the level the player chose and are never
+     * touched, while grip is a property of the road and is fair game.
+     */
+    surfaceGrip = 1;
+    surfaceDrag = 1;
     private reverseHold = 0;
     private prevWheelY = [0, 0, 0, 0];
 
@@ -341,11 +349,11 @@ export class VehiclePhysics {
             roughSum += SURFACE_ROUGH[w.surface];
             groundSum += w.groundY;
         }
-        const mu = muSum * 0.25 * this.difficulty.gripScale;
+        const mu = muSum * 0.25 * this.difficulty.gripScale * this.surfaceGrip;
         // Off the carriageway the drag penalty is scaled too, so Easy does not
         // bog down the moment a wheel touches grass and Expert really does.
         const offRoadScale = this.offRoad ? this.difficulty.offRoadDrag : 1;
-        const rollCoef = rollSum * 0.25 * offRoadScale;
+        const rollCoef = rollSum * 0.25 * offRoadScale * this.surfaceDrag;
         const surfaceDrag = dragSum * 0.25 * offRoadScale;
         this.surfaceRoughness = roughSum * 0.25;
         const groundY = groundSum * 0.25;

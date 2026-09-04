@@ -114,6 +114,8 @@ export const Hud = ({
 
             <CourseAhead t={t} />
 
+            {t.chapter !== '' && <div className="chapter-badge">{t.chapter}</div>}
+
             {t.paceNoteAge > 0 && (
                 <div className="pace-note" style={{ opacity: Math.min(1, t.paceNoteAge / 0.9) }}>
                     {t.paceNote}

@@ -1171,3 +1171,29 @@
         font-size: 14px;
     }
 }
+
+/* --------------------------------------------------------- chapter badge */
+
+.chapter-badge {
+    position: absolute;
+    left: 50%;
+    top: calc(14px + var(--safe-t));
+    transform: translateX(-50%);
+    padding: 5px 16px;
+    border: 1px solid var(--edge);
+    border-radius: 999px;
+    background: var(--panel);
+    backdrop-filter: blur(7px);
+    font: 600 10px/1.6 ui-sans-serif, system-ui, sans-serif;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    color: var(--ink-dim);
+    white-space: nowrap;
+}
+
+.setting-note em {
+    display: block;
+    margin-top: 4px;
+    font-style: normal;
+    opacity: 0.75;
+}

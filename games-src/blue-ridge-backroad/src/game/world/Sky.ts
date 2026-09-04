@@ -223,13 +223,26 @@ export class Sky {
      * `distance` is the odometer in metres: the day advances as you drive, which
      * ties the passage of time to exploring rather than to sitting still.
      */
-    update(distance: number, focus: Vector3, fogBoost: number): void {
+    /**
+     * `phaseTarget` below zero leaves the day on its distance-driven sweep; at
+     * or above zero a chapter is asking for a particular time of day, and the
+     * sun eases toward it. The easing is deliberately slow — a chapter ramp is
+     * a few seconds at speed, and the sun crossing the sky in a few seconds
+     * looks like a bug rather than a transition.
+     */
+    update(distance: number, focus: Vector3, fogBoost: number, phaseTarget = -1): void {
         // The day rocks back and forth over roughly 13 km of driving, starting
         // in bright mid-morning. A sine rather than a sawtooth means there is no
         // discontinuity when it wraps, and the ends of the range are golden
         // hour rather than darkness — see the class comment.
-        const t = 0.5 + 0.42 * Math.sin((distance / 13000) * Math.PI * 2 - Math.PI * 0.36);
-        this.phase = t;
+        const swept = 0.5 + 0.42 * Math.sin((distance / 13000) * Math.PI * 2 - Math.PI * 0.36);
+        if (phaseTarget >= 0) {
+            const rate = 0.22;
+            this.phase += (phaseTarget - this.phase) * Math.min(1, rate * 0.1);
+        } else {
+            this.phase = swept;
+        }
+        const t = this.phase;
         const elev = lerp(0.03, 0.92, Math.sin(t * Math.PI));
         const azim = lerp(-2.3, 1.1, t);
         this.sunDir.set(Math.sin(azim) * Math.cos(elev * 1.4), Math.sin(elev * 1.5), Math.cos(azim) * Math.cos(elev * 1.4)).normalize();

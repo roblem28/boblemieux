@@ -587,3 +587,61 @@ engine. That, rather than timbre, is the real constraint. It turns out not to
 matter much: real pace notes are delivered flat, fast and clipped, so a dry read
 at rate 1.35 and pitch 0.85 is closer to authentic than dramatic voice acting
 would be. Three modes: off, on screen, or spoken.
+
+---
+
+## Road chapters
+
+Step two of the AI-director design, and again with no model in it. The point was
+to prove eight named chapters are perceptibly different by switching them by
+hand, so that a director can later pick a *name* rather than a vector of floats.
+
+**D8.1 — A chapter owns the twistiness envelope; it does not scale it.** The
+first attempt multiplied the generator's curvature output by a per-chapter
+factor of 0.45 to 1.5. Measured, "The Switchbacks" came out *less* twisty than
+"Open Country", because the generator's own envelope already swings 0.22 to 1.0
+deciding how twisty a stretch is, and where a chapter happened to land mattered
+more than its multiplier. A chapter now replaces that envelope and the noise only
+adds variety within it, which makes the character dominate by construction.
+Measured across every occurrence, the twistiest chapter now carries roughly three
+times the mean curvature of the straightest.
+
+**D8.2 — Width is set, not scaled, for the same reason.** The base noise varies
+width across 7.3-9.4 m, which is as wide as the scale range was. Chapters now set
+a target width and the noise varies it by about half a metre.
+
+**D8.3 — The schedule steps rather than samples.** "Never the same chapter twice
+running" was implemented by comparing an adjusted index against an *unadjusted*
+previous one, which let repeats through — five in fifty-nine slots. The schedule
+now advances by a non-zero step from the previous slot, so a repeat is impossible
+by construction. That makes each slot depend on the one before, so the results are
+memoised rather than recomputed from slot zero for every road sample.
+
+**D8.4 — Chapters are off by default and changing the setting restarts the
+drive.** Both parts matter.
+
+Off by default, because chapters change how long a mile takes, and leaving them
+on would quietly make every recorded mile split incomparable with the last. The
+timed stage ignores them entirely.
+
+Restarting on change, because the setting is effectively part of the world's
+definition. Toggling it in place leaves the sample ring holding road generated
+under two different settings, and the next regeneration — which happens whenever
+the vehicle jumps back past what the ring still holds — silently produces a
+different road from the one that was driven. A `worldDirty` flag now forces a
+full regeneration at the next restart, so the road is always internally
+consistent. Determinism is the property the entire timing system rests on; it is
+not something to be clever about.
+
+**D8.5 — Grip stays diegetic.** Chapters carry a surface — dry, damp, greasy,
+loose — which moves grip and rolling resistance and is *announced* by the
+co-driver. The handling parameters that belong to the chosen difficulty
+(stability, rear bias, catch lock) are never touched. A hidden hand on the grip
+reads as the game patronising you; "damp through here" reads as information.
+
+**D8.6 — Two test failures were the harness, not the game.** Both looked like
+determinism bugs. `RoadPath.sample` clamps to the oldest distance the ring still
+holds, so sampling a distance already pruned silently returns the wrong frame —
+and a test that had walked 56 km ahead was then reading garbage for the whole
+baseline. Worth noting as a foot-gun: the clamp is correct behaviour for the
+game and a trap for any diagnostic that reads backwards.

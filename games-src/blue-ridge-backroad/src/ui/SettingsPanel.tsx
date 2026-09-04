@@ -12,6 +12,8 @@ interface Props {
     coDriver: CoDriverMode;
     onCoDriver: (m: CoDriverMode) => void;
     speechAvailable: boolean;
+    chapters: boolean;
+    onChapters: (on: boolean) => void;
     quality: QualityName;
     detected: QualityName;
     steering: SteerLevel;
@@ -39,6 +41,8 @@ export const SettingsPanel = ({
     coDriver,
     onCoDriver,
     speechAvailable,
+    chapters,
+    onChapters,
     quality,
     detected,
     steering,
@@ -92,6 +96,22 @@ export const SettingsPanel = ({
             <p className="setting-note">{difficultyFor(difficulty).detail}</p>
             <p className="setting-note setting-quiet">
                 Best times are kept separately for each difficulty.
+            </p>
+
+            <h3>Road chapters</h3>
+            <button type="button" className="toggle-row" onClick={() => onChapters(!chapters)}>
+                <span>Changing country</span>
+                <span className={chapters ? 'switch on' : 'switch'} />
+            </button>
+            <p className="setting-note">
+                The road takes on a character for a mile at a time — open country, switchbacks,
+                morning haze, last light — and the co-driver calls the surface as it changes.
+                {' '}
+                <em>
+                    Changing this restarts the drive: the road has to be generated consistently
+                    or times stop meaning anything. Off by default because it changes how long a
+                    mile takes. The timed stage always ignores it.
+                </em>
             </p>
 
             <h3>Co-driver</h3>
