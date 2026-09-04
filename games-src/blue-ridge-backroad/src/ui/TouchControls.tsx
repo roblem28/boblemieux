@@ -1,0 +1,140 @@
+import { useEffect, useRef, type JSX } from 'react';
+import type { InputState } from '../game/input';
+
+/**
+ * Multi-touch driving controls.
+ *
+ * The hard requirements, each of which breaks the game on a phone if missed:
+ *  - every button tracks its own `pointerId`, so steering left while holding
+ *    the throttle actually works;
+ *  - `setPointerCapture` on down, plus `pointercancel` and
+ *    `lostpointercapture`, so a finger that slides off the button still
+ *    releases it;
+ *  - `touch-action: none` on the controls and a document-level non-passive
+ *    `touchmove` preventDefault, so dragging never scrolls or rubber-bands;
+ *  - the input flags are written straight into the mutable InputState, never
+ *    through React state, so a press costs nothing and never re-renders.
+ */
+
+type Control = 'left' | 'right' | 'gas' | 'brake';
+
+interface Props {
+    input: InputState;
+    visible: boolean;
+}
+
+const apply = (input: InputState, control: Control, down: boolean): void => {
+    switch (control) {
+        case 'left':
+            input.touchLeft = down;
+            break;
+        case 'right':
+            input.touchRight = down;
+            break;
+        case 'gas':
+            input.touchThrottle = down;
+            break;
+        case 'brake':
+            input.touchBrake = down;
+            break;
+    }
+};
+
+const useControlButton = (
+    input: InputState,
+    control: Control
+): ((el: HTMLButtonElement | null) => void) => {
+    const cleanup = useRef<(() => void) | null>(null);
+
+    return (el: HTMLButtonElement | null): void => {
+        cleanup.current?.();
+        cleanup.current = null;
+        if (!el) return;
+
+        let activeId: number | null = null;
+
+        const down = (e: PointerEvent): void => {
+            e.preventDefault();
+            if (activeId !== null) return;
+            activeId = e.pointerId;
+            try {
+                el.setPointerCapture(e.pointerId);
+            } catch {
+                /* capture is best-effort */
+            }
+            el.dataset.active = 'true';
+            apply(input, control, true);
+        };
+        const up = (e: PointerEvent): void => {
+            if (activeId !== e.pointerId) return;
+            activeId = null;
+            try {
+                if (el.hasPointerCapture(e.pointerId)) el.releasePointerCapture(e.pointerId);
+            } catch {
+                /* already released */
+            }
+            delete el.dataset.active;
+            apply(input, control, false);
+        };
+
+        el.addEventListener('pointerdown', down);
+        el.addEventListener('pointerup', up);
+        el.addEventListener('pointercancel', up);
+        el.addEventListener('lostpointercapture', up);
+        el.addEventListener('contextmenu', preventDefault);
+
+        cleanup.current = (): void => {
+            el.removeEventListener('pointerdown', down);
+            el.removeEventListener('pointerup', up);
+            el.removeEventListener('pointercancel', up);
+            el.removeEventListener('lostpointercapture', up);
+            el.removeEventListener('contextmenu', preventDefault);
+            apply(input, control, false);
+        };
+    };
+};
+
+const preventDefault = (e: Event): void => e.preventDefault();
+
+export const TouchControls = ({ input, visible }: Props): JSX.Element | null => {
+    const leftRef = useControlButton(input, 'left');
+    const rightRef = useControlButton(input, 'right');
+    const gasRef = useControlButton(input, 'gas');
+    const brakeRef = useControlButton(input, 'brake');
+
+    useEffect(() => {
+        // Kill pull-to-refresh, rubber-banding and pinch-zoom for the whole page.
+        const stop = (e: TouchEvent): void => {
+            if (e.cancelable) e.preventDefault();
+        };
+        document.addEventListener('touchmove', stop, { passive: false });
+        document.addEventListener('gesturestart', preventDefault as EventListener);
+        return () => {
+            document.removeEventListener('touchmove', stop);
+            document.removeEventListener('gesturestart', preventDefault as EventListener);
+        };
+    }, []);
+
+    if (!visible) return null;
+
+    return (
+        <div className="touch-layer" aria-hidden="false">
+            <div className="touch-cluster touch-left">
+                <button ref={leftRef} className="touch-btn steer" type="button" aria-label="Steer left">
+                    <span>&#10094;</span>
+                </button>
+                <button ref={rightRef} className="touch-btn steer" type="button" aria-label="Steer right">
+                    <span>&#10095;</span>
+                </button>
+            </div>
+            <div className="touch-cluster touch-right">
+                <button ref={brakeRef} className="touch-btn brake" type="button" aria-label="Brake and reverse">
+                    <span>BRAKE</span>
+                </button>
+                <button ref={gasRef} className="touch-btn gas" type="button" aria-label="Accelerate">
+                    <span>GAS</span>
+                </button>
+            </div>
+        </div>
+    );
+};
