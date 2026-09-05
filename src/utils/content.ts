@@ -102,7 +102,13 @@ function contentUrl(obj: types.ContentObject) {
     return url;
 }
 
+let cachedContent: types.ContentObject[] | null = null;
+
 export function allContent(): types.ContentObject[] {
+    if (cachedContent) {
+        return cachedContent.map((e) => deepClone(e));
+    }
+
     let objects = contentFilesInPath(contentBaseDir).map((file) => readContent(file));
 
     allPages(objects).forEach((obj) => {
@@ -115,6 +121,7 @@ export function allContent(): types.ContentObject[] {
     objects = objects.map((e) => deepClone(e));
     objects.forEach((e) => annotateContentObject(e));
 
+    cachedContent = objects.map((e) => deepClone(e));
     return objects;
 }
 
