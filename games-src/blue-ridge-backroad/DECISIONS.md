@@ -944,3 +944,95 @@ after the game started needs a real switch to be picked up — the test asked fo
 reloaded. And `loadStored` requires exactly `CHECKPOINTS + 1` splits, so a record
 written by hand with an empty splits array is correctly rejected. Both were
 fixtures that did not look like anything the game would ever write.
+
+## D14 — The cockpit view, the view order, and a fourth vehicle
+
+**D14.1 — The unusable cabin view was the windscreen, not the frame.** Measured
+by rendering the cockpit twice — once normally, once with the vehicle hidden —
+and counting the pixels that changed by more than a threshold, **66.5%** of the
+screen was the player's own vehicle, against 18.1% for the hood view and 8.5%
+for chase.
+
+Ranking every mesh by how much of that view it covered found the culprit
+immediately, and it was not what it looked like: the **windscreen alone was
+55.8%**. It is flagged `transparent`, which is why it never presented as an
+obstruction, but its tint is rgb(0.06, 0.09, 0.10) — a near-black sheet directly
+in front of the camera. Seen from outside at a glancing angle that reads as
+glass; sat behind it, it reads as a blanked-out screen. The bonnet was 16.1%, the
+steering wheel 2.5%, a front wing 1.1%. Nothing else reached 1%.
+
+The glazing is now hidden from inside, the same argument that already hid the cab
+shell you are sitting in. **66.5% down to 36.8%**, with the top half of the screen
+at 5-9%.
+
+**D14.2 — Moving the eye point was tried, measured and rejected.** Sweeping the
+cockpit anchor forward and up did trim more: +0.14 m up and +0.5 m forward took
+it to 27.5%. But it also lifted the camera clean past the dash — the steering
+wheel ended up at NDC y = -2.93, three screens below the bottom edge — and what
+was left read as sitting on the bonnet rather than in a cab. The wheel is what
+makes this view a cockpit at all, so the eight points were not worth it and the
+anchor stayed where it was. Going higher still is worse in both respects: at
++0.2 m the header rail drops back into view and the top half of the screen jumps
+from 3.5% to 20.8%.
+
+**D14.3 — The camera shimmer was real but the first metric could not see it.**
+Deviation of camera height from a ten-frame moving average read 22.8 mm both
+before and after a damping change that should have mattered — because it was
+measuring the truck going over hills, not the shake. The second difference of
+camera height is ~0 for smooth travel and large for per-frame jitter, and by that
+measure softening the interior follow rate from 30 to 11 and cutting interior
+impact shake from 0.1 to 0.035 took jitter from **0.43 to 0.21 mm per frame**,
+with terrain-following untouched at 22 mm. Felt, not noticed.
+
+**D14.4 — The view order was already right.** Confirmed before changing anything:
+`CAMERA_MODES` is `['chase', 'cockpit', 'hood']` and cycling wraps back to chase.
+The likely reason it read as wrong is D14.1 — a cockpit view that was two thirds
+bodywork does not announce itself as the cockpit view. No change was made; a test
+now pins the order and the wrap so it cannot drift.
+
+**D14.5 — There was never a fourth vehicle to find.** It was not specified and
+dropped; it never existed outside one line of my own. The only place it appears
+in the whole history is the option text of the question that asked how different
+the vehicles should be — "3-4 vehicles with their own mass, power, gearing, grip
+and CG height" — which then named exactly three examples. Three were built, at the
+bottom of a range I had offered, without flagging that I was taking the low end.
+Nothing in the brief, the architecture doc or the design doc ever mentioned four.
+
+**D14.6 — The fourth is built on the axis the other three share.** Ranger, Coupe
+and Hauler separate almost entirely on power and mass; all three sit within
+0.93-1.10 of grip, so once the tyres are at the limit they are the same vehicle
+with different engines. The Panel Van is light (1480 kg), tall (CG 1.05 m),
+narrow-tracked (1.46 m) and on the worst rubber of the four (0.82). Grip spread
+goes 0.93-1.10 to **0.82-1.10**; CG spread 0.48-0.92 to **0.48-1.05**.
+
+| | mass | grip | CG | 0-60 | top | peak lateral | body roll |
+|---|---|---|---|---|---|---|---|
+| Hollow Coupe | 1120 kg | 1.10 | 0.48 | 5.10 s | 141 | 11.35 m/s² | 4.5° |
+| Ranger 4x4 | 2100 kg | 1.00 | 0.70 | 6.08 s | 131 | 10.42 m/s² | 6.6° |
+| Old Hauler | 2620 kg | 0.93 | 0.92 | 10.08 s | 94 | 9.86 m/s² | 8.7° |
+| Panel Van | 1480 kg | 0.82 | 1.05 | 7.52 s | 108 | 8.77 m/s² | 10.1° |
+
+**D14.7 — Body roll was a constant, so CG height was invisible.** The roll target
+was a fixed gain clamped at 0.12 rad, and every vehicle hit the clamp: measured,
+all four leaned 6.2-6.7 degrees despite centres of gravity from 0.48 m to 1.05 m.
+A tall narrow van that leans exactly as much as a low coupe is telling the player
+something false about why it is about to let go. Roll gain and limit now scale
+with CG height over track, and dive with CG height over wheelbase — the same
+ratios that set real load transfer — expressed relative to the Ranger so its feel
+is bit-for-bit unchanged. Roll now spans 4.5° to 10.1° and orders exactly by CG
+height, which a test asserts.
+
+**D14.8 — The Hauler was slow enough to look broken.** 73 mph against the
+Ranger's 138 on the same road is not character. It keeps the worst power-to-weight
+of the four and the brick's drag; it just has the gearing and the top end to sit
+on a straight now — 94 mph against 131.
+
+**D14.9 — Two test failures and a hang, all in the tests.** Counting "transparent
+materials with opacity below 1" to check the glass also caught the headlight
+beams, which are legitimately hidden in daylight, so the test concluded the glass
+had not come back; the model now exposes the glazing count by name. A distinctness
+check still asserted three distinct body sizes. And the suite twice aborted on a
+Playwright click timing out on actionability — the HUD's fps badge changes width
+as the number moves, which nudges the Settings button along by a pixel, so it
+never held still long enough to be considered stable. Those clicks are issued from
+inside the page now, as the rest of the suite already did.

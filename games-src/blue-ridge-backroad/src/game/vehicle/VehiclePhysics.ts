@@ -231,6 +231,21 @@ export class VehiclePhysics {
     private grip = 1;
     private steerMaxLow = 0;
     private steerMaxHigh = 0;
+    /**
+     * How far the body leans and dives, per unit of acceleration, and how far it
+     * is allowed to go.
+     *
+     * Precomputed because they are read every substep, and scaled off the
+     * Ranger so its numbers are unchanged. Before this the roll target was a
+     * fixed gain clamped at 0.12 rad, which every vehicle hit — measured, all
+     * four leaned 6.2 to 6.7 degrees despite centres of gravity from 0.48 m to
+     * 1.05 m. A tall narrow van that leans exactly as much as a low coupe is
+     * telling the player something false about why it is about to let go.
+     */
+    private rollGain = 0;
+    private rollLimit = 0;
+    private pitchGain = 0;
+    private pitchLimit = 0;
     private wheelX = 0;
     private wheelZFront = 0;
     private wheelZRear = 0;
@@ -264,6 +279,14 @@ export class VehiclePhysics {
         this.grip = spec.grip;
         this.steerMaxLow = spec.steerMaxLow;
         this.steerMaxHigh = spec.steerMaxHigh;
+        // Roll moment goes as mass * accel * CG height and is resisted across
+        // the track; dive goes as CG height over the wheelbase. Both are
+        // expressed relative to the Ranger, which is why its feel is untouched.
+        const tallness = spec.cgHeight / 0.7;
+        this.rollGain = 0.013 * tallness * (1.66 / spec.track);
+        this.rollLimit = 0.12 * tallness;
+        this.pitchGain = 0.011 * tallness * (2.95 / spec.wheelbase);
+        this.pitchLimit = 0.09 * tallness;
         this.wheelX = spec.track * 0.5;
         this.wheelZFront = spec.aFront;
         this.wheelZRear = -this.bRear;
@@ -627,12 +650,12 @@ export class VehiclePhysics {
         this.slipAmount = damp(this.slipAmount, Math.abs(alphaR) * Math.min(1, Math.abs(this.u) / 6), 7, dt);
         this.rearSlip = alphaR;
 
-        const bodyPitchTarget = clamp(-this.accelLong * 0.011, -0.09, 0.09);
+        const bodyPitchTarget = clamp(-this.accelLong * this.pitchGain, -this.pitchLimit, this.pitchLimit);
         // rotation.z is positive = left side up. Cornering right (accelLat > 0)
         // drops the left side, and a road banked right-side-high drops it too,
         // so both terms are negative.
         const bodyRollTarget =
-            clamp(-this.accelLat * 0.013, -0.12, 0.12) - this.frame.bank * 0.9;
+            clamp(-this.accelLat * this.rollGain, -this.rollLimit, this.rollLimit) - this.frame.bank * 0.9;
         this.pitch = damp(this.pitch, bodyPitchTarget, 9, dt);
         this.roll = damp(this.roll, bodyRollTarget, 8, dt);
 

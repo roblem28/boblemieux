@@ -1946,6 +1946,123 @@ const startDriving = async (page) => {
     check(backToFree.mode === 'free', 'D11 the game can switch back to free drive');
     check(!backToFree.stagePanel && backToFree.timing, 'D11b the HUD swaps the stage clock for the mile timer');
 
+    // ------------------------------------------- Q: the views and their order
+
+    // Q1 — the cycle order, exactly, and that it wraps.
+    const cameraOrder = await page.evaluate(() => {
+        const g = window.brb.game;
+        // Get to a known starting point rather than assuming one.
+        for (let i = 0; i < 6 && window.brb.telemetry.camera !== 'Chase'; i++) g.cycleCamera();
+        const seen = [window.brb.telemetry.camera];
+        for (let i = 0; i < 3; i++) {
+            g.cycleCamera();
+            seen.push(window.brb.telemetry.camera);
+        }
+        return seen;
+    });
+    check(
+        cameraOrder.slice(0, 3).join(' > ') === 'Chase > Cockpit > Hood',
+        'Q1 the views cycle chase, then cockpit, then hood',
+        cameraOrder.join(' > ')
+    );
+    check(cameraOrder[3] === 'Chase', 'Q1b and the last one wraps back to the first', cameraOrder.join(' > '));
+
+    /**
+     * How much of the screen is the player's own vehicle.
+     *
+     * Rendered twice — once normally, once with the vehicle hidden — and the
+     * pixels that changed by more than a threshold are the ones it was covering.
+     * Only large differences count, so tinted glass you can see through is not
+     * mistaken for bodywork you cannot.
+     */
+    const bodyworkPct = () =>
+        page.evaluate(() => {
+            const g = window.brb.game;
+            g.setRenderEnabled(true);
+            for (let i = 0; i < 30; i++) window.__h.autopilot(1 / 60, { keyThrottle: true }, false);
+            const cv = document.querySelector('canvas');
+            const w = 320, h = 180;
+            const off = document.createElement('canvas');
+            off.width = w;
+            off.height = h;
+            const ctx = off.getContext('2d');
+            const shot = () => {
+                g.tick(0);
+                ctx.clearRect(0, 0, w, h);
+                ctx.drawImage(cv, 0, 0, w, h);
+                return ctx.getImageData(0, 0, w, h).data;
+            };
+            const a = shot();
+            g.modelForTest.root.visible = false;
+            const b = shot();
+            g.modelForTest.root.visible = true;
+            let all = 0;
+            let top = 0;
+            for (let i = 0; i < w * h; i++) {
+                const d = Math.max(
+                    Math.abs(a[i * 4] - b[i * 4]),
+                    Math.abs(a[i * 4 + 1] - b[i * 4 + 1]),
+                    Math.abs(a[i * 4 + 2] - b[i * 4 + 2])
+                );
+                if (d > 40) {
+                    all++;
+                    if (Math.floor(i / w) < h / 2) top++;
+                }
+            }
+            g.setRenderEnabled(false);
+            return { pct: +((all / (w * h)) * 100).toFixed(1), topHalf: +((top / (w * h / 2)) * 100).toFixed(1) };
+        });
+
+    const toView = (label) =>
+        page.evaluate((v) => {
+            const g = window.brb.game;
+            for (let i = 0; i < 6 && window.brb.telemetry.camera !== v; i++) g.cycleCamera();
+            return window.brb.telemetry.camera;
+        }, label);
+
+    // Q2 — the cockpit view has to show the road, not the vehicle.
+    //
+    // It used to be 66.5% bodywork, and the culprit was not the frame: the
+    // windscreen is flagged transparent but tinted rgb(0.06, 0.09, 0.10), so
+    // from directly behind it, it was a near-black sheet over 55.8% of the
+    // screen on its own. The glazing is hidden from inside now, the way the cab
+    // shell already was. The ceiling here is set well above what it measures so
+    // it catches a regression rather than pinning a tuning number.
+    await toView('Cockpit');
+    const cockpit = await bodyworkPct();
+    check(cockpit.pct < 45, 'Q2 the cockpit view is mostly road, not bodywork', `${cockpit.pct}% of the screen is the vehicle`);
+    check(
+        cockpit.topHalf < 20,
+        'Q2b and the upper half of the screen is where the road is',
+        `${cockpit.topHalf}% of the top half is bodywork`
+    );
+
+    // Q3 — the glazing is only hidden from inside. From outside the vehicle
+    // still has windows, which is the whole reason they exist.
+    const glazing = await page.evaluate(() => {
+        const g = window.brb.game;
+        for (let i = 0; i < 6 && window.brb.telemetry.camera !== 'Cockpit'; i++) g.cycleCamera();
+        g.tick(1 / 60);
+        const inside = g.modelForTest.glazingForTest;
+        for (let i = 0; i < 6 && window.brb.telemetry.camera !== 'Chase'; i++) g.cycleCamera();
+        g.tick(1 / 60);
+        return { inside, outside: g.modelForTest.glazingForTest };
+    });
+    check(
+        glazing.inside.total > 0 && glazing.inside.hidden === glazing.inside.total,
+        'Q3 the glass is hidden in the cockpit view',
+        JSON.stringify(glazing.inside)
+    );
+    check(glazing.outside.hidden === 0, 'Q3b and back again from outside', JSON.stringify(glazing.outside));
+
+    // Q4 — the other two views are unchanged by any of it.
+    await toView('Hood');
+    const hood = await bodyworkPct();
+    await toView('Chase');
+    const chase = await bodyworkPct();
+    check(hood.pct < 30, 'Q4 the hood view still shows mostly road', `${hood.pct}%`);
+    check(chase.pct < 20, 'Q4b and so does the chase view', `${chase.pct}%`);
+
     // ---------------------------------------------------------- P: vehicles
 
     // Three vehicles that are meant to be different to *drive*, not to look at.
@@ -1963,7 +2080,7 @@ const startDriving = async (page) => {
             allNamed: g.vehicles.every((v) => v.name && v.blurb)
         };
     });
-    check(fleet.count >= 3, 'P1 the game offers a fleet', `${fleet.count}: ${fleet.ids.join(', ')}`);
+    check(fleet.count >= 4, 'P1 the game offers four vehicles', `${fleet.count}: ${fleet.ids.join(', ')}`);
     check(fleet.current === 'ranger', 'P1b the one the game shipped with is still the default', fleet.current);
     check(fleet.named === 'Ranger 4x4' && fleet.allNamed, 'P1c every vehicle is named and described', fleet.named);
 
@@ -2027,8 +2144,8 @@ const startDriving = async (page) => {
         JSON.stringify(vehShape)
     );
     check(
-        new Set(Object.values(vehShape).map((r) => r.scale)).size === 3,
-        'P3b and the three bodies are different sizes',
+        new Set(Object.values(vehShape).map((r) => r.scale)).size === fleet.count,
+        'P3b and every body is a different size',
         Object.entries(vehShape).map(([k, r]) => `${k} ${r.scale}`).join(' | ')
     );
 
@@ -2086,7 +2203,83 @@ const startDriving = async (page) => {
     });
     check(swap.before > 20 && swap.after < swap.before, 'P5 changing vehicle restarts the drive', `${swap.before} m -> ${swap.after} m`);
 
-    check(errors.length === 0, 'P6 no console errors from any of it', errors.slice(0, 3).join(' | '));
+    // P6 — the fleet has to differ in *handling*, not only in how fast it gets
+    // to 100. The first three were built almost entirely on power and mass and
+    // all sat within 0.93-1.10 of grip, which makes them the same car with
+    // different engines once the tyres are at the limit.
+    const spread = await page.evaluate(() => {
+        const g = window.brb.game;
+        const grip = g.vehicles.map((v) => v.grip);
+        const cg = g.vehicles.map((v) => v.cgHeight);
+        const out = [];
+        for (const v of g.vehicles) {
+            g.setVehicle(v.id);
+            g.setDifficulty('medium');
+            g.restartFree();
+            const p = g.physics;
+            let guard = 0;
+            while (Math.abs(p.u) * 2.2369362920544 < 55 && guard++ < 60 * 45) {
+                window.__h.autopilot(1 / 60, { keyThrottle: true }, false);
+            }
+            g.input.keyThrottle = false;
+            g.input.keyLeft = true;
+            let lat = 0;
+            let roll = 0;
+            for (let i = 0; i < 90; i++) {
+                g.tick(1 / 60);
+                lat = Math.max(lat, Math.abs(p.accelLat));
+                roll = Math.max(roll, Math.abs(p.roll));
+            }
+            g.input.keyLeft = false;
+            out.push({ id: v.id, cg: v.cgHeight, lat: +lat.toFixed(2), rollDeg: +(roll * 57.2958).toFixed(2) });
+        }
+        g.setVehicle('ranger');
+        g.restartFree();
+        return { gripSpread: +(Math.max(...grip) - Math.min(...grip)).toFixed(2), cgSpread: +(Math.max(...cg) - Math.min(...cg)).toFixed(2), out };
+    });
+    check(
+        spread.gripSpread >= 0.25,
+        'P6 the fleet spans a real range of grip, not a rounding error',
+        `grip spread ${spread.gripSpread}`
+    );
+    check(spread.cgSpread >= 0.5, 'P6b and of centre-of-gravity height', `cg spread ${spread.cgSpread}`);
+    const byCg = [...spread.out].sort((a, b) => a.cg - b.cg);
+    check(
+        byCg.every((v, i) => i === 0 || v.rollDeg > byCg[i - 1].rollDeg),
+        'P6c a taller vehicle visibly leans more — body roll follows CG height',
+        byCg.map((v) => `${v.id} cg ${v.cg} roll ${v.rollDeg}deg`).join(' | ')
+    );
+    const lats = spread.out.map((v) => v.lat);
+    check(
+        Math.max(...lats) - Math.min(...lats) > 1.5,
+        'P6d and they hold meaningfully different cornering loads',
+        spread.out.map((v) => `${v.id} ${v.lat}`).join(' | ')
+    );
+
+    // P7 — the slowest of the four still belongs on the same road as the others.
+    const topEnd = await page.evaluate(() => {
+        const g = window.brb.game;
+        const run = (id) => {
+            g.setVehicle(id);
+            g.restartFree();
+            for (let i = 0; i < 20 * 60; i++) window.__h.autopilot(1 / 60, { keyThrottle: true }, false);
+            g.input.keyThrottle = false;
+            return Math.abs(g.physics.u) * 2.2369362920544;
+        };
+        const hauler = run('hauler');
+        const ranger = run('ranger');
+        g.setVehicle('ranger');
+        g.restartFree();
+        return { hauler: +hauler.toFixed(0), ranger: +ranger.toFixed(0) };
+    });
+    check(topEnd.hauler >= 88, 'P7 the slowest vehicle is slow, not broken', `${topEnd.hauler} mph`);
+    check(
+        topEnd.hauler > topEnd.ranger * 0.6,
+        'P7b it is within touching distance of the rest of the fleet',
+        `${topEnd.hauler} vs ${topEnd.ranger} mph`
+    );
+
+    check(errors.length === 0, 'P8 no console errors from any of it', errors.slice(0, 3).join(' | '));
 
     // ------------------------------------------------- M: the stage picker UI
 
@@ -2122,10 +2315,16 @@ const startDriving = async (page) => {
             };
         });
 
-    await page.click('button:has-text("Settings")');
-    await page.waitForTimeout(120);
-    await page.click('button:has-text("Find a stage")');
-    await page.waitForTimeout(250);
+    // Clicked from inside the page rather than through Playwright: the HUD's fps
+    // badge changes width as the number moves, which nudges the Settings button
+    // along by a pixel and can leave the actionability check waiting for it to
+    // hold still for ever.
+    await page.evaluate(async () => {
+        for (const b of document.querySelectorAll('button')) if (/Settings/.test(b.textContent)) b.click();
+        await new Promise((r) => setTimeout(r, 150));
+        for (const b of document.querySelectorAll('button')) if (/Find a stage/.test(b.textContent)) b.click();
+        await new Promise((r) => setTimeout(r, 300));
+    });
 
     const opened = await visibleRows();
     check(opened.open, 'M1 the picker opens from the settings panel');

@@ -138,7 +138,35 @@ export class VehicleModel {
      * actually makes the view read as a cockpit.
      */
     private readonly greenhouse: Mesh[] = [];
+    /**
+     * The glazing, which is hidden along with the cab in the interior view.
+     *
+     * Measured, the windscreen was **55.8%** of the cockpit view on its own —
+     * more than the cab shell, the dash and the bonnet put together. It is
+     * flagged `transparent`, which is why it never looked like the problem, but
+     * its tint is rgb(0.06, 0.09, 0.10): a near-black sheet over half the
+     * screen. Seen from outside at a glancing angle that reads as glass; sat
+     * directly behind it, it reads as a blanked-out windscreen.
+     *
+     * A real driver looks through clean glass and sees no tint at all, so the
+     * honest thing from this seat is nothing there — the same argument that
+     * already hides the cab shell you are sitting inside.
+     */
+    private readonly glazing: Mesh[] = [];
     private lightsOn = 0;
+
+    /**
+     * Diagnostics: how much of the glazing is currently hidden.
+     *
+     * Named explicitly rather than left to a test to find by material, because
+     * "transparent with opacity below 1" also catches the headlight beams, and a
+     * test that counted those concluded the glass was still hidden in daylight.
+     */
+    get glazingForTest(): { hidden: number; total: number } {
+        let hidden = 0;
+        for (const m of this.glazing) if (!m.visible) hidden++;
+        return { hidden, total: this.glazing.length };
+    }
 
     /** Diagnostics: the body scale this vehicle was built at, as one string. */
     get bodyScaleForTest(): string {
@@ -326,6 +354,13 @@ export class VehicleModel {
         const bh = spec.body.height;
         const bl = spec.body.length;
         const lift = spec.body.lift;
+        // The eye point is deliberately left where it was. Moving it forward and
+        // up does trim bodywork — swept, (+0.14, +0.5) took the view from 35% to
+        // 27% — but it also lifts the camera clean past the dash: the steering
+        // wheel ends up at NDC y = -2.93, three screens below the bottom edge,
+        // and what is left reads as sitting on the bonnet rather than in a cab.
+        // The wheel is what makes this view a cockpit at all, so the eight
+        // points are not worth it. The windscreen was the actual problem.
         this.cockpitAnchor.position.set(0.36 * bw, 1.78 * bh + lift, -0.15 * bl);
         this.hoodAnchor.position.set(0, 1.86 * bh + lift, 1.5 * bl);
         this.chaseAnchor.position.set(0, 1.5 * bh + lift, -1.2 * bl);
@@ -410,12 +445,13 @@ export class VehicleModel {
         windshield.translate(0, 1.72, 1.0);
         const ws = this.add(g, windshield, m.glass, false);
         ws.rotation.x = -0.42;
+        this.glazing.push(ws);
         for (const x of [-0.855, 0.855]) {
             const side = boxAt(0.06, 0.56, 1.35, x, 1.8, 0.16);
-            this.add(g, side, m.glass, false);
+            this.glazing.push(this.add(g, side, m.glass, false));
         }
         const rearGlass = boxAt(1.42, 0.56, 0.07, 0, 1.82, -0.66);
-        this.add(g, rearGlass, m.glass, false);
+        this.glazing.push(this.add(g, rearGlass, m.glass, false));
 
         // Bed: floor plus four walls, so it reads as an open pickup box.
         const bedFloor = boxAt(1.78, 0.12, 2.0, 0, 1.02, -1.55);
@@ -510,6 +546,7 @@ export class VehicleModel {
      */
     setCockpitView(on: boolean): void {
         for (let i = 0; i < this.greenhouse.length; i++) this.greenhouse[i].visible = !on;
+        for (let i = 0; i < this.glazing.length; i++) this.glazing[i].visible = !on;
     }
 
     /** Apply the physics state to the visual rig. Called once per rendered frame. */

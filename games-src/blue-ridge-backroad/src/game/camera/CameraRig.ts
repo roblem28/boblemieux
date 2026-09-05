@@ -119,12 +119,21 @@ export class CameraRig {
                 desired.z + lz * 30
             );
             fovTarget = lerp(46, 54, speedT);
-            this.blend(dt, 30, 20);
+            // Softer than the other views on purpose. The anchor is bolted to
+            // the chassis, so every suspension input arrives at the camera
+            // undiluted — measured at 4.4 mm of vertical camera movement per
+            // frame at 85 mph, which is a constant shimmer rather than a sense
+            // of speed. A head is not bolted to a chassis; damping the follow
+            // is the cheap version of a neck.
+            this.blend(dt, 11, 20);
         }
 
         this.fov = snapFov ? fovTarget : damp(this.fov, fovTarget, 3, dt);
 
-        const amp = this.shake * (this.mode === 'chase' ? 0.22 : 0.1);
+        // Impact shake is felt hardest from inside, where there is no
+        // bodywork between the camera and the motion, so the interior views get
+        // a third of what the chase view does rather than half.
+        const amp = this.shake * (this.mode === 'chase' ? 0.22 : 0.035);
         this.camera.position.set(
             this.position.x + Math.sin(this.shakeSeed * 1.7) * amp,
             this.position.y + Math.sin(this.shakeSeed * 2.3) * amp,

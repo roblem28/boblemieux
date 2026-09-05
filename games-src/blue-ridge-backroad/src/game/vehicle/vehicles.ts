@@ -4,8 +4,8 @@
  * One rule shapes this file: a vehicle is a *set of numbers*, not a set of
  * special cases. `VehiclePhysics` reads a spec and has no idea which one it
  * has; `VehicleModel` builds from the same spec's proportions. Nothing anywhere
- * asks "is this the pickup". That is what keeps three vehicles from turning
- * into three code paths that drift apart.
+ * asks "is this the pickup". That is what keeps four vehicles from turning into
+ * four code paths that drift apart.
  *
  * They are meant to be different to drive, not different to look at:
  *
@@ -16,7 +16,12 @@
  *    wheelbase, so it carries far more speed through a corner and much less
  *    down a straight, and it rotates the moment you ask;
  *  - the **Hauler** is heavier still, softer, taller and down on power — it
- *    understeers into everything and has to be driven a corner ahead.
+ *    understeers into everything and has to be driven a corner ahead;
+ *  - the **Van** is the odd one out on purpose. The first three separate almost
+ *    entirely on power and mass and all sit within 0.93-1.10 of grip, which
+ *    makes them the same car with different engines once the tyres are at the
+ *    limit. The Van is light, tall, narrow-tracked and on the worst rubber of
+ *    the four, so it is the only one whose *handling* is the point.
  *
  * Because they lap at different speeds, a time in one is not a time in another.
  * Best times are keyed by vehicle for the same reason they are keyed by
@@ -149,19 +154,66 @@ export const VEHICLES: readonly VehicleSpec[] = [
         track: 1.74,
         cgHeight: 0.92,
         dragK: 0.5 * 1.225 * 0.58 * 4.3,
-        peakPower: 143000,
+        // Was 143 kW on four gears to 4600 rpm, which measured 73 mph against
+        // the Ranger's 138. Slow is the character; half the speed of everything
+        // else on the same road reads as broken. It keeps the worst power to
+        // weight of the four and the brick's drag — it just has the legs to sit
+        // on a straight now.
+        peakPower: 205000,
         peakForce: 7400,
         brakeForce: 12600,
         reverseForce: 3600,
-        gearRatios: [4.1, 2.4, 1.5, 1.0],
+        gearRatios: [4.1, 2.4, 1.5, 1.05, 0.82],
         finalDrive: 4.4,
-        rpmMax: 4600,
+        rpmMax: 5200,
         grip: 0.93,
         steerMaxLow: 28,
         steerMaxHigh: 5.6,
         body: { length: 1.12, width: 1.06, height: 1.14, lift: 0.1, bed: true, wheelRadius: 1.06 },
         paint: [0.3, 0.27, 0.13],
         paintDark: [0.16, 0.14, 0.07]
+    },
+    {
+        id: 'van',
+        name: 'Panel Van',
+        blurb: 'Light, tall and narrow on cheap tyres. Quick to turn, quicker to let go.',
+        /*
+         * The gap the other three left.
+         *
+         * They separate almost entirely on power and mass: all three sit within
+         * 0.93-1.10 of grip, so at the limit they are the same car with
+         * different engines. This one is deliberately built on the axes nobody
+         * else uses — least grip of the four by a distance, the highest centre
+         * of gravity on the *lightest* body but one, and a narrow track.
+         *
+         * Light plus tall plus narrow is a specific feel rather than a slower
+         * one: it changes direction immediately because there is no mass to
+         * move, then keeps going because there is nothing holding the tyres
+         * down, and the weight transfer that does the letting-go is violent
+         * because the CG is a metre up. It is the only one of the four that
+         * will rotate on a lifted throttle.
+         */
+        mass: 1480,
+        iz: 2150,
+        wheelbase: 2.74,
+        // Engine over the front axle, so the back is light and steps out first.
+        aFront: 1.06,
+        track: 1.46,
+        cgHeight: 1.05,
+        dragK: 0.5 * 1.225 * 0.52 * 3.6,
+        peakPower: 168000,
+        peakForce: 5600,
+        brakeForce: 10400,
+        reverseForce: 3000,
+        gearRatios: [3.8, 2.25, 1.48, 1.05],
+        finalDrive: 4.3,
+        rpmMax: 5600,
+        grip: 0.82,
+        steerMaxLow: 32,
+        steerMaxHigh: 7.4,
+        body: { length: 1.04, width: 0.86, height: 1.32, lift: 0.12, bed: false, wheelRadius: 0.94 },
+        paint: [0.62, 0.6, 0.55],
+        paintDark: [0.3, 0.29, 0.27]
     }
 ];
 
