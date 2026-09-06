@@ -361,7 +361,7 @@ export class VehicleModel {
         // and what is left reads as sitting on the bonnet rather than in a cab.
         // The wheel is what makes this view a cockpit at all, so the eight
         // points are not worth it. The windscreen was the actual problem.
-        this.cockpitAnchor.position.set(0.36 * bw, 1.78 * bh + lift, -0.15 * bl);
+        this.cockpitAnchor.position.set(0.36 * bw, spec.eye.y * bh + lift, spec.eye.z * bl);
         this.hoodAnchor.position.set(0, 1.86 * bh + lift, 1.5 * bl);
         this.chaseAnchor.position.set(0, 1.5 * bh + lift, -1.2 * bl);
         this.chassis.add(this.cockpitAnchor, this.hoodAnchor, this.chaseAnchor);
@@ -500,10 +500,16 @@ export class VehicleModel {
         this.add(g, pipe, m.chrome);
         for (const x of [-0.45, 0.45]) this.add(g, boxAt(0.08, 0.12, 0.16, x, 0.72, 2.66), m.trim);
 
-        // Snorkel, because this is a mountain truck.
+        // Snorkel, because this is a mountain truck — and hidden from the
+        // driver's seat, because it is mounted half a metre to the right of the
+        // eye point and a metre and a half tall, which from in there is a post
+        // straight down the middle of the road. Measured at 4.1% of the cabin
+        // view, and far more prominent than that number suggests: it is the
+        // only hard vertical edge in the frame. Seen from outside it is a
+        // snorkel; seen from inside it was the "windscreen frame".
         const snorkel = new CylinderGeometry(0.055, 0.055, 1.5, 8);
         snorkel.translate(0.86, 1.6, 1.4);
-        this.add(g, snorkel, m.trim);
+        this.greenhouse.push(this.add(g, snorkel, m.trim));
 
         {
             // Interior — visible through the glass and in cockpit view.

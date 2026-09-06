@@ -372,6 +372,19 @@ export class Game {
         return parsePatch(raw);
     }
 
+    /**
+     * Diagnostics: put the truck at a distance along the road.
+     *
+     * Exists so a measurement can be taken at the *same* stretch of road for
+     * every configuration it compares. Sampling wherever the truck happened to
+     * get to compares scenery as much as it compares the thing under test — an
+     * eye-point sweep done that way moved by ten points between neighbouring
+     * settings and ordered them wrongly.
+     */
+    teleportForTest(s: number): void {
+        this.teleportTo(s);
+    }
+
     /** Diagnostics: the built vehicle, for checks about shape and wheel placement. */
     get modelForTest(): VehicleModel {
         return this.model;

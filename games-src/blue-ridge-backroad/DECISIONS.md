@@ -1036,3 +1036,84 @@ Playwright click timing out on actionability — the HUD's fps badge changes wid
 as the number moves, which nudges the Settings button along by a pixel, so it
 never held still long enough to be considered stable. Those clicks are issued from
 inside the page now, as the rest of the suite already did.
+
+## D15 — The cabin view, per vehicle
+
+**D15.1 — One number for four vehicles was the mistake.** The 36.8% figure in
+D14.1 was measured on the Ranger and quietly taken to stand for the fleet. The
+bodies are different sizes and the eye point is scaled off the body, so it never
+could. Measured properly at the shipped eye point, before any of this:
+
+| | at low speed | at 60-68 mph |
+|---|---|---|
+| Ranger 4x4 | 36.2% | 24.2% |
+| Hollow Coupe | 36.5% | **48.6%** |
+| Old Hauler | 25.3% | 25.9% |
+| Panel Van | 29.2% | **59.8%** |
+
+Two lessons in one table. The spread is real, and the *speed* mattered more than
+the vehicle — which meant the original measurement, taken two car-lengths off the
+line, was not measuring the thing players complain about.
+
+**D15.2 — The camera was metres behind the car, and I put it there.** D14.3
+softened the interior follow rate from 30 to 11 to kill shimmer. Damping the
+camera's *world* position also makes it lag along the direction of travel, and at
+31 m/s a rate of 11 leaves the eye point some 2.8 m astern — reversed into the
+truck's own load bed, or on the two vehicles with a closed back, inside the
+bodywork. The Van's single largest occluder was a panel at local z = -1.5,
+**behind the cab**, covering 52.2% of the forward view on its own; the Ranger's
+top two were both bed walls.
+
+The fix is to follow the anchor exactly along the road and damp only height. A
+driver's head does not trail the car down the road — it moves vertically, against
+the suspension, and that is now the only axis smoothed. The shimmer fix survives;
+the lag does not.
+
+That one change: Van 59.8% to 28.0%, Coupe 48.6% to 33.1%, Hauler 25.9% to 20.8%.
+
+**D15.3 — The "windscreen frame" was a snorkel.** With the camera in the right
+place, the Ranger's remaining occluders were the bonnet at 15.5% — which is a
+bonnet, and should be visible — and a 0.11 x 1.50 x 0.11 vertical post at 4.1%.
+That post is the snorkel, mounted half a metre to the right of the eye point and
+a metre and a half tall. Four percent understates it badly: it is the only hard
+vertical edge in the frame and it stands straight down the middle of the road.
+Seen from outside it is a snorkel; seen from the driver's seat it was the frame
+in the original complaint. It is hidden from inside now, along with the cab shell,
+the glazing, the dash and the seats.
+
+**D15.4 — The eye point is per-vehicle, and one of them keeps the old one.**
+Ranger, Coupe and Van move forward and up to (1.86, 0.42) in unscaled body
+coordinates; the Hauler stays at (1.78, -0.15) because it is tall enough to see
+over its own bonnet already and moving it would cost cabin for nothing. Final,
+averaged over three fixed stretches of road:
+
+| | before | after |
+|---|---|---|
+| Ranger 4x4 | 32.7% | **22.2%** |
+| Hollow Coupe | 32.5% | **21.9%** |
+| Old Hauler | 21.9% | **19.2%** |
+| Panel Van | 28.7% | **20.4%** |
+
+All four under the 27.5% target, with the top half of the screen at 0-2.3%.
+
+**D15.5 — Sample the same road, or measure nothing.** The first eye-point sweep
+was taken wherever the truck happened to reach and produced non-monotonic
+nonsense — the Hauler read 21.6%, 10.8%, 11.7%, 22.7% across neighbouring
+settings, ordering them wrongly. Sampling the same fixed stretches for every
+configuration made it monotonic immediately. The same trap sets the shape of the
+test: one configuration measured 19.8% averaged over three spots and 34.1% at a
+single unlucky crest, so a single-sample assertion would be pure flake.
+`teleportForTest` exists for this.
+
+**D15.6 — `autopilot` renders on the first frame of every call.** Driving it a
+frame at a time — which several probes and two suite sections did — therefore
+draws every single frame at full resolution on SwiftShader. It is why an
+eye-point sweep had to be killed after twenty minutes and why the suite had been
+getting slower. Run-ups are issued in blocks now.
+
+**D15.7 — A latent race in the director tests.** L9b killed its endpoint by
+reassigning `propose` on the live object, which leaves a request already in
+flight to resolve *successfully* after the road has been handed back — landing
+one more patch and putting the director back to `watching`. It installs a dead
+endpoint through `setEndpoint` now, which aborts what is in flight, as changing
+endpoints does for real.

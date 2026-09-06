@@ -1343,8 +1343,14 @@ const startDriving = async (page) => {
         if (!r.applied) return { landed: false };
         const slot = r.applied.slot;
         const heldBefore = g.pathForTest.chapters.hasOverride(slot);
-        // Now kill it. Two failures is the threshold for handing the road back.
-        window.__ep.propose = () => Promise.reject(new Error('down'));
+        // Now kill it, by installing a dead endpoint rather than by swapping the
+        // method on the live one. Mutating `propose` in place leaves any request
+        // already in flight to resolve *successfully* after the road has been
+        // handed back, which lands one more patch and puts the director back to
+        // 'watching' — a race, and one that only shows up sometimes.
+        // `setEndpoint` aborts what is in flight, which is what changing
+        // endpoints does for real.
+        g.director.setEndpoint({ kind: 'local', propose: () => Promise.reject(new Error('down')) });
         await window.__h.driveFor(220);
         return {
             landed: true,
@@ -2037,6 +2043,103 @@ const startDriving = async (page) => {
         `${cockpit.topHalf}% of the top half is bodywork`
     );
 
+    // Q5 — the cabin view, for every vehicle, not just the default one.
+    //
+    // This is the check that was missing. A single figure for "the cockpit view"
+    // was measured on the Ranger and quietly taken to stand for all of them,
+    // while the bodies are different sizes and the eye point is scaled off the
+    // body. Measured across the fleet at one shared eye point the spread ran
+    // from 21.9% to 32.7%, so the average was nobody's experience.
+    //
+    // Sampled at the same three stretches of road for every vehicle: taken
+    // wherever the truck happened to reach, the same configuration measured
+    // 19.8% averaged and 34.1% at one unlucky crest, which is far too loose to
+    // assert on.
+    const cabins = await page.evaluate(() => {
+        const g = window.brb.game;
+        for (let i = 0; i < 6 && window.brb.telemetry.camera !== 'Cockpit'; i++) g.cycleCamera();
+        g.setRenderEnabled(true);
+        const cv = document.querySelector('canvas');
+        const w = 320;
+        const h = 180;
+        const off = document.createElement('canvas');
+        off.width = w;
+        off.height = h;
+        const ctx = off.getContext('2d');
+        const shot = () => {
+            g.tick(0);
+            ctx.clearRect(0, 0, w, h);
+            ctx.drawImage(cv, 0, 0, w, h);
+            return ctx.getImageData(0, 0, w, h).data;
+        };
+        const diff = (a, b) => {
+            let all = 0;
+            let top = 0;
+            for (let i = 0; i < w * h; i++) {
+                const d = Math.max(
+                    Math.abs(a[i * 4] - b[i * 4]),
+                    Math.abs(a[i * 4 + 1] - b[i * 4 + 1]),
+                    Math.abs(a[i * 4 + 2] - b[i * 4 + 2])
+                );
+                if (d > 40) {
+                    all++;
+                    if (Math.floor(i / w) < h / 2) top++;
+                }
+            }
+            return { pct: (all / (w * h)) * 100, top: (top / (w * h / 2)) * 100 };
+        };
+
+        const SPOTS = [1200, 4100, 7300];
+        const out = [];
+        for (const v of g.vehicles) {
+            g.setVehicle(v.id);
+            let pct = 0;
+            let top = 0;
+            for (const spot of SPOTS) {
+                g.teleportForTest(spot);
+                // In blocks: autopilot draws on the first frame of every call,
+                // so a frame-at-a-time loop renders every frame and crawls.
+                let guard = 0;
+                while (Math.abs(g.physics.u) * 2.2369362920544 < 45 && guard++ < 10) {
+                    window.__h.autopilot(1.5, { keyThrottle: true }, false);
+                }
+                window.__h.autopilot(0.4, { keyThrottle: true }, false);
+                const a = shot();
+                g.modelForTest.root.visible = false;
+                const b = shot();
+                g.modelForTest.root.visible = true;
+                const m = diff(a, b);
+                pct += m.pct;
+                top += m.top;
+            }
+            out.push({
+                id: v.id,
+                pct: +(pct / SPOTS.length).toFixed(1),
+                top: +(top / SPOTS.length).toFixed(1)
+            });
+        }
+        g.setVehicle('ranger');
+        g.restartFree();
+        g.setRenderEnabled(false);
+        return out;
+    });
+    const overCabin = cabins.filter((c) => c.pct >= 27.5);
+    check(
+        overCabin.length === 0,
+        'Q5 every vehicle shows more road than bodywork from the cabin',
+        cabins.map((c) => `${c.id} ${c.pct}%`).join(' | ')
+    );
+    check(
+        cabins.every((c) => c.top < 12),
+        'Q5b and the top half of the screen is road in every one of them',
+        cabins.map((c) => `${c.id} ${c.top}%`).join(' | ')
+    );
+    check(
+        cabins.length >= 4,
+        'Q5c the check covers the whole fleet, so a fifth vehicle cannot slip past it',
+        `${cabins.length} vehicles measured`
+    );
+
     // Q3 — the glazing is only hidden from inside. From outside the vehicle
     // still has windows, which is the whole reason they exist.
     const glazing = await page.evaluate(() => {
@@ -2217,9 +2320,11 @@ const startDriving = async (page) => {
             g.setDifficulty('medium');
             g.restartFree();
             const p = g.physics;
+            // Blocks, not single frames: autopilot renders on the first frame
+            // of each call, so a frame-at-a-time run-up draws every frame.
             let guard = 0;
-            while (Math.abs(p.u) * 2.2369362920544 < 55 && guard++ < 60 * 45) {
-                window.__h.autopilot(1 / 60, { keyThrottle: true }, false);
+            while (Math.abs(p.u) * 2.2369362920544 < 55 && guard++ < 30) {
+                window.__h.autopilot(1.5, { keyThrottle: true }, false);
             }
             g.input.keyThrottle = false;
             g.input.keyLeft = true;
@@ -2262,7 +2367,7 @@ const startDriving = async (page) => {
         const run = (id) => {
             g.setVehicle(id);
             g.restartFree();
-            for (let i = 0; i < 20 * 60; i++) window.__h.autopilot(1 / 60, { keyThrottle: true }, false);
+            window.__h.autopilot(20, { keyThrottle: true }, false);
             g.input.keyThrottle = false;
             return Math.abs(g.physics.u) * 2.2369362920544;
         };

@@ -119,13 +119,21 @@ export class CameraRig {
                 desired.z + lz * 30
             );
             fovTarget = lerp(46, 54, speedT);
-            // Softer than the other views on purpose. The anchor is bolted to
-            // the chassis, so every suspension input arrives at the camera
-            // undiluted — measured at 4.4 mm of vertical camera movement per
-            // frame at 85 mph, which is a constant shimmer rather than a sense
-            // of speed. A head is not bolted to a chassis; damping the follow
-            // is the cheap version of a neck.
-            this.blend(dt, 11, 20);
+            // Vertical only. The anchor is bolted to the chassis, so every
+            // suspension input arrives at the camera undiluted, and damping it
+            // is the cheap version of a neck — but damping the camera's *world*
+            // position also makes it lag along the direction of travel, and at
+            // 31 m/s a follow rate of 11 puts the eye point some 2.8 m behind
+            // where it belongs. That is not a subtle error: it reverses the
+            // truck into its own load bed, and on the two vehicles with a
+            // closed back it parks the camera inside the bodywork. Measured,
+            // the Panel Van's cabin view was 59.8% bodywork, 52.2 of it from a
+            // single panel *behind* the cab.
+            //
+            // A driver's head does not trail the car down the road. It moves
+            // vertically, against the suspension, which is exactly and only
+            // what is smoothed here.
+            this.blendVertical(dt, 14, 20);
         }
 
         this.fov = snapFov ? fovTarget : damp(this.fov, fovTarget, 3, dt);
@@ -146,6 +154,27 @@ export class CameraRig {
             this.camera.fov = this.fov;
             this.camera.updateProjectionMatrix();
         }
+    }
+
+    /**
+     * Follow the anchor exactly along the road and softly in height.
+     *
+     * Used by the interior views, where any lag along the direction of travel
+     * moves the camera through the vehicle it is supposed to be sitting in.
+     */
+    private blendVertical(dt: number, riseRate: number, lookRate: number): void {
+        if (!this.started) {
+            this.position.copy(desired);
+            this.look.copy(lookTarget);
+            this.started = true;
+            return;
+        }
+        this.position.x = desired.x;
+        this.position.z = desired.z;
+        this.position.y = damp(this.position.y, desired.y, riseRate, dt);
+        this.look.x = damp(this.look.x, lookTarget.x, lookRate, dt);
+        this.look.y = damp(this.look.y, lookTarget.y, lookRate, dt);
+        this.look.z = damp(this.look.z, lookTarget.z, lookRate, dt);
     }
 
     private blend(dt: number, posRate: number, lookRate: number): void {

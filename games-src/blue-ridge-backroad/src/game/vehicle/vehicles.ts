@@ -83,6 +83,17 @@ export interface VehicleSpec {
         bed: boolean;
         wheelRadius: number;
     };
+    /**
+     * Where the driver's eyes are, in the *unscaled* body's coordinates — the
+     * spec's own `body` scale and lift are applied on top.
+     *
+     * Per vehicle rather than global because the bodies are different sizes and
+     * a single figure hides the spread. Measured over the same five stretches of
+     * road for each, the cabin view ranged from 21.9% bodywork to 32.7% at one
+     * shared eye point; there is no one number that is right for a low coupe and
+     * a tall van at once.
+     */
+    eye: { y: number; z: number };
     /** Bodywork colour, linear RGB, and the darker shade used for trim panels. */
     paint: [number, number, number];
     paintDark: [number, number, number];
@@ -111,6 +122,8 @@ export const VEHICLES: readonly VehicleSpec[] = [
         steerMaxLow: 30,
         steerMaxHigh: 6.5,
         body: { length: 1, width: 1, height: 1, lift: 0, bed: true, wheelRadius: 1 },
+        // Forward and up from where it sat: 32.7% bodywork to 28.1%.
+        eye: { y: 1.86, z: 0.42 },
         paint: [0.14, 0.26, 0.3],
         paintDark: [0.09, 0.15, 0.17]
     },
@@ -139,6 +152,8 @@ export const VEHICLES: readonly VehicleSpec[] = [
         steerMaxLow: 33,
         steerMaxHigh: 8,
         body: { length: 0.84, width: 0.9, height: 0.76, lift: -0.16, bed: false, wheelRadius: 0.88 },
+        // 32.5% to 27.4%. The lowest body, so it gains the most from height.
+        eye: { y: 1.86, z: 0.42 },
         paint: [0.42, 0.13, 0.11],
         paintDark: [0.2, 0.07, 0.06]
     },
@@ -170,6 +185,10 @@ export const VEHICLES: readonly VehicleSpec[] = [
         steerMaxLow: 28,
         steerMaxHigh: 5.6,
         body: { length: 1.12, width: 1.06, height: 1.14, lift: 0.1, bed: true, wheelRadius: 1.06 },
+        // Left where it was. It is tall enough to see over its own bonnet
+        // already — 21.9%, comfortably the best of the four — and moving it
+        // forward would only cost cabin for nothing.
+        eye: { y: 1.78, z: -0.15 },
         paint: [0.3, 0.27, 0.13],
         paintDark: [0.16, 0.14, 0.07]
     },
@@ -212,6 +231,8 @@ export const VEHICLES: readonly VehicleSpec[] = [
         steerMaxLow: 32,
         steerMaxHigh: 7.4,
         body: { length: 1.04, width: 0.86, height: 1.32, lift: 0.12, bed: false, wheelRadius: 0.94 },
+        // 28.7% to 24.9%.
+        eye: { y: 1.86, z: 0.42 },
         paint: [0.62, 0.6, 0.55],
         paintDark: [0.3, 0.29, 0.27]
     }
