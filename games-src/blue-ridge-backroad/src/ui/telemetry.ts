@@ -62,6 +62,8 @@ export interface Telemetry {
     chapter: string;
     /** Name of the vehicle being driven. */
     vehicle: string;
+    /** Name of the biome the road is passing through. */
+    biome: string;
 
     /** The director. `directorReason` is model output — display only, never interpreted. */
     directorStatus: string;
@@ -122,6 +124,7 @@ export const telemetry: Telemetry = {
     paceNoteAge: 0,
     chapter: '',
     vehicle: 'Ranger 4x4',
+    biome: 'Deep Forest',
     directorStatus: 'off',
     directorSource: 'local',
     directorReason: '',

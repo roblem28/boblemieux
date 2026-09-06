@@ -66,6 +66,9 @@ export interface TimeOfDay {
     night: number;
 }
 
+/** What a biome that changes nothing asks for. */
+const NEUTRAL_LIGHT = { hazeScale: 1, sunScale: 1, ambientScale: 1 };
+
 export class Sky {
     readonly sun: DirectionalLight;
     readonly hemi: HemisphereLight;
@@ -230,7 +233,18 @@ export class Sky {
      * a few seconds at speed, and the sun crossing the sky in a few seconds
      * looks like a bug rather than a transition.
      */
-    update(distance: number, focus: Vector3, fogBoost: number, phaseTarget = -1): void {
+    /**
+     * `biomeLight` flattens the light and thins the haze for open country: less
+     * directional, more ambient, and far enough to see a horizon. A forest has
+     * a canopy casting dappled shadow and no view out; a field has neither.
+     */
+    update(
+        distance: number,
+        focus: Vector3,
+        fogBoost: number,
+        phaseTarget = -1,
+        biomeLight: { hazeScale: number; sunScale: number; ambientScale: number } = NEUTRAL_LIGHT
+    ): void {
         // The day rocks back and forth over roughly 13 km of driving, starting
         // in bright mid-morning. A sine rather than a sawtooth means there is no
         // discontinuity when it wraps, and the ends of the range are golden
@@ -264,8 +278,8 @@ export class Sky {
         this.material.uniforms.haze.value = 0.6 + warm * 1.4;
 
         this.sun.color.setRGB(1, lerp(0.95, 0.76, warm), lerp(0.88, 0.55, warm));
-        this.sun.intensity = lerp(3.5, 1.5, warm);
-        this.hemi.intensity = lerp(1.25, 0.95, warm);
+        this.sun.intensity = lerp(3.5, 1.5, warm) * biomeLight.sunScale;
+        this.hemi.intensity = lerp(1.25, 0.95, warm) * biomeLight.ambientScale;
         this.hemi.color.setRGB(lerp(0.72, 0.5, warm), lerp(0.82, 0.55, warm), lerp(0.95, 0.62, warm));
 
         // Fog: hazier low in the day, and much thicker inside a foggy hollow.
@@ -280,7 +294,13 @@ export class Sky {
         // under a second of road. That is the challenge — the course-ahead strip
         // still works, so there is a way through if you read it and slow down.
         fog.near = lerp(45, 3, fogBoost);
-        fog.far = lerp(this.preset.fogFar * lerp(1, 0.78, warm), 52, fogBoost);
+        // The biome thins *clear air*; it does not dilute fog. Scaling the whole
+        // interpolation was wrong and measurably so: inside a foggy hollow in an
+        // open biome, visibility collapsed only to 116 m instead of 52, which
+        // takes a set-piece built to blind you and makes it weather. A hollow is
+        // a hollow whatever country it sits in.
+        const clearFar = (this.preset.fogFar * lerp(1, 0.78, warm)) / biomeLight.hazeScale;
+        fog.far = lerp(clearFar, 52, fogBoost);
 
         // Keep the dome, ridges and sun sprite centred on the player.
         this.dome.position.set(focus.x, focus.y, focus.z);

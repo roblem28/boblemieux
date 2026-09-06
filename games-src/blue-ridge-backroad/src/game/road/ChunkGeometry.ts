@@ -1,4 +1,5 @@
 import { BufferAttribute, BufferGeometry, Sphere, Vector3 } from 'three';
+import { biomeAt } from '../world/biomes';
 import {
     DITCH_W,
     SHOULDER_W,
@@ -304,6 +305,24 @@ const roadColor = (frame: RoadFrame, l: number, out: Float32Array): void => {
 };
 
 /** Terrain tint: greener in the hollows, browner and rockier up the cut banks. */
+/**
+ * Ground colour, biome-tinted.
+ *
+ * Built per chunk so the seed can be captured — the tint has to be a function
+ * of distance and seed like everything else, and `fillRibbon` hands the colour
+ * function nothing but the frame. One closure per chunk build is nothing next
+ * to the geometry it is filling.
+ */
+const terrainColorFor =
+    (seed: number) =>
+    (frame: RoadFrame, l: number, out: Float32Array): void => {
+        terrainColor(frame, l, out);
+        const tint = biomeAt(frame.s, seed).groundTint;
+        out[0] = clamp(out[0] + tint[0], 0, 2);
+        out[1] = clamp(out[1] + tint[1], 0, 2);
+        out[2] = clamp(out[2] + tint[2], 0, 2);
+    };
+
 const terrainColor = (frame: RoadFrame, l: number, out: Float32Array): void => {
     const a = Math.abs(l);
     const lip = frame.width * 0.5 + SHOULDER_W + DITCH_W;
@@ -367,7 +386,7 @@ export const buildTerrainChunk = (
         originX,
         originY,
         originZ,
-        terrainColor
+        terrainColorFor(path.seed)
     );
     fillRibbon(
         path,
@@ -381,7 +400,7 @@ export const buildTerrainChunk = (
         originX,
         originY,
         originZ,
-        terrainColor
+        terrainColorFor(path.seed)
     );
 };
 

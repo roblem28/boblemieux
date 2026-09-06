@@ -1117,3 +1117,76 @@ flight to resolve *successfully* after the road has been handed back — landing
 one more patch and putting the director back to `watching`. It installs a dead
 endpoint through `setEndpoint` now, which aborts what is in flight, as changing
 endpoints does for real.
+
+## D16 — Biomes, Phase 0
+
+Phase 0 of `docs/blue-ridge-backroad/BIOMES.md` and nothing else: two biomes,
+hard cut every 3 km, no transition handling. It exists to answer one question,
+and the two measurements below are the answer.
+
+**D16.1 — The distinctness measurement had to be rebuilt before it meant
+anything.** The first attempt classified pixels by colour into sky, canopy,
+ground and road. It reported the road at **0.7%** of a frame with a gravel strip
+straight up the middle, because pale gravel is not separable from lit grass by
+hue. It also put farmland's canopy at 26.9% of a frame containing almost no
+foliage.
+
+The second attempt asks the renderer instead of guessing: hide a layer, redraw,
+and the pixels that changed are what that layer was covering. Same trick as the
+cabin-view measurement. That produced numbers that survive being looked at
+alongside the screenshots:
+
+| | sky | canopy | ground | road |
+|---|---|---|---|---|
+| Deep Forest | 32.8% | **23.8%** | 16.8% | 28.4% |
+| Farmland | 31.9% | **5.5%** | 23.4% | 38.0% |
+
+35.4 percentage points of total difference, and the honest detail is *where* it
+comes from. **Sky is unchanged** — 32.8% against 31.9%. The chase camera already
+saw plenty of sky above a forest road; what changes is the wall either side.
+Canopy falls by 18.3 points and road and ground take the space. "Wide visible
+sky" turned out to be the wrong description of what makes farmland read as open;
+it is the absence of a corridor.
+
+**D16.2 — Cost.** Chunk build is CPU work and the numbers are valid; frame time
+on SwiftShader is not, per the standing rule, so draw calls are the honest GPU
+proxy.
+
+| | chunk build | frame ms (median/p95) | draw calls |
+|---|---|---|---|
+| Deep Forest | 0.518 ms | 0.8 / 11.4 | 103 |
+| Farmland | 0.345 ms | 0.7 / 3.8 | 108 |
+| At a cut | 0.255 ms | 1.4 / 12.9 | 134 |
+
+Farmland is **cheaper** than the forest baseline — a third less build time, half
+the trees. Nothing measured more expensive than the road already is. A boundary
+adds 30% to draw calls with both scatter sets live, which is the worst case the
+spec warned about, and it is affordable. The boundary build figure being lowest
+of the three is an artifact worth not over-reading: moving 400 m into a cut
+rebuilds whichever four chunks are ahead, and at these boundaries those were the
+farmland ones.
+
+**D16.3 — A hard cut lands on every boundary, by construction.** With two
+biomes, picking independently per slot would leave half the boundaries with no
+cut at all — which is exactly what Phase 0 is trying to test. The schedule
+alternates and takes only its *phase* from the seed, so every multiple of 3 km
+is a change while the sequence stays a pure function of distance and seed.
+
+**D16.4 — One biome per chunk, taken from the chunk start.** A chunk is 100 m
+and a biome 3 km, so this rounds the visible cut to the nearest chunk edge and
+keeps the scatter a pure function of the chunk index — which is what makes a
+level-of-detail rebuild reproduce it. A test asserts a chunk evicted and rebuilt
+comes back byte-identical.
+
+**D16.5 — The biome thins clear air; it does not dilute fog.** Scaling the whole
+near-to-far interpolation by the biome's haze factor was wrong and the suite
+caught it: inside a foggy hollow in farmland, visibility collapsed only to 116 m
+instead of 52. That takes a set-piece built to blind you and turns it into
+weather. Only the clear-air end is scaled now. A hollow is a hollow whatever
+country it sits in.
+
+**D16.6 — Field scatter is the fern mesh, squashed.** Phase 0 is testing whether
+the *axis* works. A new mesh would be answering a question nobody has asked yet,
+and if the axis fails the mesh is wasted. Spread wide and scaled down, the
+existing fern reads as pasture at driving speed, which is all it has to do to
+make the case.

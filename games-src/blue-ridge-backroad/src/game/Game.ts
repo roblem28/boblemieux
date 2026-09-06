@@ -7,6 +7,7 @@ import {
     WebGLRenderer
 } from 'three';
 import { RoadPath, EVENT_NAMES, EVENT_NONE, createFrame } from './road/RoadPath';
+import { biomeAt, BIOME_LENGTH, BIOMES, biomeSlotAt } from './world/biomes';
 import { CHUNK_LEN } from './road/ChunkGeometry';
 import { Assets } from './world/Assets';
 import { Vegetation } from './world/Vegetation';
@@ -395,6 +396,24 @@ export class Game {
         return this.path;
     }
 
+    /**
+     * Diagnostics: the biome layer, as a pure function of distance.
+     *
+     * Returns the schedule rather than the rendered result, so a test can walk
+     * 50 km of it without building a single chunk.
+     */
+    biomeAtForTest(s: number): unknown {
+        const b = biomeAt(s, this.path.seed);
+        return {
+            id: b.id,
+            name: b.name,
+            slot: biomeSlotAt(s),
+            treeSetback: b.treeSetback,
+            length: BIOME_LENGTH,
+            count: BIOMES.length
+        };
+    }
+
     /** Diagnostics: how the director reads a window of driving. */
     classifyForTest(brief: unknown): string {
         return classify(brief as Brief);
@@ -702,7 +721,8 @@ export class Game {
             this.physics.odometer,
             this.focus,
             this.path.fogAt(this.physics.s),
-            this.path.chapters.paramsAt(this.physics.s).timeOfDay
+            this.path.chapters.paramsAt(this.physics.s).timeOfDay,
+            biomeAt(this.physics.s, this.path.seed)
         );
         if (this.renderEnabled && !this.contextLost) this.renderer.render(this.scene, this.rig.camera);
 
@@ -735,6 +755,7 @@ export class Game {
             this.physics.surfaceGrip = chapter.grip;
             this.physics.surfaceDrag = chapter.drag;
             telemetry.chapter = this.path.chapters.labelAt(this.physics.s);
+            telemetry.biome = biomeAt(this.physics.s, this.path.seed).name;
 
             const surface = this.path.chapters.surfaceAt(this.physics.s);
             if (surface.name !== this.lastSurface) {

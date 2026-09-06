@@ -31,6 +31,7 @@ import {
     createBlocks,
     type VegetationBlocks
 } from './Vegetation';
+import { biomeAt } from './biomes';
 import { EventBuilder } from './events/EventBuilder';
 
 const MAX_COLLIDERS = 96;
@@ -314,11 +315,17 @@ export class ChunkManager {
         // reuses the very same instanced meshes. Distance detail costs zero
         // extra draw calls.
         const far = chunk.lod === 1;
-        const treeCount = Math.round((far ? 108 : 140) * density);
-        const bushCount = Math.round(46 * density);
-        const fernCount = Math.round(70 * density);
-        const rockCount = Math.round(16 * density);
-        const logCount = Math.round(6 * density);
+        // One biome per chunk, taken from where the chunk starts. A chunk is
+        // 100 m and a biome is 3 km, so this only rounds the cut to the nearest
+        // chunk edge — and it keeps the scatter a pure function of the chunk
+        // index, which is what makes a level-of-detail rebuild reproduce it.
+        const biome = biomeAt(chunk.sStart, this.path.seed);
+        const treeCount = Math.round((far ? 108 : 140) * density * biome.treeDensity);
+        const bushCount = Math.round(46 * density * biome.scrubDensity);
+        const fernCount = Math.round(70 * density * biome.scrubDensity);
+        const rockCount = Math.round(16 * density * biome.rockDensity);
+        const logCount = Math.round(6 * density * biome.logDensity);
+        const fieldCount = Math.round(70 * density * biome.fieldDensity);
 
         // Trees.
         for (let i = 0; i < treeCount; i++) {
@@ -327,8 +334,10 @@ export class ChunkManager {
             const lip = frameA.width * 0.5 + SHOULDER_W + DITCH_W;
             const side = rng.next() < 0.5 ? -1 : 1;
             // Bias toward the road so the corridor feels enclosed, with a
-            // clear-cut margin so trunks never grow out of the ditch.
-            const off = 1.2 + Math.pow(rng.next(), 0.62) * 52;
+            // clear-cut margin so trunks never grow out of the ditch. In an
+            // open biome the setback does the opposite job: it puts the trees
+            // on the field boundary instead of beside the car.
+            const off = biome.treeSetback + Math.pow(rng.next(), 0.62) * biome.treeSpread;
             const lateral = side * (lip + off);
             const height = this.path.crossHeight(frameA, lateral);
             tmpPos.copy(frameA.pos);
@@ -374,6 +383,14 @@ export class ChunkManager {
         if (!far) {
             this.scatterScrub(chunk, SPECIES_BUSH, bushCount, 0.4, 16, rng, 0.8, 1.7);
             this.scatterScrub(chunk, SPECIES_FERN, fernCount, 0.2, 9, rng, 0.7, 1.6);
+            // Crop and pasture: the same fern mesh, squashed and spread right
+            // across the open ground. It is deliberately the cheapest thing
+            // that reads as a field — Phase 0 is testing whether the *axis*
+            // works, and a new mesh would be answering a question nobody has
+            // asked yet.
+            if (fieldCount > 0) {
+                this.scatterScrub(chunk, SPECIES_FERN, fieldCount, 2, biome.fieldSpread, rng, 0.45, 0.95);
+            }
         }
 
         // Rocks: a few big ones on the hillside, small stones on the shoulder.

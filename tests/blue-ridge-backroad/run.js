@@ -1952,6 +1952,251 @@ const startDriving = async (page) => {
     check(backToFree.mode === 'free', 'D11 the game can switch back to free drive');
     check(!backToFree.stagePanel && backToFree.timing, 'D11b the HUD swaps the stage clock for the mile timer');
 
+    // ------------------------------------------------------------ R: biomes
+
+    // Phase 0 of the biome layer: two biomes, hard cut every 3 km, no
+    // transition handling. It exists to answer whether changing the
+    // surroundings fixes the sameness that changing the road did not, so the
+    // check that matters is the screen-space one — chapters were measurably
+    // different on their own axis and still read as one road.
+
+    // R1 — the schedule is a pure function of distance and the seed.
+    const biomeSeq = await page.evaluate(() => {
+        const g = window.brb.game;
+        const walk = () => {
+            const out = [];
+            for (let s = 0; s < 50000; s += 250) out.push(g.biomeAtForTest(s).id);
+            return out;
+        };
+        const first = walk();
+        // Drive a long way, prune the ring, come back: the schedule must not
+        // care where the truck has been.
+        g.restartFree();
+        window.__h.autopilot(30, { keyThrottle: true }, false);
+        const second = walk();
+        const info = g.biomeAtForTest(0);
+        return { same: first.join(',') === second.join(','), n: first.length, count: info.count, length: info.length, head: first.slice(0, 6) };
+    });
+    check(biomeSeq.same, 'R1 the biome sequence over 50 km is the same every time it is asked', `${biomeSeq.n} samples`);
+    check(biomeSeq.count === 2 && biomeSeq.length === 3000, 'R1b two biomes, cutting every 3 km', `${biomeSeq.count} biomes, ${biomeSeq.length} m`);
+
+    // R2 — every 3 km boundary is a real cut, and it lands on the same metre.
+    const boundaries = await page.evaluate(() => {
+        const g = window.brb.game;
+        const cuts = [];
+        let previous = g.biomeAtForTest(0).id;
+        for (let s = 1; s <= 50000; s += 1) {
+            // Only sample near the boundaries; a metre-by-metre walk of 50 km
+            // is 50,000 calls and tells us nothing extra in between.
+            if (s % 3000 > 2 && s % 3000 < 2998) continue;
+            const id = g.biomeAtForTest(s).id;
+            if (id !== previous) cuts.push(s);
+            previous = id;
+        }
+        const expected = [];
+        for (let k = 1; k * 3000 <= 50000; k++) expected.push(k * 3000);
+        return { cuts, expected, match: cuts.join(',') === expected.join(',') };
+    });
+    check(
+        boundaries.match,
+        'R2 a cut lands on every 3 km mark and nowhere else',
+        `${boundaries.cuts.length} cuts, first at ${boundaries.cuts[0]}, expected ${boundaries.expected.length}`
+    );
+
+    // R3 — a rebuilt chunk comes back identical. Level-of-detail rebuilds happen
+    // constantly while driving; if the scatter or the ground colour depended on
+    // anything but the chunk index the world would shimmer as you approached.
+    const rebuild = await page.evaluate(() => {
+        const g = window.brb.game;
+        const sum = (arr) => {
+            // FNV-1a over the raw buffer: cheap, and sensitive to one changed
+            // vertex anywhere in the chunk.
+            let hAcc = 0x811c9dc5;
+            const view = new Uint8Array(arr.buffer, arr.byteOffset, arr.byteLength);
+            for (let i = 0; i < view.length; i++) {
+                hAcc ^= view[i];
+                hAcc = Math.imul(hAcc, 0x01000193) >>> 0;
+            }
+            return hAcc;
+        };
+        const snapshot = (s) => {
+            g.teleportForTest(s);
+            const c = g.chunksForTest.find((k) => s >= k.sStart && s < k.sStart + 100) ?? g.chunksForTest[0];
+            const t = c.terrain.geometry.getAttribute('position').array;
+            const col = c.terrain.geometry.getAttribute('color').array;
+            const road = c.road.geometry.getAttribute('position').array;
+            return { index: c.index, biome: g.biomeAtForTest(c.sStart).id, key: `${sum(t)}:${sum(col)}:${sum(road)}` };
+        };
+        const out = [];
+        for (const s of [1500, 4500]) {
+            const first = snapshot(s);
+            // Somewhere else entirely, far enough to evict it, then back.
+            g.teleportForTest(s + 24000);
+            const second = snapshot(s);
+            out.push({ s, biome: first.biome, same: first.key === second.key && first.index === second.index });
+        }
+        return out;
+    });
+    check(
+        rebuild.every((r) => r.same),
+        'R3 a chunk rebuilt after being evicted is byte-identical',
+        rebuild.map((r) => `${r.biome}@${r.s} ${r.same ? 'same' : 'DIFFERENT'}`).join(' | ')
+    );
+
+    /**
+     * What fills the frame, by occlusion rather than by colour.
+     *
+     * Each layer is hidden and the frame re-rendered; the pixels that changed
+     * are what that layer was covering. A colour classifier was tried first and
+     * was simply wrong — it put the road at 0.7% of a frame with a gravel strip
+     * up the middle, because pale gravel is not separable from lit grass by hue.
+     */
+    const composition = () =>
+        page.evaluate(() => {
+            const g = window.brb.game;
+            const cv = document.querySelector('canvas');
+            const w = 320, h = 180;
+            const off = document.createElement('canvas');
+            off.width = w;
+            off.height = h;
+            const ctx = off.getContext('2d');
+            g.setRenderEnabled(true);
+            const shot = () => {
+                g.tick(0);
+                ctx.clearRect(0, 0, w, h);
+                ctx.drawImage(cv, 0, 0, w, h);
+                return ctx.getImageData(0, 0, w, h).data;
+            };
+            const changed = (a, b) => {
+                let n = 0;
+                for (let i = 0; i < w * h; i++) {
+                    const d = Math.max(
+                        Math.abs(a[i * 4] - b[i * 4]),
+                        Math.abs(a[i * 4 + 1] - b[i * 4 + 1]),
+                        Math.abs(a[i * 4 + 2] - b[i * 4 + 2])
+                    );
+                    if (d > 12) n++;
+                }
+                return (n / (w * h)) * 100;
+            };
+            const veg = [];
+            g.sceneForTest.traverse((o) => {
+                if (o.isInstancedMesh) veg.push(o);
+            });
+            const setVeg = (v) => {
+                for (const m of veg) m.visible = v;
+            };
+            const setChunks = (key, v) => {
+                for (const c of g.chunksForTest) if (c[key]) c[key].visible = v;
+            };
+            const base = shot();
+            setVeg(false);
+            const canopy = changed(base, shot());
+            setVeg(true);
+            setChunks('road', false);
+            const road = changed(base, shot());
+            setChunks('road', true);
+            setChunks('terrain', false);
+            const ground = changed(base, shot());
+            setChunks('terrain', true);
+            setVeg(false);
+            setChunks('road', false);
+            setChunks('terrain', false);
+            g.modelForTest.root.visible = false;
+            const sky = 100 - changed(base, shot());
+            setVeg(true);
+            setChunks('road', true);
+            setChunks('terrain', true);
+            g.modelForTest.root.visible = true;
+            g.setRenderEnabled(false);
+            return { sky, canopy, ground, road };
+        });
+
+    // R4 — the whole point. If two biomes measure the same they will read the
+    // same, which is exactly what happened to chapters: eight of them, all
+    // measurably different on twistiness, and none of them touching a single
+    // pixel of what is either side of the road.
+    const biomeLook = await page.evaluate(async () => {
+        const g = window.brb.game;
+        for (let i = 0; i < 6 && window.brb.telemetry.camera !== 'Chase'; i++) g.cycleCamera();
+        const out = {};
+        for (const id of ['forest', 'farmland']) {
+            const spots = [];
+            for (let slot = 0; slot < 24 && spots.length < 3; slot++) {
+                const s = slot * 3000 + 1500;
+                if (g.biomeAtForTest(s).id === id) spots.push(s);
+            }
+            out[id] = spots;
+        }
+        return out;
+    });
+
+    const looks = {};
+    for (const [id, spots] of Object.entries(biomeLook)) {
+        const acc = { sky: 0, canopy: 0, ground: 0, road: 0 };
+        for (const spot of spots) {
+            await page.evaluate((s) => {
+                const g = window.brb.game;
+                g.teleportForTest(s);
+                let guard = 0;
+                while (Math.abs(g.physics.u) * 2.2369362920544 < 45 && guard++ < 10) {
+                    window.__h.autopilot(1.5, { keyThrottle: true }, false);
+                }
+                window.__h.autopilot(0.4, { keyThrottle: true }, false);
+            }, spot);
+            const c = await composition();
+            for (const k of Object.keys(acc)) acc[k] += c[k];
+        }
+        for (const k of Object.keys(acc)) acc[k] = +(acc[k] / spots.length).toFixed(1);
+        looks[id] = acc;
+    }
+    const ids = Object.keys(looks);
+    let worstPair = Infinity;
+    let worstLabel = '';
+    for (let i = 0; i < ids.length; i++) {
+        for (let j = i + 1; j < ids.length; j++) {
+            const a = looks[ids[i]];
+            const b = looks[ids[j]];
+            const l1 =
+                Math.abs(a.sky - b.sky) + Math.abs(a.canopy - b.canopy) + Math.abs(a.ground - b.ground) + Math.abs(a.road - b.road);
+            if (l1 < worstPair) {
+                worstPair = l1;
+                worstLabel = `${ids[i]} vs ${ids[j]}: ${l1.toFixed(1)}pp`;
+            }
+        }
+    }
+    check(
+        worstPair >= 20,
+        'R4 every pair of biomes fills the frame differently enough to read apart',
+        `${worstLabel} — ${ids.map((k) => `${k} sky ${looks[k].sky} canopy ${looks[k].canopy} ground ${looks[k].ground} road ${looks[k].road}`).join(' | ')}`
+    );
+    check(
+        Math.abs(looks.forest.canopy - looks.farmland.canopy) >= 10,
+        'R4b and the treeline is what does most of it',
+        `canopy ${looks.forest.canopy}% in forest, ${looks.farmland.canopy}% in farmland`
+    );
+
+    // R5 — the setback is the lever the spec says it is.
+    const setbacks = await page.evaluate(() => {
+        const g = window.brb.game;
+        const seen = {};
+        for (let slot = 0; slot < 8; slot++) {
+            const info = g.biomeAtForTest(slot * 3000 + 1500);
+            seen[info.id] = info.treeSetback;
+        }
+        return seen;
+    });
+    check(
+        Math.abs(setbacks.farmland - setbacks.forest) >= 30,
+        'R5 biomes set their treeline meaningfully far apart',
+        `forest ${setbacks.forest} m, farmland ${setbacks.farmland} m`
+    );
+
+    await page.evaluate(() => {
+        window.brb.game.restartFree();
+        window.__h.sim(0.3);
+    });
+
     // ------------------------------------------- Q: the views and their order
 
     // Q1 — the cycle order, exactly, and that it wraps.
