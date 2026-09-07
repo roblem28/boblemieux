@@ -31,6 +31,7 @@ import {
     createBlocks,
     type VegetationBlocks
 } from './Vegetation';
+import { TERRAIN_HALF_WIDTH } from '../road/RoadPath';
 import { biomeAt } from './biomes';
 import { EventBuilder } from './events/EventBuilder';
 
@@ -338,7 +339,11 @@ export class ChunkManager {
             // open biome the setback does the opposite job: it puts the trees
             // on the field boundary instead of beside the car.
             const off = biome.treeSetback + Math.pow(rng.next(), 0.62) * biome.treeSpread;
-            const lateral = side * (lip + off);
+            // Never past the conformed ribbon. Beyond it there is no terrain
+            // mesh, so anything placed out there stands on nothing — which is
+            // exactly what happened when a biome pushed its treeline to 60 m
+            // with a 46 m spread and the ribbon only reached 62.
+            const lateral = side * Math.min(lip + off, TERRAIN_HALF_WIDTH - 1.5);
             const height = this.path.crossHeight(frameA, lateral);
             tmpPos.copy(frameA.pos);
             tmpPos.x += frameA.right.x * lateral;
@@ -483,7 +488,9 @@ export class ChunkManager {
             this.path.sample(s, frameA);
             const lip = frameA.width * 0.5 + SHOULDER_W;
             const side = rng.next() < 0.5 ? -1 : 1;
-            const lateral = side * (lip + rng.range(minOff, maxOff));
+            // Clamped to the ribbon for the same reason the trees are: past it
+            // there is no ground under the instance.
+            const lateral = side * Math.min(lip + rng.range(minOff, maxOff), TERRAIN_HALF_WIDTH - 1.5);
             tmpPos.copy(frameA.pos);
             tmpPos.x += frameA.right.x * lateral;
             tmpPos.z += frameA.right.z * lateral;

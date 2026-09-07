@@ -58,8 +58,16 @@ const ROAD_COLS: readonly (readonly [number, number])[] = [
 ];
 const ROAD_COL_N = ROAD_COLS.length;
 
-/** Terrain skirt column offsets beyond the ditch lip, per side. */
-const TERRAIN_OFFSETS: readonly number[] = [0, 1.6, 3.6, 6.6, 11, 17, 25, 36, 48, 62];
+/**
+ * Terrain skirt column offsets beyond the ditch lip, per side.
+ *
+ * Spacing widens outward because the relief does: the verge is shaped over a
+ * couple of metres and needs the samples, while the land beyond it runs on
+ * wavelengths of hundreds of metres and a 14 m column is more than enough to
+ * carry it. The outermost column lands at roughly 79 m from the centreline,
+ * just inside the fold limit that `TERRAIN_HALF_WIDTH` documents.
+ */
+const TERRAIN_OFFSETS: readonly number[] = [0, 1.6, 3.6, 6.6, 11, 17, 25, 36, 48, 60, 71];
 const TERRAIN_COL_N = TERRAIN_OFFSETS.length;
 
 // -------------------------------------------------------------- scratch

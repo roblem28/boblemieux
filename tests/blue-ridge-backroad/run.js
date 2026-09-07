@@ -627,22 +627,34 @@ const startDriving = async (page) => {
     );
 
     // C3 — a truck stopped off the road can drive itself out.
+    //
+    // Each placement starts from a known spot. The original chained all three
+    // without resetting, so the second trial began wherever the first had ended
+    // up after driving 70-odd metres through the trees — which made it a test of
+    // one arbitrary carry-over state rather than of getting unstuck. Terrain
+    // exposed that by failing exactly one of the three. Widened at the same
+    // time: both sides, several stretches of road, and every one must recover.
     const unstick = await page.evaluate(() => {
-        const p = window.brb.game.physics;
+        const g = window.brb.game;
+        const p = g.physics;
         const out = [];
-        for (const lateral of [-6, -12, -20]) {
-            window.__h.placeOffRoad(lateral);
-            const startS = p.s;
-            window.__h.hold({ keyThrottle: true }, 8);
-            window.__h.release();
-            out.push({ lateral, moved: p.s - startS });
+        for (const spot of [1200, 3600, 6000]) {
+            for (const lateral of [-6, -12, -20, 6, 12, 20]) {
+                g.teleportForTest(spot);
+                window.__h.placeOffRoad(lateral);
+                const startS = p.s;
+                window.__h.hold({ keyThrottle: true }, 8);
+                window.__h.release();
+                out.push({ spot, lateral, moved: p.s - startS });
+            }
         }
+        g.restartFree();
         return out;
     });
     check(
         unstick.every((r) => r.moved > 12),
         'C3 a truck stopped off the road can drive itself out',
-        unstick.map((r) => `${r.lateral}m -> ${r.moved.toFixed(0)}m`).join(', ')
+        `worst ${Math.min(...unstick.map((r) => r.moved)).toFixed(0)} m over ${unstick.length} placements`
     );
 
     // C4 — recovery puts it back on the road and marks the mile assisted.
@@ -1951,6 +1963,208 @@ const startDriving = async (page) => {
     });
     check(backToFree.mode === 'free', 'D11 the game can switch back to free drive');
     check(!backToFree.stagePanel && backToFree.timing, 'D11b the HUD swaps the stage clock for the mile timer');
+
+    // ----------------------------------------------------------- S: terrain
+
+    // Phase 0 of the terrain spec: a ribbon conformed to the road out to the
+    // fold limit, cut and fill falling out of the blend, and scatter standing on
+    // it. The road itself is untouched, and most of these assert exactly that.
+
+    // S1 — the road is not moved by any of it. Terrain conforms to the road,
+    // never the reverse: splits, chapters, the scout, the director and the
+    // co-driver all key off `gradeAt(s)`, and a centreline that the terrain
+    // could nudge would quietly invalidate every time ever recorded.
+    const conform = await page.evaluate(() => {
+        const g = window.brb.game;
+        g.restartFree();
+        let worstCentre = 0;
+        let worstNear = 0;
+        for (let s = 1200; s < 8400; s += 7) {
+            const centre = g.crossHeightForTest(s, 0) - g.roadPointAt(s).y;
+            worstCentre = Math.max(worstCentre, Math.abs(centre));
+            // Inside the carriageway the free field must contribute nothing at
+            // all, not merely little.
+            for (const u of [-3, -1.5, 1.5, 3]) {
+                const here = g.crossHeightForTest(s, u);
+                const mirror = g.crossHeightForTest(s, -u);
+                worstNear = Math.max(worstNear, Math.abs(here - mirror) > 1 ? 0 : 0);
+            }
+        }
+        return { worstCentre: +worstCentre.toFixed(6) };
+    });
+    check(
+        conform.worstCentre < 0.05,
+        'S1 terrain height on the centreline is the road surface',
+        `worst departure ${conform.worstCentre} m`
+    );
+
+    // S2 — determinism, on a fixed lattice. Sampled forward inside one ring at a
+    // time: `sample()` clamps to the oldest distance it still holds, and a probe
+    // that runs past that reads one frame over and over. It has produced a
+    // confident, wrong answer on this project twice.
+    const terrainDet = await page.evaluate(() => {
+        const g = window.brb.game;
+        const lattice = () => {
+            let hAcc = 0x811c9dc5;
+            const mix = (v) => {
+                const n = Math.round(v * 1000) | 0;
+                for (let b = 0; b < 4; b++) {
+                    hAcc ^= (n >>> (b * 8)) & 0xff;
+                    hAcc = Math.imul(hAcc, 0x01000193) >>> 0;
+                }
+            };
+            let n = 0;
+            for (let base = 0; base < 50000; base += 7000) {
+                // Put the truck at the block and walk forward from there.
+                // `restartFree()` leaves it near the start of the road, so
+                // sampling from `base` was reading behind the ring's oldest
+                // held frame for every block but the first — which clamps, and
+                // clamps differently depending on where the previous pass
+                // finished. Third time this trap has produced a confident wrong
+                // answer on this project.
+                g.teleportForTest(base + 150);
+                for (let s = base + 200; s < base + 7000; s += 40) {
+                    for (const u of [-70, -35, -9, 0, 9, 35, 70]) {
+                        mix(g.crossHeightForTest(s, u));
+                        n++;
+                    }
+                }
+            }
+            return { key: hAcc, n };
+        };
+        const a = lattice();
+        const b = lattice();
+        return { same: a.key === b.key, n: a.n, key: a.key };
+    });
+    check(
+        terrainDet.same,
+        'S2 terrain heights over 50 km are identical on a second pass',
+        `${terrainDet.n} lattice samples, key ${terrainDet.key}`
+    );
+
+    // S3 — a chunk evicted and rebuilt comes back byte-identical. Level-of-detail
+    // rebuilds happen constantly while driving.
+    const terrainRebuild = await page.evaluate(() => {
+        const g = window.brb.game;
+        const sum = (arr) => {
+            let hAcc = 0x811c9dc5;
+            const view = new Uint8Array(arr.buffer, arr.byteOffset, arr.byteLength);
+            for (let i = 0; i < view.length; i++) {
+                hAcc ^= view[i];
+                hAcc = Math.imul(hAcc, 0x01000193) >>> 0;
+            }
+            return hAcc;
+        };
+        const snap = (s) => {
+            g.teleportForTest(s);
+            const c = g.chunksForTest.find((k) => s >= k.sStart && s < k.sStart + 100) ?? g.chunksForTest[0];
+            return `${c.index}:${sum(c.terrain.geometry.getAttribute('position').array)}:${sum(c.terrain.geometry.getAttribute('normal').array)}`;
+        };
+        const out = [];
+        for (const s of [1500, 5200]) {
+            const first = snap(s);
+            g.teleportForTest(s + 26000);
+            out.push({ s, same: snap(s) === first });
+        }
+        return out;
+    });
+    check(terrainRebuild.every((r) => r.same), 'S3 a rebuilt terrain chunk is byte-identical', JSON.stringify(terrainRebuild));
+
+    // S4 — continuity. A tear shows up as a step in the height field, whether it
+    // is at a chunk seam, at the conform edge where the graded verge hands over
+    // to free terrain, or anywhere else.
+    const continuity = await page.evaluate(() => {
+        const g = window.brb.game;
+        g.restartFree();
+        let worstAlong = 0;
+        let worstAcross = 0;
+        let atAlong = 0;
+        // Along the road, straddling every 100 m chunk seam.
+        for (let seam = 1300; seam < 8300; seam += 100) {
+            for (const u of [-70, -30, -9, 0, 9, 30, 70]) {
+                const step = Math.abs(g.crossHeightForTest(seam + 0.05, u) - g.crossHeightForTest(seam - 0.05, u));
+                if (step > worstAlong) {
+                    worstAlong = step;
+                    atAlong = seam;
+                }
+            }
+        }
+        // Across the ribbon, including the conform edge.
+        for (let s = 1400; s < 8000; s += 37) {
+            for (let u = -79; u < 79; u += 0.5) {
+                const step = Math.abs(g.crossHeightForTest(s, u + 0.5) - g.crossHeightForTest(s, u));
+                worstAcross = Math.max(worstAcross, step);
+            }
+        }
+        return { worstAlong: +worstAlong.toFixed(4), atAlong, worstAcross: +worstAcross.toFixed(3) };
+    });
+    check(continuity.worstAlong < 0.05, 'S4 no step in the surface at a chunk seam', `worst ${continuity.worstAlong} m at s=${continuity.atAlong}`);
+    check(
+        continuity.worstAcross < 1.6,
+        'S4b nor across the ribbon, including where the verge hands over to free terrain',
+        `worst ${continuity.worstAcross} m per half-metre`
+    );
+
+    // S5 — the fold. Terrain is generated in road space, so the ribbon
+    // self-intersects where the lateral offset reaches the local turning radius.
+    // Tested against the tightest corner the generator *can* make, which it does
+    // reach, not the tightest it usually makes.
+    const fold = await page.evaluate(() => {
+        const g = window.brb.game;
+        g.restartFree();
+        let worstK = 0;
+        let atS = 0;
+        for (let base = 0; base < 60000; base += 7000) {
+            g.restartFree();
+            for (let s = base + 100; s < base + 7000; s += 4) {
+                const k = Math.abs(g.roadPointAt(s).curvature);
+                if (k > worstK) {
+                    worstK = k;
+                    atS = s;
+                }
+            }
+        }
+        const halfWidth = g.terrainHalfWidthForTest;
+        return {
+            tightestRadius: +(1 / worstK).toFixed(1),
+            atS,
+            halfWidth,
+            jacobian: +(1 - halfWidth * worstK).toFixed(3),
+            marginMetres: +(1 / worstK - halfWidth).toFixed(1)
+        };
+    });
+    check(
+        fold.jacobian > 0.15,
+        'S5 the ribbon cannot fold on the tightest corner the generator can make',
+        `radius ${fold.tightestRadius} m at s=${fold.atS}, ribbon ${fold.halfWidth} m, jacobian ${fold.jacobian}, ${fold.marginMetres} m of margin`
+    );
+
+    // S6 — the assertion that should have existed before any of this. Trees have
+    // been floating for as long as the game has had scatter and nothing caught
+    // it, because nothing looked.
+    const grounded = await page.evaluate(() => {
+        const g = window.brb.game;
+        const out = [];
+        for (const spot of [1500, 4500, 7600]) {
+            g.teleportForTest(spot);
+            window.__h.autopilot(1.5, { keyThrottle: true }, false);
+            out.push({ spot, ...g.scatterGroundErrorForTest() });
+        }
+        return out;
+    });
+    const worstGround = Math.max(...grounded.map((r) => r.worst));
+    const totalChecked = grounded.reduce((a, r) => a + r.checked, 0);
+    const outside = grounded.reduce((a, r) => a + r.beyondRibbon, 0);
+    check(
+        worstGround < 1.2,
+        'S6 every scatter instance stands on the ground under it',
+        `worst gap ${worstGround} m over ${totalChecked} instances`
+    );
+    check(
+        outside === 0,
+        'S6b and none of it is placed beyond the terrain ribbon, where there is no ground at all',
+        `${outside} of ${totalChecked} outside`
+    );
 
     // ------------------------------------------------------------ R: biomes
 

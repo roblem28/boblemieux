@@ -98,8 +98,12 @@ export const BIOMES: readonly Biome[] = [
         name: 'Farmland',
         // Trees to the far edge of the field and thinned right out: what is left
         // reads as a hedgerow on the boundary rather than a wall beside the car.
-        treeSetback: 60,
-        treeSpread: 46,
+        // Setback plus spread has to stay inside the conformed ribbon: 60 + 46
+        // put the far trees at 106 m from the lip when terrain reached 62, and
+        // they stood on nothing. The scatter clamps as well, but a biome that
+        // needs clamping is a biome asking for trees that cannot exist.
+        treeSetback: 58,
+        treeSpread: 12,
         treeDensity: 0.5,
         // No undergrowth crowding the verge — that is what makes a forest road
         // feel like a corridor.
@@ -108,7 +112,7 @@ export const BIOMES: readonly Biome[] = [
         // A ploughed field is not strewn with fallen branches.
         logDensity: 0.1,
         fieldDensity: 2.6,
-        fieldSpread: 58,
+        fieldSpread: 64,
         // Clear enough to see the far side of the valley.
         hazeScale: 0.45,
         sunScale: 0.82,

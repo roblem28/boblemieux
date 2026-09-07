@@ -1190,3 +1190,94 @@ the *axis* works. A new mesh would be answering a question nobody has asked yet,
 and if the axis fails the mesh is wasted. Spread wide and scaled down, the
 existing fern reads as pasture at driving speed, which is all it has to do to
 make the case.
+
+## D17 — Terrain, Phase 0
+
+Phase 0 of `docs/blue-ridge-backroad/TERRAIN.md`, added here alongside it: a
+ribbon conformed to the road out to the fold limit, cut and fill falling out of
+the blend, scatter standing on it. No silhouette layer, no biome terrain
+character.
+
+**D17.1 — The fold limit is real, not theoretical.** Terrain is generated in road
+space, so the ribbon self-intersects where the lateral offset reaches the local
+turning radius. `MIN_RADIUS` is 115 m and the generator *reaches* it — a 115.0 m
+corner was measured on this seed, so the worst case is the clamp, not a
+comfortable margin below it. At the specified 80 m the mapping's Jacobian is
+1 - 80/115 = **0.304**: the inside edge compresses to a third of its nominal
+spacing on the tightest corner the generator can make, and never inverts. 35 m of
+margin. A screenshot of that exact corner shows a cut bank rising one side,
+ground falling the other, no fold and no tear.
+
+**D17.2 — Amplitude was printed; gradient was not, and gradient was the thing
+that mattered.** The first parameter choice used the printed relief distribution
+and looked right: at 62 m the land ran -19 to +30 m, against a mostly-upward
+wedge of -3 to +34 before. What it did not print was slope, and `fbm1`'s octaves
+make effective slope far steeper than the base wavelength implies — each octave
+carries half the amplitude at 2.07x the frequency, so it contributes about as
+much gradient as the one before it. Three octaves at a 520 m wavelength measured
+a worst lateral slope of **46 degrees**.
+
+Same amplitude, nearly double the wavelengths, one fewer octave. The land is the
+same size and much gentler. The lesson generalises: for a surface, the
+distribution to print is the derivative, not the value.
+
+**D17.3 — The corridor does not put land in the middle distance, and that is the
+finding.** Screen-space fraction of the frame occupied by terrain more than 100 m
+away, measured with a geometry classifier — hide the terrain of every chunk whose
+near edge is past 100 m, and count the pixels that change:
+
+| | before | after |
+|---|---|---|
+| terrain beyond 100 m | 0.2% | **0.1%** |
+
+No improvement. It is not a measurement artifact: the ribbon is 80 m wide and
+follows the road, so seen from a car on that road it is edge-on and almost
+entirely occluded by its own near portion. This is exactly what §5 of the spec
+predicted — "±80 m is still a corridor, just a wider one with walls" — and it is
+the number Phase 1 exists to move.
+
+**D17.4 — It is nearly free.** Deep Forest, mean of four fixed stretches:
+
+| | before | after |
+|---|---|---|
+| vertices, 11 live chunks | 16,379 | 16,951 (+3.5%) |
+| triangles | 29,700 | 30,800 (+3.7%) |
+| draw calls | 110 | **110** |
+| chunk build | 0.445 ms | 0.464 ms (+4.3%) |
+
+One extra column per side on a ribbon that already existed. Draw calls are
+unchanged because the terrain was always one mesh per chunk. The vertex budget
+that was expected to kill this has not been touched yet — which is worth knowing
+before Phase 1, because the silhouette layer is where the cost actually lands.
+
+(The 103 draw-call figure quoted in the biome work came from a different spot
+set; measured the same way on both builds here it is 110 either side.)
+
+**D17.5 — Trees were floating because a biome asked for trees that could not
+exist.** Farmland set a 60 m treeline with a 46 m spread, putting its far trees
+106 m from the ditch lip when the terrain skirt reached 62. Scatter now clamps to
+the ribbon and the biome asks for something inside it. The check that should have
+existed all along now does: every instance is projected back onto the road and
+compared against the cross-section under it — worst gap **0.038 m** over a
+thousand instances.
+
+**D17.6 — Three test failures, and all three were the tests.**
+
+`S2` sampled the height lattice from behind the point `restartFree()` leaves the
+truck at, so every block but the first read the ring's clamped oldest frame — and
+clamped differently depending on where the previous pass had finished. Third time
+this exact trap has produced a confident wrong answer here.
+
+`S6` projected every scatter instance using the vehicle's position as the hint,
+which put instances a few hundred metres away onto the wrong `s`. It reported a
+32 m gap at a lateral of 5.5 m — a place where the cross-section is within a
+metre of the road and such a gap cannot exist. Now walked per chunk, with each
+chunk's own stretch as the hint.
+
+`C3` chained three off-road placements without resetting, so the second began
+wherever the first had ended after driving seventy metres through the trees. It
+was testing one arbitrary carry-over state. Terrain changed that state and the
+test failed — but a scan of 102 placements across seventeen stretches and both
+sides found **zero** stuck, worst recovery 47 m against a 12 m threshold. The
+test now resets each placement and covers eighteen of them instead of three,
+which is stricter than what it replaced.

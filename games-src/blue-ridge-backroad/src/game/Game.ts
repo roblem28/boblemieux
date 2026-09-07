@@ -6,7 +6,14 @@ import {
     Vector3,
     WebGLRenderer
 } from 'three';
-import { RoadPath, EVENT_NAMES, EVENT_NONE, createFrame } from './road/RoadPath';
+import {
+    RoadPath,
+    EVENT_NAMES,
+    EVENT_NONE,
+    createFrame,
+    createProjectResult,
+    TERRAIN_HALF_WIDTH
+} from './road/RoadPath';
 import { biomeAt, BIOME_LENGTH, BIOMES, biomeSlotAt } from './world/biomes';
 import { CHUNK_LEN } from './road/ChunkGeometry';
 import { Assets } from './world/Assets';
@@ -394,6 +401,81 @@ export class Game {
     /** Diagnostics: the road itself, for checks about slots and generation. */
     get pathForTest(): RoadPath {
         return this.path;
+    }
+
+    /** Diagnostics: how far the conformed ribbon reaches. */
+    get terrainHalfWidthForTest(): number {
+        return TERRAIN_HALF_WIDTH;
+    }
+
+    /**
+     * Diagnostics: how far every scatter instance sits from the ground.
+     *
+     * This is the assertion that should have existed before any of the terrain
+     * work: trees were floating for as long as the game has had scatter, and
+     * nothing would have caught it because nothing checked. Instance matrices
+     * are stored relative to a shifting origin, so each one is put back into
+     * world space, projected onto the road to recover its own (s, u), and
+     * compared against the cross-section there.
+     */
+    scatterGroundErrorForTest(): { checked: number; worst: number; worstLateral: number; beyondRibbon: number } {
+        const proj = createProjectResult();
+        const frame = createFrame();
+        const origin = this.vegetation.origin;
+        let checked = 0;
+        let worst = 0;
+        let worstLateral = 0;
+        let beyondRibbon = 0;
+        // Walked per chunk, so every instance is projected with its own stretch
+        // of road as the hint. Projecting the whole scene from the vehicle's
+        // position instead put instances a few hundred metres away onto
+        // completely the wrong `s` — which reported a 32 m gap at a lateral of
+        // 5.5 m, a place where the cross-section is within a metre of the road
+        // and such a gap cannot exist. The diagnostic was wrong, not the world.
+        for (const chunk of this.chunks.liveChunks) {
+            const hint = chunk.sStart + CHUNK_LEN * 0.5;
+            for (let species = 0; species < chunk.blocks.used.length; species++) {
+                const block = chunk.blocks.foliage[species];
+                if (block < 0) continue;
+                const pool = this.vegetation.foliagePools[species];
+                const arr = pool.mesh.instanceMatrix.array;
+                const from = block * pool.blockSize;
+                const upto = from + chunk.blocks.used[species];
+                for (let i = from; i < upto; i++) {
+                    const b = i * 16;
+                    const x = arr[b + 12];
+                    const y = arr[b + 13];
+                    const z = arr[b + 14];
+                    if (x === 0 && y === 0 && z === 0) continue;
+                    const wx = x + origin.x;
+                    const wy = y + origin.y;
+                    const wz = z + origin.z;
+                    this.path.project(wx, wz, hint, proj);
+                    if (Math.abs(proj.lateral) > TERRAIN_HALF_WIDTH) beyondRibbon += 1;
+                    this.path.sample(proj.s, frame);
+                    const ground = frame.pos.y + this.path.crossHeight(frame, proj.lateral);
+                    const err = Math.abs(wy - ground);
+                    checked += 1;
+                    if (err > worst) {
+                        worst = err;
+                        worstLateral = proj.lateral;
+                    }
+                }
+            }
+        }
+        return { checked, worst: +worst.toFixed(3), worstLateral: +worstLateral.toFixed(1), beyondRibbon };
+    }
+
+    /**
+     * Diagnostics: the cross-section height at a lateral offset.
+     *
+     * Walks the ring in order, so a caller sampling forward along the road gets
+     * generated samples rather than the clamped oldest frame.
+     */
+    crossHeightForTest(s: number, u: number): number {
+        const f = createFrame();
+        this.path.sample(s, f);
+        return f.pos.y + this.path.crossHeight(f, u);
     }
 
     /**

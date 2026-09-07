@@ -30,7 +30,50 @@ const MAX_BANK = 0.091; // ~5.2 degrees
 export const SHOULDER_W = 1.35; // gravel shoulder beyond the carriageway
 export const DITCH_W = 2.6; // drainage ditch beyond the shoulder
 export const DITCH_DEPTH = 0.85;
-export const TERRAIN_HALF_WIDTH = 62; // how far the conforming terrain skirt reaches
+/**
+ * How far the conformed ribbon reaches from the centreline.
+ *
+ * Bounded by the fold, not by taste. Terrain is generated in road space, so the
+ * ribbon self-intersects where `u` reaches the local turning radius. The
+ * generator clamps curvature at `MIN_RADIUS`, and it genuinely reaches that
+ * clamp — a 115.0 m corner was measured on this seed — so 115 m is the real
+ * limit and not a theoretical one. At 80 m the mapping's Jacobian is
+ * 1 - 80/115 = 0.30: the inside edge compresses to a third of its nominal
+ * spacing on the tightest corner the generator can make, and never inverts.
+ */
+export const TERRAIN_HALF_WIDTH = 80;
+/** Where free terrain has fully taken over from the graded verge. */
+const CONFORM_EDGE = 46;
+/**
+ * Free terrain: the land the road was cut through, as metres above road level.
+ *
+ * Long wavelengths and large amplitude, which is the whole point. Measured, the
+ * old profile was a linear wedge plus 48 m-wavelength noise at 4 m amplitude —
+ * that is ground texture, not land, and it is why the outer skirt read as a
+ * ramp rather than a hillside. These are hundreds of metres and tens of metres,
+ * chosen off the printed distribution rather than guessed.
+ */
+/*
+ * Chosen on the printed *gradient*, not the printed amplitude — which is the
+ * mistake the first pass made. Amplitude alone says nothing about how steep a
+ * hillside is, and `fbm1`'s octaves make the effective slope far steeper than
+ * the base wavelength suggests: each octave carries half the amplitude at 2.07x
+ * the frequency, so it contributes about as much gradient as the one before it.
+ * Three octaves at 520 m measured a lateral slope of 46 degrees at its worst
+ * near the road, and a truck that ran off it slid away downhill instead of
+ * being able to climb back — which the off-road recovery test caught.
+ *
+ * Long and shallow instead: the amplitude is kept, the wavelengths are nearly
+ * doubled and the octave count cut, so the land is the same size and much
+ * gentler.
+ */
+const LAND_WAVE_A = 900;
+const LAND_AMP_A = 24;
+const LAND_WAVE_B = 430;
+const LAND_AMP_B = 9;
+const LAND_OCTAVES = 2;
+/** How hard the hillside climbs or falls away with the road's own cut/fill bias. */
+const LAND_SLOPE = 0.4;
 const CROWN = 0.075; // road crown drop at the edge
 
 export const SURFACE_ROAD = 0;
@@ -585,12 +628,45 @@ export class RoadPath {
         // its full angle right at the ditch lip. Real roads are graded that way,
         // and it also means a driver who runs wide lands on a survivable verge
         // instead of being flung down a 40-degree bank by gravity alone.
+        const out = a - ditchEnd;
+        // The graded verge, unchanged: real roads ease the slope in over the
+        // first dozen metres, and a driver who runs wide lands on a survivable
+        // shoulder rather than being flung down a bank by gravity alone.
         const side = l > 0 ? 1 : -1;
         const rise = frame.sideBias * side; // +1 cut bank, -1 fill slope
-        const out = a - ditchEnd;
-        const slope = 0.1 + (0.16 + 0.45 * rise) * smoothstep(0, 15, out);
-        const roll = fbm1((frame.s * 0.9 + l * 2.6) / 48, 3, this.seed + 211);
-        return y + out * slope + roll * Math.min(out * 0.6, 7) * 0.6;
+        const vergeSlope = 0.1 + (0.16 + 0.45 * rise) * smoothstep(0, 15, out);
+        const verge = out * vergeSlope;
+
+        // ...blending out to free terrain, which owns everything past the
+        // conform edge. Cut banks and embankments are not authored anywhere:
+        // they are what this blend does when the land happens to sit above or
+        // below the road.
+        const w = smoothstep(2, CONFORM_EDGE, out);
+        if (w <= 0) return y + verge;
+        return y + verge * (1 - w) + this.freeRelief(frame, l, out) * w;
+    }
+
+    /**
+     * Land beyond the verge, in metres above the road at this distance.
+     *
+     * Anchored to the road's own elevation rather than being an independent
+     * field. An absolute heightfield would drift arbitrarily far from a road
+     * that integrates `gradeAt(s)` over kilometres, and the banks between them
+     * would grow without bound. Anchoring keeps the invariant in section 2 of
+     * the spec — the road is untouched — while still producing terrain that
+     * does its own thing either side.
+     */
+    private freeRelief(frame: RoadFrame, l: number, out: number): number {
+        const side = l > 0 ? 1 : -1;
+        const rise = frame.sideBias * side;
+        // Two directional fields at different orientations and wavelengths.
+        // One alone is a corrugation aligned with whatever axis it was given.
+        const a1 = fbm1((frame.s * 0.8 + l * 1.7) / LAND_WAVE_A, LAND_OCTAVES, this.seed + 331);
+        const a2 = fbm1((frame.s * 1.15 - l * 0.9) / LAND_WAVE_B, LAND_OCTAVES, this.seed + 337);
+        const land = a1 * LAND_AMP_A + a2 * LAND_AMP_B;
+        // The hillside still leans the way the road's own cut/fill bias says,
+        // so a cutting stays a cutting rather than being overwritten by noise.
+        return out * LAND_SLOPE * rise + land;
     }
 
     /**
