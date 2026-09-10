@@ -16,11 +16,44 @@ import {
 } from '@/types';
 import { deepMapObject } from './data-utils';
 
+interface CachedDataIndex {
+    byUrl: Map<string, ContentObject>;
+    site?: Config;
+    theme?: ThemeStyle;
+}
+
+const dataIndexCache = new WeakMap<ContentObject[], CachedDataIndex>();
+
+function getDataIndex(allData: ContentObject[]): CachedDataIndex {
+    if (dataIndexCache.has(allData)) {
+        return dataIndexCache.get(allData)!;
+    }
+
+    const index: CachedDataIndex = {
+        byUrl: new Map()
+    };
+
+    for (const obj of allData) {
+        if (obj.__metadata?.urlPath) {
+            index.byUrl.set(obj.__metadata.urlPath, obj);
+        }
+        if (obj.__metadata?.modelName === ConfigModel.name) {
+            index.site = obj as Config;
+        } else if (obj.__metadata?.modelName === ThemeStyleModel.name) {
+            index.theme = obj as ThemeStyle;
+        }
+    }
+
+    dataIndexCache.set(allData, index);
+    return index;
+}
+
 export function resolveStaticProps(urlPath: string, allData: ContentObject[]): PageComponentProps {
-    const originalPage = allData.find((obj) => obj.__metadata.urlPath === urlPath);
+    const index = getDataIndex(allData);
+    const originalPage = index.byUrl.get(urlPath);
     const globalProps: GlobalProps = {
-        site: allData.find((obj) => obj.__metadata.modelName === ConfigModel.name) as Config,
-        theme: allData.find((obj) => obj.__metadata.modelName === ThemeStyleModel.name) as ThemeStyle
+        site: index.site as Config,
+        theme: index.theme as ThemeStyle
     };
 
     function enrichContent(value: any) {
