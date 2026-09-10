@@ -126,18 +126,6 @@ sections:
           self:
             textAlign: left
       - type: FeaturedItem
-        title: The Lynda Project
-        text: >-
-          An experimental AI companion system focused on memory, context, and
-          conversational continuity.
-        actions:
-          - type: Link
-            label: Learn more
-            url: /projects/lynda
-        styles:
-          self:
-            textAlign: left
-      - type: FeaturedItem
         title: Weather Map
         text: >-
           An interactive MapLibre weather map with live NOAA/NWS radar, precip

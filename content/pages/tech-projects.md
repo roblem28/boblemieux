@@ -28,6 +28,13 @@ sections:
     showReadMoreLink: true
     variant: variant-b
     colors: colors-f
+    actions:
+      - type: Link
+        label: View all projects
+        url: /all-projects
+        showIcon: true
+        icon: arrowRight
+        iconPosition: right
     styles:
       self:
         height: auto
