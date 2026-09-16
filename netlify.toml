@@ -44,5 +44,19 @@
   status = 200
   force = true
 
+# /tools/p6 is an unlisted launcher for a private, tailnet-only tool. The page
+# also carries a server-rendered robots meta (src/pages/_document.tsx); the header
+# covers crawlers that skip HTML. Netlify ignores trailing slashes when matching,
+# so the bare rule covers /tools/p6/ as well.
+[[headers]]
+  for = "/tools/p6"
+  [headers.values]
+    X-Robots-Tag = "noindex, nofollow"
+
+[[headers]]
+  for = "/tools/p6/*"
+  [headers.values]
+    X-Robots-Tag = "noindex, nofollow"
+
 [[plugins]]
   package = "@netlify/plugin-nextjs"
