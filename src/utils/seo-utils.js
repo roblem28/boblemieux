@@ -7,10 +7,13 @@ export function seoGenerateMetaTags(page, site) {
         });
     }
 
+    const title = seoGenerateTitle(page, site);
+    const ogImage = seoGenerateOgImage(page, site);
+
     pageMetaTags = {
         ...pageMetaTags,
-        ...(seoGenerateTitle(page, site) && { 'og:title': seoGenerateTitle(page, site) }),
-        ...(seoGenerateOgImage(page, site) && { 'og:image': seoGenerateOgImage(page, site) })
+        ...(title && { 'og:title': title }),
+        ...(ogImage && { 'og:image': ogImage })
     };
 
     if (page.metaTags?.length) {
