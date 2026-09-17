@@ -29,8 +29,8 @@ function contentFilesInPath(dir: string) {
     return glob.sync(globPattern);
 }
 
-function readContent(file: string): types.ContentObject {
-    const rawContent = fs.readFileSync(file, 'utf8');
+async function readContent(file: string): Promise<types.ContentObject> {
+    const rawContent = await fs.promises.readFile(file, 'utf8');
     let content = null;
     switch (path.extname(file).substring(1)) {
         case 'md':
@@ -102,8 +102,8 @@ function contentUrl(obj: types.ContentObject) {
     return url;
 }
 
-export function allContent(): types.ContentObject[] {
-    let objects = contentFilesInPath(contentBaseDir).map((file) => readContent(file));
+export async function allContent(): Promise<types.ContentObject[]> {
+    let objects = await Promise.all(contentFilesInPath(contentBaseDir).map((file) => readContent(file)));
 
     allPages(objects).forEach((obj) => {
         obj.__metadata.urlPath = contentUrl(obj);
