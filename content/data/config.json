@@ -27,6 +27,11 @@
             },
             {
                 "type": "Link",
+                "label": "Toon",
+                "url": "/toon/"
+            },
+            {
+                "type": "Link",
                 "label": "Blog",
                 "url": "/blog"
             }
