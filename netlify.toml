@@ -44,6 +44,29 @@
   status = 200
   force = true
 
+# Lightwalker is a Unity WebGL build served statically from public/games/lightwalker/. Its payload is Brotli-compressed
+# with Unity's ".unityweb" naming (decompression fallback on), the same as ObstacleBoy's build: sending
+# Content-Encoding: br lets the browser decompress natively instead of the loader's slower JS fallback. Unlike
+# ObstacleBoy (application/vnd.unity on all three), each file gets its real type - application/wasm in particular, so
+# the code can be compiled while it streams. Exact paths, so nothing else under /games is affected.
+[[headers]]
+  for = "/games/lightwalker/Build/webgl.wasm.unityweb"
+  [headers.values]
+    Content-Encoding = "br"
+    Content-Type = "application/wasm"
+
+[[headers]]
+  for = "/games/lightwalker/Build/webgl.framework.js.unityweb"
+  [headers.values]
+    Content-Encoding = "br"
+    Content-Type = "application/javascript"
+
+[[headers]]
+  for = "/games/lightwalker/Build/webgl.data.unityweb"
+  [headers.values]
+    Content-Encoding = "br"
+    Content-Type = "application/octet-stream"
+
 # /tools/p6 is an unlisted launcher for a private, tailnet-only tool. The page
 # also carries a server-rendered robots meta (src/pages/_document.tsx); the header
 # covers crawlers that skip HTML. Netlify ignores trailing slashes when matching,
