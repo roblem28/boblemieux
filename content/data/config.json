@@ -32,6 +32,11 @@
             },
             {
                 "type": "Link",
+                "label": "Interview",
+                "url": "https://boblemieux.ai/interview/"
+            },
+            {
+                "type": "Link",
                 "label": "Blog",
                 "url": "/blog"
             }
