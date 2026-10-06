@@ -81,5 +81,22 @@
   [headers.values]
     X-Robots-Tag = "noindex, nofollow"
 
+# /tires is an unlisted video page (not in the nav, shared by link). The page carries a robots meta; the headers also
+# keep the page and its video files out of indexes for crawlers that skip HTML.
+[[headers]]
+  for = "/tires"
+  [headers.values]
+    X-Robots-Tag = "noindex, nofollow"
+
+[[headers]]
+  for = "/tires/*"
+  [headers.values]
+    X-Robots-Tag = "noindex, nofollow"
+
+[[headers]]
+  for = "/videos/tires-metal-v2*"
+  [headers.values]
+    X-Robots-Tag = "noindex, nofollow"
+
 [[plugins]]
   package = "@netlify/plugin-nextjs"
