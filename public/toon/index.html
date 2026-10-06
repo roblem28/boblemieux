@@ -4,11 +4,11 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Toons, clips and games | Bob LeMieux</title>
-  <meta name="description" content="Recent AI-pipeline work: Bob &amp; Kenny vs. The Machine (a mock magazine interview), Hudson &amp; BubBub: Hyperdrive, and the Lightwalker WebGL game.">
+  <meta name="description" content="Recent AI-pipeline work: Bob &amp; Kenny vs. The Machine (a mock magazine interview), Flaming Tires vs. Zombies, Hudson &amp; BubBub: Hyperdrive, and the Lightwalker WebGL game.">
   <meta property="og:title" content="Toons, clips and games | Bob LeMieux">
   <meta property="og:type" content="video.other">
-  <meta property="og:image" content="https://boblemieux.ai/videos/bob-kenny-vs-the-machine-v2-poster.jpg">
-  <meta property="og:video" content="https://boblemieux.ai/videos/bob-kenny-vs-the-machine-v2.mp4">
+  <meta property="og:image" content="https://boblemieux.ai/videos/bob-kenny-interview-v2-poster.jpg">
+  <meta property="og:video" content="https://boblemieux.ai/videos/bob-kenny-interview-v2.mp4">
   <style>
     :root { --bg: #0b1116; --fg: #e8eef3; --muted: #9fb0bf; --accent: #ff5a3c; --line: #1d2a35; }
     * { box-sizing: border-box; }
@@ -26,6 +26,7 @@
     video { display: block; width: 100%; height: auto; background: #000; border-radius: 8px; }
     video.wide { aspect-ratio: 16 / 9; }
     video.std { aspect-ratio: 4 / 3; }
+    video.tall { aspect-ratio: 3 / 4; max-width: 540px; margin: 0 auto; }
     p { color: var(--muted); font-size: 1.05rem; margin: 16px 0 0; max-width: 70ch; }
     p.note { font-size: 0.9rem; }
     a.play { display: inline-block; margin-top: 4px; padding: 12px 22px; border-radius: 8px; background: var(--accent);
@@ -39,18 +40,28 @@
     <h1>Toons, clips and games</h1>
     <ul class="toc">
       <li><a href="#interview">Bob &amp; Kenny vs. The Machine</a></li>
+      <li><a href="#zombies">Flaming Tires vs. Zombies</a></li>
       <li><a href="#lightwalker">Lightwalker</a></li>
       <li><a href="#hyperdrive">Hudson &amp; BubBub: Hyperdrive</a></li>
     </ul>
 
     <section id="interview">
       <h2>Bob &amp; Kenny vs. The Machine</h2>
-      <video class="std" controls playsinline preload="metadata" poster="/videos/bob-kenny-vs-the-machine-v2-poster.jpg">
-        <source src="/videos/bob-kenny-vs-the-machine-v2.mp4" type="video/mp4">
-        Your browser can't play this video. <a href="/videos/bob-kenny-vs-the-machine-v2.mp4">Download it instead.</a>
+      <video class="std" controls playsinline preload="metadata" poster="/videos/bob-kenny-interview-v2-poster.jpg">
+        <source src="/videos/bob-kenny-interview-v2.mp4" type="video/mp4">
+        Your browser can't play this video. <a href="/videos/bob-kenny-interview-v2.mp4">Download it instead.</a>
       </video>
       <p>A 2:26 illustrated mock magazine interview: two brothers, one dim bar, 19 lines on AI, construction and survival. Stills restyled as painterly illustration, lip-synced with Wan 2.2 S2V, ElevenLabs voices, built with Claude Code.</p>
       <p class="note">Parody. A scripted, fictional interview; not affiliated with or endorsed by any magazine.</p>
+    </section>
+
+    <section id="zombies">
+      <h2>Flaming Tires vs. Zombies</h2>
+      <video class="tall" controls playsinline preload="metadata" poster="/videos/tires-metal-v2-poster.jpg">
+        <source src="/videos/tires-metal-v2.mp4" type="video/mp4">
+        Your browser can't play this video. <a href="/videos/tires-metal-v2.mp4">Download it instead.</a>
+      </video>
+      <p>A 2-minute graphic-novel action short by Bob Lemieux, made with Wan 2.2 and custom character LoRAs.</p>
     </section>
 
     <section id="lightwalker">
