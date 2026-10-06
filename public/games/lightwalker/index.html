@@ -15,8 +15,10 @@
       })();
     </script>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-    <!-- no user scaling; viewport-fit=cover so the canvas reaches the edges and the game reads the safe-area insets -->
-    <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1, minimum-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+    <!-- no user scaling; viewport-fit=cover so the canvas reaches the edges and the game reads the safe-area insets.
+         No height=device-height: iPhone Safari takes the portrait height in landscape too (the page grows taller than the
+         screen and the button arc falls below it) -->
+    <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -42,6 +44,7 @@
       </div>
     </div>
     <button id="lw-fs" aria-label="Fullscreen"></button>
+    <div id="lw-a2hs" role="note">Full screen on iPhone: tap <b>Share</b>, then <b>Add to Home Screen</b>. <span>&times;</span></div>
     <div id="lw-rotate"><div class="lw-phone"></div>Turn your device sideways to play.<br><small>Lightwalker plays in landscape.</small></div>
     <script>
       var canvas = document.querySelector("#unity-canvas");
@@ -117,6 +120,29 @@
         var root = document.documentElement;
         var fsSupported = !!(root.requestFullscreen || root.webkitRequestFullscreen);
         if (!fsSupported) fs.style.visibility = "hidden";
+        // iPhone Safari has no Fullscreen API; a Home Screen launch (apple-mobile-web-app-capable) is full screen. Say so once
+        // (8 s, tap to close), only in the browser (navigator.standalone is false there) and only where fullscreen is missing
+        var ios = /iPhone|iPod/.test(navigator.userAgent) || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1);
+        if (ios && !fsSupported && navigator.standalone === false) {
+          var seen = false;
+          try { seen = localStorage.getItem("lw.a2hsShown") === "1"; localStorage.setItem("lw.a2hsShown", "1"); } catch (e) {}
+          if (!seen) {
+            var hint = document.querySelector("#lw-a2hs");
+            var hide = function () { hint.style.display = "none"; };
+            hint.style.display = "block"; hint.addEventListener("touchend", hide); setTimeout(hide, 8000);
+          }
+        }
+        // the visible height: iOS Safari's toolbars come and go in landscape and it reports the new size late after a
+        // rotation, so the container follows innerHeight (re-read on resize / rotate / visual-viewport change, and again
+        // after the rotation settles) and the page is scrolled back to the top so the fixed canvas isn't left offset
+        var fitHeight = function () {
+          document.documentElement.style.setProperty("--lw-h", window.innerHeight + "px");
+          if (window.scrollY || window.scrollX) window.scrollTo(0, 0);
+        };
+        fitHeight();
+        window.addEventListener("resize", fitHeight);
+        window.addEventListener("orientationchange", function () { fitHeight(); setTimeout(fitHeight, 250); setTimeout(fitHeight, 700); });
+        if (window.visualViewport) window.visualViewport.addEventListener("resize", fitHeight);
         fs.addEventListener("click", function () {
           var p = root.requestFullscreen ? root.requestFullscreen({ navigationUI: "hide" }) : root.webkitRequestFullscreen && root.webkitRequestFullscreen();
           Promise.resolve(p).then(function () {
