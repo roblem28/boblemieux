@@ -34,7 +34,11 @@ sections:
       computing and AI. It's not hype—it's the continuation of what I've
       always done: build the next layer of tools that makes real work easier,
       faster, and smarter.
-    actions: []
+    actions:
+      - type: Button
+        label: ▶ Play Lightwalker
+        url: /games/lightwalker/
+        style: primary
     styles:
       self:
         height: auto
