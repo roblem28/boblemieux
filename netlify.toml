@@ -86,5 +86,10 @@
   [headers.values]
     X-Robots-Tag = "noindex"
 
+[[headers]]
+  for = "/tires-roughcut/*"
+  [headers.values]
+    X-Robots-Tag = "noindex"
+
 [[plugins]]
   package = "@netlify/plugin-nextjs"
