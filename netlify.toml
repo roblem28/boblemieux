@@ -67,6 +67,13 @@
     Content-Encoding = "br"
     Content-Type = "application/octet-stream"
 
+# Phase 3d: the ASTC texture payload for phones / tablets (the page picks it when the GPU has ASTC on a touch device)
+[[headers]]
+  for = "/games/lightwalker/Build/webgl.astc.data.unityweb"
+  [headers.values]
+    Content-Encoding = "br"
+    Content-Type = "application/octet-stream"
+
 # /tools/p6 is an unlisted launcher for a private, tailnet-only tool. The page
 # also carries a server-rendered robots meta (src/pages/_document.tsx); the header
 # covers crawlers that skip HTML. Netlify ignores trailing slashes when matching,
