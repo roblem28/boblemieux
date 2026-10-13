@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en-us">
+  <head>
+    <meta charset="utf-8">
+    <script>
+      // Unity loads its payload relatively ("Build/..."). Served at /games/lightwalker with no trailing slash, a browser
+      // resolves that one directory up and 404s it; Netlify ignores trailing slashes when matching, so it can't redirect
+      // the bare path without looping. Move onto the trailing-slash URL here (as ObstacleBoy does). Guarded on the last
+      // segment having no extension (a direct ".../index.html" hit is left alone) and on the slash itself (no loop).
+      (function () {
+        var path = location.pathname;
+        if (path.charAt(path.length - 1) !== "/" && !/\.[^/]*$/.test(path)) {
+          location.replace(path + "/" + location.search + location.hash);
+        }
+      })();
+    </script>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <!-- no user scaling; viewport-fit=cover so the canvas reaches the edges and the game reads the safe-area insets.
+         No height=device-height: iPhone Safari takes the portrait height in landscape too (the page grows taller than the
+         screen and the button arc falls below it) -->
+    <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#1b1915">
+    <title>PlanetCraft</title>
+    <link rel="shortcut icon" href="TemplateData/favicon.ico">
+    <link rel="stylesheet" href="TemplateData/style.css">
+  </head>
+  <body>
+    <div id="unity-container" class="unity-desktop">
+      <canvas id="unity-canvas" width=960 height=600 tabindex="-1"></canvas>
+      <!-- the loading screen (job 042): shown from the first paint until the game is ready; CSS only, no images -->
+      <div id="pc-loading">
+        <div id="pc-loading-box">
+          <div id="pc-loading-name">PlanetCraft</div>
+          <div id="pc-loading-bar"><div id="pc-loading-fill"></div></div>
+          <div id="pc-loading-text">Loading 0 %</div>
+        </div>
+      </div>
+      <div id="unity-warning"> </div>
+      <div id="unity-footer">
+        <div id="unity-fullscreen-button"></div>
+        <div id="unity-build-title">PlanetCraft</div>
+      </div>
+    </div>
+    <button id="lw-fs" aria-label="Fullscreen"></button>
+    <div id="lw-a2hs" role="note">Full screen on iPhone: tap <b>Share</b>, then <b>Add to Home Screen</b>. <span>&times;</span></div>
+    <div id="lw-rotate"><div class="lw-phone"></div>Turn your device sideways to play.<br><small>PlanetCraft plays in landscape.</small></div>
+    <script>
+      var canvas = document.querySelector("#unity-canvas");
+      // the loading screen follows the loader's progress (0..1) as a bar and "Loading <n> %"
+      var loading = document.querySelector("#pc-loading");
+      var loadingFill = document.querySelector("#pc-loading-fill");
+      var loadingText = document.querySelector("#pc-loading-text");
+      // a touch device: coarse pointer, or ?touch=1 (desktop testing); ?touch=0 forces the desktop page
+      var coarse = /[?&]touch=1/.test(location.search) ||
+        (!/[?&]touch=0/.test(location.search) && ((window.matchMedia && matchMedia("(pointer: coarse)").matches) || /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)));
+
+      function unityShowBanner(msg, type) {
+        var warningBanner = document.querySelector("#unity-warning");
+        function updateBannerVisibility() {
+          warningBanner.style.display = warningBanner.children.length ? 'block' : 'none';
+        }
+        var div = document.createElement('div');
+        div.innerHTML = msg;
+        warningBanner.appendChild(div);
+        if (type == 'error') div.style = 'background: red; padding: 10px;';
+        else {
+          if (type == 'warning') div.style = 'background: yellow; padding: 10px;';
+          setTimeout(function() {
+            warningBanner.removeChild(div);
+            updateBannerVisibility();
+          }, 5000);
+        }
+        updateBannerVisibility();
+      }
+
+      // textures: ASTC payload where the GPU has ASTC and this is a touch device (or it has no DXT/S3TC), else the DXT one
+      var buildUrl = "Build";
+      var dataFile = "webgl.data.unityweb";
+      var textureFormat = "dxt";
+      try {
+        var gl = document.createElement("canvas").getContext("webgl2");
+        var astc = gl && gl.getExtension("WEBGL_compressed_texture_astc");
+        var s3tc = gl && gl.getExtension("WEBGL_compressed_texture_s3tc");
+        if (astc && (coarse || !s3tc)) { dataFile = dataFile.replace(".data", ".astc.data"); textureFormat = "astc"; }
+      } catch (e) {}
+      window.lwTextureFormat = textureFormat;
+
+      var loaderUrl = buildUrl + "/webgl.loader.js";
+      var config = {
+        arguments: [],
+        dataUrl: buildUrl + "/" + dataFile,
+        frameworkUrl: buildUrl + "/webgl.framework.js.unityweb",
+        codeUrl: buildUrl + "/webgl.wasm.unityweb",
+        streamingAssetsUrl: "StreamingAssets",
+        companyName: "BoxOfRox",
+        productName: "PlanetCraft",
+        productVersion: "1.0",
+        showBanner: unityShowBanner,
+      };
+
+      if (coarse) {
+        document.body.classList.add("lw-coarse");
+        document.querySelector("#unity-container").className = "unity-mobile";
+        // backbuffer resolution: cap devicePixelRatio at 1.5 (the game also renders 3D at 0.75 scale on this tier)
+        config.devicePixelRatio = Math.min(window.devicePixelRatio || 1, 1.5);
+
+        // block the browser's own gestures: pull-to-refresh / overscroll, pinch and double-tap zoom, long-press menus
+        var block = function (e) { if (e.cancelable) e.preventDefault(); };
+        document.addEventListener("touchmove", block, { passive: false });
+        document.addEventListener("gesturestart", block, { passive: false });
+        document.addEventListener("dblclick", block, { passive: false });
+        document.addEventListener("contextmenu", block);
+        var lastEnd = 0;
+        document.addEventListener("touchend", function (e) {
+          var now = Date.now();
+          if (now - lastEnd < 350 && e.target !== document.querySelector("#lw-fs")) block(e);   // second tap of a double tap
+          lastEnd = now;
+        }, { passive: false });
+
+        // fullscreen + landscape lock, from a real tap (both need a user gesture; iPhone Safari has neither)
+        var fs = document.querySelector("#lw-fs");
+        var root = document.documentElement;
+        var fsSupported = !!(root.requestFullscreen || root.webkitRequestFullscreen);
+        if (!fsSupported) fs.style.visibility = "hidden";
+        // iPhone Safari has no Fullscreen API; a Home Screen launch (apple-mobile-web-app-capable) is full screen. Say so once
+        // (8 s, tap to close), only in the browser (navigator.standalone is false there) and only where fullscreen is missing
+        var ios = /iPhone|iPod/.test(navigator.userAgent) || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1);
+        if (ios && !fsSupported && navigator.standalone === false) {
+          var seen = false;
+          try { seen = localStorage.getItem("lw.a2hsShown") === "1"; localStorage.setItem("lw.a2hsShown", "1"); } catch (e) {}
+          if (!seen) {
+            var hint = document.querySelector("#lw-a2hs");
+            var hide = function () { hint.style.display = "none"; };
+            hint.style.display = "block"; hint.addEventListener("touchend", hide); setTimeout(hide, 8000);
+          }
+        }
+        // the visible height: iOS Safari's toolbars come and go in landscape and it reports the new size late after a
+        // rotation, so the container follows innerHeight (re-read on resize / rotate / visual-viewport change, and again
+        // after the rotation settles) and the page is scrolled back to the top so the fixed canvas isn't left offset
+        var fitHeight = function () {
+          document.documentElement.style.setProperty("--lw-h", window.innerHeight + "px");
+          if (window.scrollY || window.scrollX) window.scrollTo(0, 0);
+        };
+        fitHeight();
+        window.addEventListener("resize", fitHeight);
+        window.addEventListener("orientationchange", function () { fitHeight(); setTimeout(fitHeight, 250); setTimeout(fitHeight, 700); });
+        if (window.visualViewport) window.visualViewport.addEventListener("resize", fitHeight);
+        fs.addEventListener("click", function () {
+          var p = root.requestFullscreen ? root.requestFullscreen({ navigationUI: "hide" }) : root.webkitRequestFullscreen && root.webkitRequestFullscreen();
+          Promise.resolve(p).then(function () {
+            if (screen.orientation && screen.orientation.lock) return screen.orientation.lock("landscape").catch(function () {});
+          }).catch(function () {});
+        });
+        var onFs = function () { document.body.classList.toggle("lw-fullscreen", !!(document.fullscreenElement || document.webkitFullscreenElement)); };
+        document.addEventListener("fullscreenchange", onFs);
+        document.addEventListener("webkitfullscreenchange", onFs);
+      } else {
+        canvas.style.width = "960px";
+        canvas.style.height = "600px";
+        loading.style.width = canvas.style.width;
+        loading.style.height = canvas.style.height;
+      }
+
+      window.lwLoadStart = performance.now();
+
+      var script = document.createElement("script");
+      script.src = loaderUrl;
+      script.onload = () => {
+        createUnityInstance(canvas, config, (progress) => {
+          var pct = Math.round(100 * progress);
+          loadingFill.style.width = pct + "%";
+          loadingText.textContent = "Loading " + pct + " %";
+        }).then((unityInstance) => {
+          window.lwLoadMs = performance.now() - window.lwLoadStart;
+          // QC builds only: the browser checks drive the game through it. PCSetup.BuildWebGLRelease deletes the next line,
+          // so the release page keeps the instance in this closure (job 042)
+          loading.style.display = "none";
+          document.body.classList.add("lw-ready");
+          document.querySelector("#unity-fullscreen-button").onclick = () => {
+            unityInstance.SetFullscreen(1);
+          };
+        }).catch((message) => {
+          alert(message);
+        });
+      };
+
+      document.body.appendChild(script);
+    </script>
+  </body>
+</html>

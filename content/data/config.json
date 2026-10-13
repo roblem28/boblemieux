@@ -37,6 +37,11 @@
             },
             {
                 "type": "Link",
+                "label": "PlanetCraft",
+                "url": "https://boblemieux.ai/games/planetcraft/"
+            },
+            {
+                "type": "Link",
                 "label": "Blog",
                 "url": "/blog"
             }
