@@ -112,7 +112,7 @@
 # Exact paths only (no *), so /projects/<slug> pages and public/projects/ assets are untouched.
 [[redirects]]
   from = "/info"
-  to = "/work"
+  to = "/work/"
   status = 301
   force = true
 
@@ -124,7 +124,7 @@
 
 [[redirects]]
   from = "/work-projects"
-  to = "/controls-ai"
+  to = "/controls-ai/"
   status = 301
   force = true
 
@@ -142,37 +142,37 @@
 
 [[redirects]]
   from = "/projects/boblemieux-ai"
-  to = "/projects/marley1"
+  to = "/projects/marley1/"
   status = 301
   force = true
 
 [[redirects]]
   from = "/blog/post-two"
-  to = "/blog"
+  to = "/blog/"
   status = 301
   force = true
 
 [[redirects]]
   from = "/blog/post-three"
-  to = "/blog"
+  to = "/blog/"
   status = 301
   force = true
 
 [[redirects]]
   from = "/blog/post-five"
-  to = "/blog"
+  to = "/blog/"
   status = 301
   force = true
 
 [[redirects]]
   from = "/blog/post-six"
-  to = "/blog"
+  to = "/blog/"
   status = 301
   force = true
 
 [[redirects]]
   from = "/blog/post-seven"
-  to = "/blog"
+  to = "/blog/"
   status = 301
   force = true
 

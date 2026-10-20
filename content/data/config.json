@@ -13,27 +13,27 @@
             {
                 "type": "Link",
                 "label": "Experience",
-                "url": "/work"
+                "url": "/work/"
             },
             {
                 "type": "Link",
                 "label": "Controls & AI",
-                "url": "/controls-ai"
+                "url": "/controls-ai/"
             },
             {
                 "type": "Link",
                 "label": "Maps & Data",
-                "url": "/maps-data"
+                "url": "/maps-data/"
             },
             {
                 "type": "Link",
                 "label": "Games & Toons",
-                "url": "/play"
+                "url": "/play/"
             },
             {
                 "type": "Link",
                 "label": "Writing",
-                "url": "/blog"
+                "url": "/blog/"
             }
         ],
         "socialLinks": [
@@ -71,7 +71,7 @@
             {
                 "type": "Link",
                 "label": "Experience",
-                "url": "/work",
+                "url": "/work/",
                 "altText": ""
             },
             {
@@ -83,7 +83,7 @@
             {
                 "type": "Link",
                 "label": "Writing",
-                "url": "/blog",
+                "url": "/blog/",
                 "altText": ""
             },
             {

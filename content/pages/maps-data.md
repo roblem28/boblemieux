@@ -71,7 +71,7 @@ sections:
     actions:
     - type: Link
       label: Open map
-      url: /projects/weather
+      url: /projects/weather/
     styles:
       self:
         textAlign: left
@@ -82,7 +82,7 @@ sections:
     actions:
     - type: Link
       label: Open explorer
-      url: /projects/spending
+      url: /projects/spending/
     styles:
       self:
         textAlign: left
@@ -93,7 +93,7 @@ sections:
     actions:
     - type: Link
       label: Open explorer
-      url: /projects/fec
+      url: /projects/fec/
     styles:
       self:
         textAlign: left
@@ -105,7 +105,7 @@ sections:
     actions:
     - type: Link
       label: Open digest
-      url: /projects/nyt
+      url: /projects/nyt/
     styles:
       self:
         textAlign: left

@@ -86,7 +86,7 @@ sections:
     actions:
     - type: Link
       label: Experience
-      url: /work
+      url: /work/
     styles:
       self:
         textAlign: left
@@ -96,7 +96,7 @@ sections:
     actions:
     - type: Link
       label: Controls & AI
-      url: /controls-ai
+      url: /controls-ai/
     styles:
       self:
         textAlign: left
@@ -107,7 +107,7 @@ sections:
     actions:
     - type: Link
       label: Maps & Data
-      url: /maps-data
+      url: /maps-data/
     styles:
       self:
         textAlign: left
@@ -117,7 +117,7 @@ sections:
     actions:
     - type: Link
       label: Games & Toons
-      url: /play
+      url: /play/
     styles:
       self:
         textAlign: left

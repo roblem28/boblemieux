@@ -43,7 +43,7 @@ sections:
     actions:
     - type: Link
       label: Read more
-      url: /work/integra
+      url: /work/integra/
     styles:
       self:
         textAlign: left
