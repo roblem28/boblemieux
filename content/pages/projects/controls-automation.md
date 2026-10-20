@@ -5,9 +5,7 @@ colors: colors-a
 date: '2025-01-10'
 client: ''
 description: >-
-  Custom-built Excel engines with VBA automation that consolidate schedule,
-  cost, and forecasting data from multiple sources into executive-ready reports.
-  Turns days of manual work into minutes of reliable output.
+  Excel and VBA engines that pull schedule, cost and forecast data from many sources into executive reports. Days of manual compilation become minutes.
 featuredImage:
   type: ImageBlock
   url: /images/bg2.jpg
@@ -18,4 +16,8 @@ media:
   altText: Controls Automation Toolset
 ---
 
-Project controls teams spend days compiling schedule updates, cost forecasts, and variance reports from fragmented data sources—P6 exports, contractor submittals, budget trackers, and manual logs. I developed a suite of advanced Excel models with VBA automation that ingests this data, normalizes formats, calculates key metrics, and outputs executive dashboards with minimal human input. These tools have become the backbone of weekly reporting for multi-hundred-million-dollar projects, replacing error-prone manual processes with consistent, audit-ready outputs. The result: faster reporting cycles, fewer mistakes, and leadership that trusts the numbers.
+**The problem.** Weekly controls reporting meant days of copying P6 exports, contractor submittals, budget trackers and manual logs into one place, with errors at every hand-off.
+
+**What I built.** A set of Excel models with VBA automation that ingest those sources, normalize the formats, calculate the key metrics and produce executive dashboards with little manual input.
+
+**What changed.** These tools became the backbone of weekly reporting on multi-hundred-million-dollar projects: faster cycles, fewer mistakes, and outputs consistent enough to audit.

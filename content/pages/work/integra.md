@@ -2,13 +2,12 @@
 type: ProjectLayout
 title: Integra Mission Critical
 colors: colors-a
-date: '2024-06-01'
-client: Integra
+date: '2025-11-01'
+client: Integra Mission Critical
 description: >-
-  Senior Construction Schedule and EVM Manager on mission-critical data center
-  construction programs. Integra delivers turnkey data center solutions through
-  an integrated model spanning design, manufacturing, construction,
-  commissioning, and service.
+  Project Controls Lead on a 143 MW AI data center build in Dalton, Georgia.
+  Integra delivers turnkey data centers through one model spanning design,
+  manufacturing, construction, commissioning and service.
 featuredImage:
   type: ImageBlock
   url: /images/integra.jpg
@@ -16,17 +15,16 @@ featuredImage:
 media:
   type: ImageBlock
   url: /images/integra.jpg
-  altText: Integra Mission Critical — data center construction
-metaTitle: Integra Mission Critical — Bob LeMieux Schedule and EVM Manager
+  altText: Integra Mission Critical data center construction
+metaTitle: Integra Mission Critical — Bob LeMieux, Project Controls Lead
 metaDescription: >-
-  Senior Construction Schedule and EVM Manager at Integra Mission Critical,
-  managing schedule and earned value performance for turnkey data center
-  construction programs.
+  Project Controls Lead at Integra Mission Critical on a 143 MW AI data center
+  build in Dalton, Georgia.
 socialImage: /images/integra.jpg
 ---
 
-I manage schedule and earned value performance for mission-critical data center construction programs at Integra. The company delivers turnkey data center solutions through an integrated model spanning design, manufacturing, construction, commissioning, and service. Working in that environment means maintaining control across fast-moving, high-density data center infrastructure projects where schedule integrity, progress measurement, and execution discipline matter every day.
+I lead project controls on a 143 MW AI data center build in Dalton, Georgia. Integra delivers turnkey data centers through one integrated model: design, manufacturing, construction, commissioning and service under one roof.
 
-**Role — Senior Construction Schedule and EVM Manager.** I own the scheduling and earned value function across active programs: integrated master schedule development and maintenance, progress measurement, EVM reporting, critical path analysis, and the reporting cadences that connect field performance to executive visibility. In a fast-cycle data center environment, the controls framework has to keep pace with the program — not lag it.
+**Role — Project Controls Lead.** Integrated schedule development and maintenance, progress measurement, earned value reporting and critical path analysis, plus the reporting cadence that connects field performance to executive decisions. On a fast-cycle data center build, the controls framework has to keep pace with the work, not report on it after the fact.
 
-Integra's integrated delivery model — owning design through commissioning under one roof — creates a controls environment that differs from traditional GC or EPC programs. Interdependencies between design release, manufacturing, and field construction are tighter, sequencing decisions have compounding effects, and schedule control has to account for the full delivery chain, not just site activity.
+**Why it is different.** When one company owns design release, manufacturing and field construction, the interdependencies are tighter than on a traditional GC or EPC job. A sequencing decision upstream compounds downstream, so the schedule has to cover the whole delivery chain, not just site activity.

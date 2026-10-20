@@ -9,12 +9,12 @@ backgroundImage:
   backgroundPosition: center
   backgroundRepeat: no-repeat
   opacity: 75
-date: '2025-02-01'
+date: '2026-09-21'
 client: ''
 description: >-
-  A portable AI + compute platform designed for field-ready intelligence—small
-  hardware, big capability. Built to bring serious processing power and
-  agent-style workflows to environments where traditional setups don't fit.
+  My home AI lab on small edge hardware: local language models on a Jetson Orin
+  Nano and Raspberry Pi 5, and an overnight analyst that reviews project
+  schedules and earned value without the data leaving the building.
 featuredImage:
   type: ImageBlock
   url: /images/marley1.jpg
@@ -25,4 +25,10 @@ media:
   altText: Marley1
 ---
 
-Most AI and compute tools assume you're sitting at a desk with power, internet, and a full workstation—but real-world work doesn't always happen there. Marley1 is a portable platform designed to bring serious AI capability into the field: a compact device running local LLMs, agent systems, and edge processing that can operate offline or on limited networks. It's built for environments where traditional laptops are impractical and cloud dependence is a liability—industrial sites, remote locations, or mobile use cases that demand intelligence without infrastructure. The goal isn't to replace desktops; it's to extend capability into contexts where it's never existed before.
+Marley1 is a small mesh of edge computers I use to find out how much useful AI fits on cheap, local hardware. The main node is an NVIDIA Jetson Orin Nano with 8 GB of memory and an NVMe drive, alongside a Raspberry Pi 5.
+
+**Big models on a small board.** A 30B-parameter mixture-of-experts model does not fit in 8 GB, so I streamed it from the SSD and measured every lever: quantization level, power mode, speculative decoding, KV-cache settings, GPU offload and expert prefetch. Some worked, several were dead ends, and every result was benchmarked before it was kept. The model running today is a pruned 15B mixture-of-experts at about 5 tokens per second.
+
+**First real job: an overnight analyst.** Drop a P6 export or an earned value file in a folder and a report is waiting in the morning. Python computes every number; the model only writes the narrative, and any figure it cannot verify is flagged. Confidential project data never leaves the box.
+
+**Quality gate.** Every model is scored against the same 48-prompt test of tool use, schedule and cost interpretation before it gets a job. Arithmetic always goes through a calculator tool, because no small model passes that part reliably.

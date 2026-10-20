@@ -1,82 +1,33 @@
 ---
 type: PostLayout
-title: 'How I Started Building in the AI Era'
+title: How I Started Building in the AI Era
 colors: colors-a
 date: '2026-02-24'
 author: content/data/team/bob-lemieux.json
-excerpt: >-
-  After decades delivering complex projects, I'm now building AI systems, automation pipelines, and digital tools that improve how work gets done.
+excerpt: After decades delivering complex projects, I'm now building AI systems, automation
+  pipelines, and digital tools that improve how work gets done.
 bottomSections:
-  - elementId: ''
-    type: RecentPostsSection
-    colors: colors-f
-    variant: variant-d
-    subtitle: Recent posts
-    showDate: true
-    showAuthor: false
-    showExcerpt: true
-    recentCount: 2
-    styles:
-      self:
-        height: auto
-        width: wide
-        padding:
-          - pt-12
-          - pb-56
-          - pr-4
-          - pl-4
-        textAlign: left
-    showFeaturedImage: true
-    showReadMoreLink: true
-  - type: ContactSection
-    backgroundSize: full
-    title: 'Stay up-to-date with my words ✍️'
-    colors: colors-f
-    form:
-      type: FormBlock
-      elementId: sign-up-form
-      fields:
-        - name: firstName
-          label: First Name
-          hideLabel: true
-          placeholder: First Name
-          isRequired: true
-          width: 1/2
-          type: TextFormControl
-        - name: lastName
-          label: Last Name
-          hideLabel: true
-          placeholder: Last Name
-          isRequired: false
-          width: 1/2
-          type: TextFormControl
-        - name: email
-          label: Email
-          hideLabel: true
-          placeholder: Email
-          isRequired: true
-          width: full
-          type: EmailFormControl
-        - name: updatesConsent
-          label: Sign me up to receive my words
-          isRequired: false
-          width: full
-          type: CheckboxFormControl
-      submitLabel: "Submit \U0001F680"
-      styles:
-        self:
-          textAlign: center
-    styles:
-      self:
-        height: auto
-        width: wide
-        padding:
-          - pt-24
-          - pb-24
-          - pr-4
-          - pl-4
-        flexDirection: row
-        textAlign: left
+- elementId: ''
+  type: RecentPostsSection
+  colors: colors-f
+  variant: variant-d
+  subtitle: Recent posts
+  showDate: true
+  showAuthor: false
+  showExcerpt: true
+  recentCount: 2
+  styles:
+    self:
+      height: auto
+      width: wide
+      padding:
+      - pt-12
+      - pb-56
+      - pr-4
+      - pl-4
+      textAlign: left
+  showFeaturedImage: true
+  showReadMoreLink: true
 ---
 
 Starting something new later in your career is an interesting experience.

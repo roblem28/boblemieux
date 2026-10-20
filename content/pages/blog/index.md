@@ -1,7 +1,7 @@
 ---
 type: PostFeedLayout
-title: Blog
-metaTitle: Bob LeMieux — Blog
+title: Writing
+metaTitle: Bob LeMieux — Writing
 metaDescription: >-
   Insights on construction project controls, scheduling, AI workflows, and
   emerging technology in capital project delivery.
@@ -26,7 +26,7 @@ postFeed:
         - pb-12
 topSections:
   - type: HeroSection
-    title: Blog
+    title: Writing
     subtitle: ''
     actions: []
     colors: colors-f
