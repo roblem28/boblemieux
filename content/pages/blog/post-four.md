@@ -1,82 +1,33 @@
 ---
 type: PostLayout
-title: 'Sharing What I Have Learned After 40+ Years of Building Things'
+title: What 45 Years of Building Things Taught Me
 colors: colors-a
 date: '2026-03-03'
 author: content/data/team/bob-lemieux.json
-excerpt: >-
-  Theory only gets you so far. After decades building complex systems in the physical world and now in data, automation, and AI — here is what actually holds true.
+excerpt: Theory only gets you so far. After decades building complex systems in the physical
+  world and now in data, automation, and AI — here is what actually holds true.
 bottomSections:
-  - elementId: ''
-    type: RecentPostsSection
-    colors: colors-f
-    variant: variant-d
-    subtitle: Recent posts
-    showDate: true
-    showAuthor: false
-    showExcerpt: true
-    recentCount: 2
-    styles:
-      self:
-        height: auto
-        width: wide
-        padding:
-          - pt-12
-          - pb-56
-          - pr-4
-          - pl-4
-        textAlign: left
-    showFeaturedImage: true
-    showReadMoreLink: true
-  - type: ContactSection
-    backgroundSize: full
-    title: 'Stay up-to-date with my words ✍️'
-    colors: colors-f
-    form:
-      type: FormBlock
-      elementId: sign-up-form
-      fields:
-        - name: firstName
-          label: First Name
-          hideLabel: true
-          placeholder: First Name
-          isRequired: true
-          width: 1/2
-          type: TextFormControl
-        - name: lastName
-          label: Last Name
-          hideLabel: true
-          placeholder: Last Name
-          isRequired: false
-          width: 1/2
-          type: TextFormControl
-        - name: email
-          label: Email
-          hideLabel: true
-          placeholder: Email
-          isRequired: true
-          width: full
-          type: EmailFormControl
-        - name: updatesConsent
-          label: Sign me up to receive my words
-          isRequired: false
-          width: full
-          type: CheckboxFormControl
-      submitLabel: "Submit \U0001F680"
-      styles:
-        self:
-          textAlign: center
-    styles:
-      self:
-        height: auto
-        width: narrow
-        padding:
-          - pt-24
-          - pb-24
-          - pr-4
-          - pl-4
-        flexDirection: row
-        textAlign: left
+- elementId: ''
+  type: RecentPostsSection
+  colors: colors-f
+  variant: variant-d
+  subtitle: Recent posts
+  showDate: true
+  showAuthor: false
+  showExcerpt: true
+  recentCount: 2
+  styles:
+    self:
+      height: auto
+      width: wide
+      padding:
+      - pt-12
+      - pb-56
+      - pr-4
+      - pl-4
+      textAlign: left
+  showFeaturedImage: true
+  showReadMoreLink: true
 ---
 
 Over the course of my career I've had the opportunity to work on complex projects, large teams, and challenging environments where execution really mattered. When you're responsible for delivering results, you quickly learn that theory only gets you so far.

@@ -38,9 +38,11 @@ const Component: React.FC<ComponentProps> = (props) => {
                 <header className="max-w-5xl mx-auto mb-10 sm:mb-14">
                     {client && <div className="text-lg uppercase md:mb-6">{client}</div>}
                     <div className="flex flex-col gap-6 md:flex-row md:justify-between">
-                        <time className="text-lg md:order-last" dateTime={dateTimeAttr}>
-                            {formattedDate}
-                        </time>
+                        {date && (
+                            <time className="text-lg md:order-last" dateTime={dateTimeAttr}>
+                                {formattedDate}
+                            </time>
+                        )}
                         <h1 className="text-5xl sm:text-6xl md:max-w-2xl md:grow">{title}</h1>
                     </div>
                 </header>

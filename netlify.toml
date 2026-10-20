@@ -108,5 +108,73 @@
   [headers.values]
     X-Robots-Tag = "noindex"
 
+# Site restructure 2026-10: retired list pages and posts. 301 so search engines carry the rank over.
+# Exact paths only (no *), so /projects/<slug> pages and public/projects/ assets are untouched.
+[[redirects]]
+  from = "/info"
+  to = "/work"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/projects"
+  to = "/"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/work-projects"
+  to = "/controls-ai"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/tech-projects"
+  to = "/"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/all-projects"
+  to = "/"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/projects/boblemieux-ai"
+  to = "/projects/marley1"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/blog/post-two"
+  to = "/blog"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/blog/post-three"
+  to = "/blog"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/blog/post-five"
+  to = "/blog"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/blog/post-six"
+  to = "/blog"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/blog/post-seven"
+  to = "/blog"
+  status = 301
+  force = true
+
 [[plugins]]
   package = "@netlify/plugin-nextjs"

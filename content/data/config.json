@@ -12,37 +12,27 @@
         "primaryLinks": [
             {
                 "type": "Link",
-                "label": "Info",
-                "url": "/info"
-            },
-            {
-                "type": "Link",
-                "label": "Work",
+                "label": "Experience",
                 "url": "/work"
             },
             {
                 "type": "Link",
-                "label": "Projects",
-                "url": "/projects"
+                "label": "Controls & AI",
+                "url": "/controls-ai"
             },
             {
                 "type": "Link",
-                "label": "Toon",
-                "url": "https://boblemieux.ai/toon/"
+                "label": "Maps & Data",
+                "url": "/maps-data"
             },
             {
                 "type": "Link",
-                "label": "Interview",
-                "url": "https://boblemieux.ai/interview/"
+                "label": "Games & Toons",
+                "url": "/play"
             },
             {
                 "type": "Link",
-                "label": "PlanetCraft",
-                "url": "https://boblemieux.ai/games/planetcraft/"
-            },
-            {
-                "type": "Link",
-                "label": "Blog",
+                "label": "Writing",
                 "url": "/blog"
             }
         ],
@@ -80,8 +70,8 @@
         "primaryLinks": [
             {
                 "type": "Link",
-                "label": "Info",
-                "url": "/info",
+                "label": "Experience",
+                "url": "/work",
                 "altText": ""
             },
             {
@@ -92,7 +82,7 @@
             },
             {
                 "type": "Link",
-                "label": "Blog",
+                "label": "Writing",
                 "url": "/blog",
                 "altText": ""
             },
@@ -116,7 +106,7 @@
             "phoneAltText": "",
             "email": "roblem28@gmail.com",
             "emailAltText": "My email",
-            "address": "USA",
+            "address": "Travelers Rest, SC",
             "addressAltText": "My location"
         },
         "copyrightText": "© 2026 Bob Lemieux",
