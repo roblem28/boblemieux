@@ -1,6 +1,6 @@
 import * as fs from 'fs';
 import path from 'path';
-import glob from 'glob';
+import { globSync } from 'glob';
 import frontmatter from 'front-matter';
 import { allModels } from '.stackbit/models';
 import * as types from '@/types';
@@ -24,9 +24,19 @@ function isRefField(modelName: string, fieldName: string) {
 }
 
 const supportedFileTypes = ['md', 'json'];
+
+/*
+glob v9+ returns platform-native separators (backslashes on Windows), where v7 always
+returned forward slashes. Everything downstream assumes forward slashes: the pagesBaseDir
+prefix check and '/index' suffix check in contentUrl, and the __metadata.id keys that
+frontmatter reference fields are matched against. Normalize once here, at the only place
+paths enter the module, so the rest of the file stays separator-agnostic.
+*/
+const norm = (p: string) => p.split(path.sep).join('/');
+
 function contentFilesInPath(dir: string) {
     const globPattern = `${dir}/**/*.{${supportedFileTypes.join(',')}}`;
-    return glob.sync(globPattern);
+    return globSync(globPattern, { posix: true }).map(norm);
 }
 
 function readContent(file: string): types.ContentObject {
