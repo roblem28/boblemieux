@@ -1964,6 +1964,159 @@ const startDriving = async (page) => {
     check(backToFree.mode === 'free', 'D11 the game can switch back to free drive');
     check(!backToFree.stagePanel && backToFree.timing, 'D11b the HUD swaps the stage clock for the mile timer');
 
+    // -------------------------------------------------- T: the distant land
+
+    // Phase 1 of the terrain spec. Phase 0 built a ribbon to the fold limit and
+    // moved terrain-beyond-100 m from 0.2% of the frame to 0.1% — a corridor
+    // seen edge-on cannot put land in the middle distance. This is the layer
+    // that has to move that number.
+
+    // T1 — the dlSeam, asserted as arithmetic rather than looked at.
+    //
+    // The ribbon is parameterised in road space and the grid in world space,
+    // and open question 4 of the spec asks how two such surfaces can be made to
+    // agree. They are not made to agree: both evaluate one field at a world
+    // position, so at the dlSeam they are the same expression on the same input.
+    // The assertion is therefore exact equality, not a tolerance.
+    const dlSeam = await page.evaluate(() => {
+        const g = window.brb.game;
+        g.restartFree();
+        let worst = 0;
+        let worstHint = 0;
+        let n = 0;
+        for (let s = 1300; s < 8200; s += 13) {
+            for (const side of [-1, 1]) {
+                const probe = g.seamProbeForTest(s, side);
+                worst = Math.max(worst, Math.abs(probe.ribbon - probe.field));
+                // The hint only bounds the polyline scan. If the answer depends
+                // on it, the ribbon and the grid — which arrive with different
+                // hints — cannot be relied on to meet.
+                worstHint = Math.max(worstHint, Math.abs(probe.field - probe.hintFar));
+                n++;
+            }
+        }
+        return { worst, worstHint, n };
+    });
+    check(dlSeam.worst === 0, 'T1 the ribbon and the distant field are the same number at the dlSeam', `worst ${dlSeam.worst.toExponential(2)} m over ${dlSeam.n} probes`);
+    check(dlSeam.worstHint === 0, 'T1b and that number does not depend on the scan hint', `worst ${dlSeam.worstHint.toExponential(2)} m`);
+
+    // T2 — determinism of the distant field itself.
+    const landDet = await page.evaluate(() => {
+        const g = window.brb.game;
+        const pass = () => {
+            let hAcc = 0x811c9dc5;
+            let n = 0;
+            for (let base = 0; base < 40000; base += 8000) {
+                g.teleportForTest(base + 200);
+                const L = g.landForTest;
+                const p = g.roadPointAt(base + 400);
+                for (let dx = -2000; dx <= 2000; dx += 250) {
+                    for (let dz = -2000; dz <= 2000; dz += 250) {
+                        const v = Math.round(L.heightAt(p.x + dx, p.z + dz) * 1000) | 0;
+                        for (let b = 0; b < 4; b++) {
+                            hAcc ^= (v >>> (b * 8)) & 0xff;
+                            hAcc = Math.imul(hAcc, 0x01000193) >>> 0;
+                        }
+                        n++;
+                    }
+                }
+            }
+            return { key: hAcc, n };
+        };
+        const a = pass();
+        const b = pass();
+        return { same: a.key === b.key, n: a.n };
+    });
+    check(landDet.same, 'T2 the distant field is identical on a second pass', `${landDet.n} samples`);
+
+    // T3 — the point of the phase. Terrain more than 100 m up the road, by the
+    // same geometry classifier Phase 0 used: hide everything representing
+    // distant ground, and count the pixels that change.
+    const distantView = await page.evaluate(async () => {
+        const g = window.brb.game;
+        for (let i = 0; i < 6 && window.brb.telemetry.camera !== 'Chase'; i++) g.cycleCamera();
+        const cv = document.querySelector('canvas');
+        const w = 320, h = 180;
+        const off = document.createElement('canvas');
+        off.width = w;
+        off.height = h;
+        const ctx = off.getContext('2d');
+        g.setRenderEnabled(true);
+        const shot = () => {
+            g.tick(0);
+            ctx.clearRect(0, 0, w, h);
+            ctx.drawImage(cv, 0, 0, w, h);
+            return ctx.getImageData(0, 0, w, h).data;
+        };
+        const changed = (a, b) => {
+            let n = 0;
+            for (let i = 0; i < w * h; i++) {
+                const d = Math.max(
+                    Math.abs(a[i * 4] - b[i * 4]),
+                    Math.abs(a[i * 4 + 1] - b[i * 4 + 1]),
+                    Math.abs(a[i * 4 + 2] - b[i * 4 + 2])
+                );
+                if (d > 12) n++;
+            }
+            return (n / (w * h)) * 100;
+        };
+        const SPOTS = [1500, 4500, 7500];
+        let total = 0;
+        for (const spot of SPOTS) {
+            g.teleportForTest(spot);
+            let guard = 0;
+            while (Math.abs(g.physics.u) * 2.2369362920544 < 45 && guard++ < 10) {
+                window.__h.autopilot(1.5, { keyThrottle: true }, false);
+            }
+            // Let any in-flight slice of the distant rebuild land.
+            for (let i = 0; i < 40; i++) g.tick(1 / 60);
+            const base = shot();
+            const sNow = g.physics.s;
+            const far = g.chunksForTest.filter((c) => c.sStart - sNow > 100);
+            for (const c of far) if (c.terrain) c.terrain.visible = false;
+            g.setDistantLandVisible(false);
+            total += changed(base, shot());
+            for (const c of far) if (c.terrain) c.terrain.visible = true;
+            g.setDistantLandVisible(true);
+        }
+        g.setRenderEnabled(false);
+        return +(total / SPOTS.length).toFixed(1);
+    });
+    check(
+        distantView > 6,
+        'T3 there is land in the middle distance, which is the whole point of the phase',
+        `${distantView}% of the frame is terrain beyond 100 m, against 0.1% before it`
+    );
+
+    // T4 — the layer stays inside its budget. Terrain is the first thing on this
+    // project with a real vertex cost, and the spec calls it the most likely
+    // thing to kill the design.
+    const distantCost = await page.evaluate(() => window.brb.game.distantStatsForTest);
+    check(
+        distantCost.tris <= 6000 && distantCost.verts <= 3000,
+        'T4 the distant layer is coarse, as a silhouette layer should be',
+        `${distantCost.verts} vertices, ${distantCost.tris} triangles out to ${distantCost.radius} m`
+    );
+    check(
+        distantCost.worstSliceMs < 6,
+        'T4b and no single frame pays for a whole rebuild',
+        `worst slice ${distantCost.worstSliceMs} ms, whole rebuild ${distantCost.lastBuildMs} ms`
+    );
+
+    // T5 — the road is still exactly the road. The field pulls the land toward
+    // road level near the road, and if that ever leaked into the carriageway it
+    // would move a surface every recorded time depends on.
+    const roadUntouched = await page.evaluate(() => {
+        const g = window.brb.game;
+        g.restartFree();
+        let worst = 0;
+        for (let s = 1300; s < 8200; s += 11) {
+            worst = Math.max(worst, Math.abs(g.crossHeightForTest(s, 0) - g.roadPointAt(s).y));
+        }
+        return +worst.toFixed(6);
+    });
+    check(roadUntouched < 0.05, 'T5 the carriageway is untouched by any of it', `worst ${roadUntouched} m`);
+
     // ----------------------------------------------------------- S: terrain
 
     // Phase 0 of the terrain spec: a ribbon conformed to the road out to the

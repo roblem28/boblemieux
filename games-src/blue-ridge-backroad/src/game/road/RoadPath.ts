@@ -3,6 +3,7 @@ import { fbm1 } from '../util/noise';
 import { hashFloat } from '../util/rng';
 import { clamp, smoothstep } from '../util/mathx';
 import { ChapterSchedule } from '../world/chapters';
+import { LandField } from '../world/Land';
 
 /**
  * THE ROAD COORDINATE SYSTEM.
@@ -54,25 +55,11 @@ const CONFORM_EDGE = 46;
  * chosen off the printed distribution rather than guessed.
  */
 /*
- * Chosen on the printed *gradient*, not the printed amplitude — which is the
- * mistake the first pass made. Amplitude alone says nothing about how steep a
- * hillside is, and `fbm1`'s octaves make the effective slope far steeper than
- * the base wavelength suggests: each octave carries half the amplitude at 2.07x
- * the frequency, so it contributes about as much gradient as the one before it.
- * Three octaves at 520 m measured a lateral slope of 46 degrees at its worst
- * near the road, and a truck that ran off it slid away downhill instead of
- * being able to climb back — which the off-road recovery test caught.
- *
- * Long and shallow instead: the amplitude is kept, the wavelengths are nearly
- * doubled and the octave count cut, so the land is the same size and much
- * gentler.
+ * The land's own shape now lives in `LandField`, which the distant layer shares.
+ * What stays here is the lean: the road's cut/fill bias still tilts the ground
+ * either side, so a cutting reads as a cutting instead of being averaged away
+ * by a field that knows nothing about the road.
  */
-const LAND_WAVE_A = 900;
-const LAND_AMP_A = 24;
-const LAND_WAVE_B = 430;
-const LAND_AMP_B = 9;
-const LAND_OCTAVES = 2;
-/** How hard the hillside climbs or falls away with the road's own cut/fill bias. */
 const LAND_SLOPE = 0.4;
 const CROWN = 0.075; // road crown drop at the edge
 
@@ -175,6 +162,16 @@ export class RoadPath {
      */
     readonly chapters: ChapterSchedule;
 
+    /**
+     * The land either side, shared with the distant layer.
+     *
+     * Owned here because it is fed from road generation: the coarse polyline
+     * its baseline needs is recorded as samples are produced, so there is no
+     * second traversal and no chance of the two disagreeing about where the
+     * road went.
+     */
+    readonly land: LandField;
+
     // Ring-buffer sample table. Index i lives at slot (i % RING).
     private readonly px = new Float64Array(RING);
     private readonly py = new Float64Array(RING);
@@ -193,6 +190,7 @@ export class RoadPath {
     constructor(seed: number) {
         this.seed = seed >>> 0;
         this.chapters = new ChapterSchedule(this.seed);
+        this.land = new LandField(this.seed);
         this.ensure(1000);
     }
 
@@ -394,6 +392,7 @@ export class RoadPath {
             this.px[0] = 0;
             this.py[0] = 0;
             this.pz[0] = 0;
+            this.land.record(0, 0, 0, 0);
             this.headingArr[0] = 0;
             this.kappaArr[0] = this.curvatureAt(0);
             this.bankArr[0] = this.bankTarget(this.kappaArr[0]);
@@ -431,6 +430,8 @@ export class RoadPath {
             this.widthArr[slot] = this.widthAt(s);
             this.biasArr[slot] = fbm1(s / 330, 2, this.seed + 131);
 
+            this.land.record(s, this.px[slot], this.py[slot], this.pz[slot]);
+
             this.head = i;
             if (this.head - this.tail >= RING) this.tail = this.head - RING + 1;
         }
@@ -466,6 +467,8 @@ export class RoadPath {
     rewind(throughS: number): void {
         this.head = -1;
         this.tail = 0;
+        // The polyline is regenerated with the road it describes.
+        this.land.reset();
         this.ensure(Math.max(0, throughS) + 400);
     }
 
@@ -475,6 +478,30 @@ export class RoadPath {
 
     get minS(): number {
         return this.tail * STEP;
+    }
+
+    /**
+     * Like `sample()`, but throws instead of clamping when `s` is behind the
+     * ring's live range.
+     *
+     * `sample()` clamping is correct for the game — the vehicle can outrun the
+     * table and a clamp is better than a stall — and a trap for every
+     * diagnostic that reads backwards. It has produced a confident wrong answer
+     * three times on this project now: two false determinism failures during
+     * the scout work, and the terrain lattice in Phase 0, which read the oldest
+     * held frame for every block but the first and reported a difference that
+     * did not exist.
+     *
+     * Diagnostics and tests use this. Nothing in the game loop does.
+     */
+    sampleStrict(s: number, out: RoadFrame): RoadFrame {
+        if (s < this.minS) {
+            throw new Error(
+                `road sample at s=${s.toFixed(1)} is behind the ring, which holds ` +
+                    `${this.minS.toFixed(1)}..${this.maxS.toFixed(1)}. Drive or teleport there first.`
+            );
+        }
+        return this.sample(s, out);
     }
 
     // --------------------------------------------------------------- sample
@@ -641,33 +668,21 @@ export class RoadPath {
         // conform edge. Cut banks and embankments are not authored anywhere:
         // they are what this blend does when the land happens to sit above or
         // below the road.
+        //
+        // Note what is inside the fading half: the bank tilt and the graded
+        // verge as well as the cut/fill lean. All of that is corridor shaping,
+        // and any of it surviving to the edge is a tear - measured, the lean
+        // alone put the ribbon up to 3.2 m away from the field it is supposed to
+        // meet. Past the conform edge the ribbon is the field and nothing else.
         const w = smoothstep(2, CONFORM_EDGE, out);
         if (w <= 0) return y + verge;
-        return y + verge * (1 - w) + this.freeRelief(frame, l, out) * w;
+        const wx = frame.pos.x + frame.right.x * l;
+        const wz = frame.pos.z + frame.right.z * l;
+        const far = this.land.heightAtRoad(frame.s, l, wx, wz) - frame.pos.y;
+        const near = y + verge + out * LAND_SLOPE * rise * 0.5;
+        return near * (1 - w) + far * w;
     }
 
-    /**
-     * Land beyond the verge, in metres above the road at this distance.
-     *
-     * Anchored to the road's own elevation rather than being an independent
-     * field. An absolute heightfield would drift arbitrarily far from a road
-     * that integrates `gradeAt(s)` over kilometres, and the banks between them
-     * would grow without bound. Anchoring keeps the invariant in section 2 of
-     * the spec — the road is untouched — while still producing terrain that
-     * does its own thing either side.
-     */
-    private freeRelief(frame: RoadFrame, l: number, out: number): number {
-        const side = l > 0 ? 1 : -1;
-        const rise = frame.sideBias * side;
-        // Two directional fields at different orientations and wavelengths.
-        // One alone is a corrugation aligned with whatever axis it was given.
-        const a1 = fbm1((frame.s * 0.8 + l * 1.7) / LAND_WAVE_A, LAND_OCTAVES, this.seed + 331);
-        const a2 = fbm1((frame.s * 1.15 - l * 0.9) / LAND_WAVE_B, LAND_OCTAVES, this.seed + 337);
-        const land = a1 * LAND_AMP_A + a2 * LAND_AMP_B;
-        // The hillside still leans the way the road's own cut/fill bias says,
-        // so a cutting stays a cutting rather than being overwritten by noise.
-        return out * LAND_SLOPE * rise + land;
-    }
 
     /**
      * Fine road-surface relief inside the carriageway: two compacted tire ruts,

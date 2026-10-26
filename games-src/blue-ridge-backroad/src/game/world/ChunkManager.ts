@@ -33,6 +33,7 @@ import {
 } from './Vegetation';
 import { TERRAIN_HALF_WIDTH } from '../road/RoadPath';
 import { biomeAt } from './biomes';
+import { BASELINE_SMOOTH as LAND_LOOKAHEAD } from './Land';
 import { EventBuilder } from './events/EventBuilder';
 
 const MAX_COLLIDERS = 96;
@@ -148,6 +149,12 @@ export class ChunkManager {
      * behind the title screen instead of under the player.
      */
     update(s: number, budget = 1): void {
+        // Push the road generator ahead of the furthest chunk this will build,
+        // by more than the land baseline's smoothing window. That is what makes
+        // the baseline settled everywhere a chunk is built, and it is done here
+        // — from the loop, once — rather than from inside the cross-section,
+        // where extending the ring would prune it under live callers.
+        this.path.ensure(s + (this.preset.chunksAhead + 2) * CHUNK_LEN + LAND_LOOKAHEAD);
         const centre = Math.floor(s / CHUNK_LEN);
         this.centreIndex = centre;
         // Never below zero: chunk -1 would be built entirely from the clamped

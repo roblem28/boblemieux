@@ -19,6 +19,7 @@ import { CHUNK_LEN } from './road/ChunkGeometry';
 import { Assets } from './world/Assets';
 import { Vegetation } from './world/Vegetation';
 import { ChunkManager } from './world/ChunkManager';
+import { DistantLand } from './world/DistantLand';
 import { Sky } from './world/Sky';
 import { VehiclePhysics } from './vehicle/VehiclePhysics';
 import { VehicleModel } from './vehicle/VehicleModel';
@@ -111,6 +112,8 @@ export class Game {
      * dependency, and everything else works whether it runs or not.
      */
     readonly director: Director;
+    /** The land beyond the conformed ribbon. */
+    private distant: DistantLand;
     /**
      * Set when something that changes how the road is generated has changed.
      * The next teleport regenerates the whole road rather than only the part
@@ -165,6 +168,7 @@ export class Game {
         this.vegetation = new Vegetation(this.scene, this.assets, this.preset.chunksAhead + this.preset.chunksBehind + 4);
         this.chunks = new ChunkManager(this.scene, this.path, this.assets, this.vegetation, this.preset);
         this.sky = new Sky(this.scene, this.assets, this.preset);
+        this.distant = new DistantLand(this.scene, this.path);
         this.physics = new VehiclePhysics(this.path);
         // Before the model, which is built from the spec, and before anything
         // reads a record — the vehicle is part of the key records live under.
@@ -261,6 +265,7 @@ export class Game {
         this.chunks.dispose();
         this.vegetation.dispose();
         this.sky.dispose();
+        this.distant.dispose();
         this.scene.remove(this.model.root);
         this.model.dispose();
         this.assets.dispose();
@@ -276,6 +281,7 @@ export class Game {
         );
         this.chunks = new ChunkManager(this.scene, this.path, this.assets, this.vegetation, this.preset);
         this.sky = new Sky(this.scene, this.assets, this.preset);
+        this.distant = new DistantLand(this.scene, this.path);
         this.model = new VehicleModel(this.assets, this.physics.spec);
         this.scene.add(this.model.root);
         this.particles.dispose();
@@ -474,8 +480,67 @@ export class Game {
      */
     crossHeightForTest(s: number, u: number): number {
         const f = createFrame();
-        this.path.sample(s, f);
+        // Strict: a diagnostic that reads behind the ring gets an exception
+        // rather than the clamped oldest frame repeated back at it.
+        this.path.sampleStrict(s, f);
         return f.pos.y + this.path.crossHeight(f, u);
+    }
+
+    /** Diagnostics: the shared land field, and the distant layer's own numbers. */
+    get landForTest(): unknown {
+        return {
+            heightAt: (x: number, z: number) => this.path.land.heightAt(x, z),
+            baselineAtS: (s: number) => this.path.land.baselineAtS(s),
+            shape: (x: number, z: number) => this.path.land.shape(x, z),
+            coarseCount: this.path.land.coarseCount
+        };
+    }
+
+    get distantStatsForTest(): unknown {
+        return this.distant.stats;
+    }
+
+    setDistantLandVisible(visible: boolean): void {
+        this.distant.setVisible(visible);
+    }
+
+    /**
+     * Diagnostics: the seam, from both sides.
+     *
+     * The ribbon evaluates the shared field in road space; the distant grid
+     * evaluates it in world space with a different hint. This returns both so a
+     * test can assert they are the same number rather than eyeballing a
+     * screenshot for a tear.
+     */
+    seamProbeForTest(s: number, side: number): { ribbon: number; field: number; hintFar: number } {
+        const f = createFrame();
+        this.path.sampleStrict(s, f);
+        const u = side * TERRAIN_HALF_WIDTH;
+        const ribbon = f.pos.y + this.path.crossHeight(f, u);
+        const wx = f.pos.x + f.right.x * u;
+        const wz = f.pos.z + f.right.z * u;
+        return {
+            ribbon,
+            // Computed the way the distant grid computes it: project the world
+            // point back onto the road, then evaluate the field from the
+            // recovered arc position. Probing the coarse-nearest path instead
+            // measured something the grid no longer uses and reported a 7.6 m
+            // disagreement the rendered surfaces did not have.
+            field: this.distantHeightForTest(wx, wz, s),
+            hintFar: this.distantHeightForTest(wx, wz, s + 4000)
+        };
+    }
+
+    /** Diagnostics: the height the distant layer would give a world point. */
+    distantHeightForTest(x: number, z: number, hintS: number): number {
+        const proj = createProjectResult();
+        this.path.project(x, z, hintS, proj);
+        return this.path.land.heightAtRoad(proj.s, proj.lateral, x, z);
+    }
+
+    /** Diagnostics: the live range of the road sample ring. */
+    get ringRangeForTest(): { minS: number; maxS: number } {
+        return { minS: this.path.minS, maxS: this.path.maxS };
     }
 
     /**
@@ -797,6 +862,10 @@ export class Game {
             this.vegetation.rebase(this.focus.x, 0, this.focus.z);
             this.rebaseAnchor.copy(this.focus);
         }
+
+        // The distant layer follows the vehicle on its own lattice, and only
+        // rebuilds when the vehicle crosses a cell — roughly every 150 m.
+        this.distant.update(this.physics.position.x, this.physics.position.z);
 
         this.chunks.updateEvents(this.elapsed, this.rig.camera.position);
         this.sky.update(
