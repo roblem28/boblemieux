@@ -38,6 +38,7 @@ sections:
   - content/pages/projects/earth-twin.md
   - content/pages/projects/moon-twin.md
   - content/pages/projects/exoplanet-twin.md
+  - content/pages/projects/wpop.md
   styles:
     self:
       height: auto
