@@ -1,5 +1,6 @@
 import classNames from 'classnames';
 import Markdown from 'markdown-to-jsx';
+import { useEffect, useRef } from 'react';
 
 import { AnnotatedField } from '@/components/Annotated';
 import { Action } from '@/components/atoms';
@@ -73,7 +74,63 @@ export default function Component(props: HeroSection) {
 }
 
 function HeroMedia({ media }) {
+    if (media?.url === '/images/bob.jpg') {
+        return <BobPortrait media={media} />;
+    }
     return <DynamicComponent {...media} />;
+}
+
+/*
+ Easter egg: invisible hotspots over each sunglass lens on the home-page portrait.
+ Positions are percentages of the 800x1200 source image, so they scale with it.
+ Click a lens to play its song; click again to pause. Starting one stops the other.
+ */
+const EYE_EGGS = [
+    { id: 'left', src: '/audio/egg-left.mp3', style: { left: '27%', top: '32%', width: '19.5%', height: '8.5%' } },
+    { id: 'right', src: '/audio/egg-right.mp3', style: { left: '53%', top: '32%', width: '20%', height: '8.5%' } }
+];
+
+function BobPortrait({ media }) {
+    const players = useRef<Record<string, HTMLAudioElement>>({});
+
+    const toggle = (id: string, src: string) => {
+        Object.entries(players.current).forEach(([key, audio]) => {
+            if (key !== id) audio.pause();
+        });
+        let audio = players.current[id];
+        if (!audio) {
+            audio = new Audio(src);
+            players.current[id] = audio;
+        }
+        if (audio.paused) {
+            audio.play().catch(() => {});
+        } else {
+            audio.pause();
+        }
+    };
+
+    useEffect(() => {
+        const current = players.current;
+        return () => Object.values(current).forEach((audio) => audio.pause());
+    }, []);
+
+    return (
+        <div className="relative inline-flex" data-egg="bob-portrait">
+            <DynamicComponent {...media} />
+            {EYE_EGGS.map((egg) => (
+                <button
+                    key={egg.id}
+                    type="button"
+                    aria-label=""
+                    tabIndex={-1}
+                    data-egg={egg.id}
+                    onClick={() => toggle(egg.id, egg.src)}
+                    className="absolute bg-transparent border-0 p-0 m-0 appearance-none"
+                    style={{ ...egg.style, cursor: 'default', WebkitTapHighlightColor: 'transparent', outline: 'none' }}
+                />
+            ))}
+        </div>
+    );
 }
 
 function mapFlexDirectionStyles(flexDirection?: 'row' | 'row-reverse' | 'col' | 'col-reverse') {
