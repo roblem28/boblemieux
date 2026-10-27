@@ -119,7 +119,11 @@
         var fs = document.querySelector("#lw-fs");
         var root = document.documentElement;
         var fsSupported = !!(root.requestFullscreen || root.webkitRequestFullscreen);
-        if (!fsSupported) fs.style.visibility = "hidden";
+        // 007: hidden where the API is missing or disabled (feature test first), and on an iPhone / iPod even where an
+        // engine carries the API (Playwright's WebKit under the iPhone profile); iPad keeps it. The Home Screen hint below
+        // still keys on the API test alone
+        var fsEnabled = fsSupported && !!(document.fullscreenEnabled || document.webkitFullscreenEnabled);
+        if (!fsEnabled || /iPhone|iPod/.test(navigator.userAgent)) fs.style.visibility = "hidden";
         // iPhone Safari has no Fullscreen API; a Home Screen launch (apple-mobile-web-app-capable) is full screen. Say so once
         // (8 s, tap to close), only in the browser (navigator.standalone is false there) and only where fullscreen is missing
         var ios = /iPhone|iPod/.test(navigator.userAgent) || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1);
