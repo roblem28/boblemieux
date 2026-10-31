@@ -111,6 +111,18 @@ sections:
       self:
         textAlign: left
   - type: FeaturedItem
+    title: Catch the Vegetable
+    subtitle: Canvas · Desktop + touch
+    text: Catch falling vegetables in a basket, dodge the bugs. Combos, levels and a rare
+      gold carrot.
+    actions:
+    - type: Link
+      label: Play
+      url: /games/catch-the-vegetable/
+    styles:
+      self:
+        textAlign: left
+  - type: FeaturedItem
     title: Flash Frenzy
     subtitle: Web · Desktop + touch
     text: Flash card game with quiz, flip and 60-second speed modes and a streak multiplier.

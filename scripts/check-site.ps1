@@ -6,7 +6,7 @@ $ok = @("/", "/work/", "/controls-ai/", "/maps-data/", "/play/", "/blog/", "/blo
         "/projects/marley1/", "/projects/weather/", "/projects/fec/", "/projects/spending/", "/projects/nyt/",
         "/projects/emberwatch/", "/work/integra/", "/work/harvard-brain-science/",
         "/games/planetcraft/", "/games/solar-savers/", "/games/blue-ridge-backroad/", "/games/lightwalker/",
-        "/games/obstacleboy/", "/wire/", "/toon/", "/interview/", "/tires/")
+        "/games/obstacleboy/", "/games/catch-the-vegetable/", "/wire/", "/toon/", "/interview/", "/tires/")
 $moved = [ordered]@{ "/info"="/work/"; "/projects"="/"; "/work-projects"="/controls-ai/"; "/tech-projects"="/";
             "/all-projects"="/"; "/projects/boblemieux-ai"="/projects/marley1/"; "/blog/post-two"="/blog/";
             "/blog/post-three"="/blog/"; "/blog/post-five"="/blog/"; "/blog/post-six"="/blog/"; "/blog/post-seven"="/blog/" }
