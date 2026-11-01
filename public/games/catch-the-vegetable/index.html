@@ -24,14 +24,14 @@
 <div id="ui">
   <div id="menu" class="panel">
     <h1>Catch the Vegetable</h1>
-    <p>Move the basket to catch falling vegetables.</p>
+    <p>Move the basket anywhere - left, right, up and down - to catch falling vegetables.</p>
     <div class="legend">
       <span>Carrot / Tomato: 10</span><span>Broccoli / Eggplant: 15</span>
       <span>Corn: 20</span><span>Peas: 25</span>
       <span>Pumpkin: 50</span><span>Gold carrot: +1 life</span>
       <span style="grid-column:1/3"><b>Avoid bugs.</b> Missing a vegetable costs a life.</span>
     </div>
-    <p style="font-size:13px;margin-top:10px">Mouse / finger / arrow keys. P = pause, M = mute.</p>
+    <p style="font-size:13px;margin-top:10px">Mouse / finger / arrow keys or WASD. P = pause, M = mute.</p>
     <p id="bestMenu" style="font-size:13px"></p>
     <button class="btn" id="startBtn">Play</button>
   </div>
@@ -59,9 +59,13 @@ function resize(){
   cv.width = W * DPR; cv.height = H * DPR;
   ctx.setTransform(DPR,0,0,DPR,0,0);
   basket.w = Math.max(90, Math.min(170, W * 0.2));
-  basket.y = H - groundH() - 6;
+  basket.y = basket.y ? clampY(basket.y) : yMax();
   basket.x = Math.min(Math.max(basket.x, basket.w/2), W - basket.w/2);
 }
+// vertical range: from just below the HUD down to the ground
+const yMax = () => H - groundH() - 6;
+const yMin = () => Math.min(yMax(), Math.max(H * 0.25, 120));
+const clampY = y => Math.min(Math.max(y, yMin()), yMax());
 const groundH = () => Math.max(50, H * 0.09);
 const unit = () => Math.max(18, Math.min(34, Math.min(W, H) * 0.045));
 
@@ -119,7 +123,7 @@ function pickType(){
 const MAX_LIVES = 5;
 let state = 'menu', score = 0, lives = MAX_LIVES, level = 1, combo = 0, bestCombo = 0, caught = 0;
 let items = [], parts = [], floats = [], spawnT = 0, shake = 0, flash = 0, levelBanner = 0;
-const basket = { x: 0, y: 0, w: 120, tx: null, vx: 0 };
+const basket = { x: 0, y: 0, w: 120, tx: null, ty: null, py: 0 };
 const keys = {};
 
 function levelFor(s){ return 1 + Math.floor(s / 150); }
@@ -129,7 +133,7 @@ function fallSpeed(){ return H * (0.22 + (level-1) * 0.035); }
 function reset(){
   score = 0; lives = MAX_LIVES; level = 1; combo = 0; bestCombo = 0; caught = 0;
   items = []; parts = []; floats = []; spawnT = 0.4; shake = 0; flash = 0; levelBanner = 1.5;
-  basket.x = W/2; basket.tx = null;
+  basket.x = W/2; basket.tx = null; basket.y = yMax(); basket.ty = null; basket.py = basket.y;
 }
 function spawn(){
   const k = pickType(), u = unit();
@@ -152,22 +156,29 @@ function floatText(x, y, txt, c){ floats.push({x, y, txt, c, life: 1}); }
 // ---------- update ----------
 function update(dt){
   // basket control
+  basket.py = basket.y;
   const spd = W * 1.4;
   if (keys.ArrowLeft || keys.a) { basket.x -= spd*dt; basket.tx = null; }
   if (keys.ArrowRight || keys.d) { basket.x += spd*dt; basket.tx = null; }
+  const vspd = H * 1.2;
+  if (keys.ArrowUp || keys.w) { basket.y -= vspd*dt; basket.ty = null; }
+  if (keys.ArrowDown || keys.s) { basket.y += vspd*dt; basket.ty = null; }
   if (basket.tx !== null) basket.x += (basket.tx - basket.x) * Math.min(1, dt * 18);
+  if (basket.ty !== null) basket.y += (basket.ty - basket.y) * Math.min(1, dt * 18);
   basket.x = Math.min(Math.max(basket.x, basket.w/2), W - basket.w/2);
+  basket.y = clampY(basket.y);
 
   spawnT -= dt;
   if (spawnT <= 0){ spawn(); spawnT = spawnInterval() * (0.75 + Math.random()*0.5); }
 
-  const bTop = basket.y - unit()*1.6, bL = basket.x - basket.w/2, bR = basket.x + basket.w/2;
+  const yLo = Math.min(basket.py, basket.y), yHi = Math.max(basket.py, basket.y);
+  const bTop = yLo - unit()*1.6, bBot = yHi - unit()*0.4, bL = basket.x - basket.w/2, bR = basket.x + basket.w/2;
   for (let i = items.length-1; i >= 0; i--){
     const it = items[i], T = TYPES[it.k];
     it.t += dt; it.y += it.vy * dt; it.rot += it.vr * dt;
     if (it.k === 'bug'){ it.x += it.vx * dt + Math.sin(it.t*5)*40*dt; if (it.x < it.r || it.x > W-it.r) it.vx *= -1; }
     // catch check
-    if (it.y + it.r*0.5 >= bTop && it.y - it.r*0.5 <= basket.y - unit()*0.4 && it.x >= bL - it.r*0.3 && it.x <= bR + it.r*0.3){
+    if (it.y + it.r*0.5 >= bTop && it.y - it.r*0.5 <= bBot && it.x >= bL - it.r*0.3 && it.x <= bR + it.r*0.3){
       items.splice(i,1);
       if (!T.good){
         lives--; combo = 0; shake = 0.35; flash = 0.25; sfx.bad();
@@ -238,6 +249,12 @@ function drawScene(dt){
 function drawBasket(){
   const u = unit(), x = basket.x, y = basket.y, w = basket.w, h = u*1.5;
   ctx.save();
+  const lift = yMax() - y;
+  if (lift > 4){
+    const k = 1 - Math.min(1, lift / (yMax() - yMin() + 1)) * 0.5;
+    ctx.fillStyle = 'rgba(40,25,10,.25)';
+    ctx.beginPath(); ctx.ellipse(x, yMax() + 2, w*0.45*k, 6*k, 0, 0, 7); ctx.fill();
+  }
   // body
   ctx.fillStyle = '#b07a43';
   ctx.beginPath(); ctx.moveTo(x - w/2, y - h); ctx.lineTo(x + w/2, y - h); ctx.lineTo(x + w/2 - w*0.1, y); ctx.lineTo(x - w/2 + w*0.1, y); ctx.closePath(); ctx.fill();
@@ -401,7 +418,12 @@ $('startBtn').onclick = start; $('againBtn').onclick = start; $('resumeBtn').onc
 muteBtn.onclick = e => { e.stopPropagation(); muted = !muted; store.set('ctv_mute', muted ? '1' : '0'); syncMute(); initAudio(); };
 $('bestMenu').textContent = best ? 'Best: ' + best : '';
 
-function pointer(e){ const p = e.touches ? e.touches[0] : e; if (p) basket.tx = p.clientX; }
+function pointer(e){
+  const p = e.touches ? e.touches[0] : e; if (!p) return;
+  const touch = !!e.touches || e.pointerType === 'touch' || e.pointerType === 'pen';
+  basket.tx = p.clientX;
+  basket.ty = clampY(touch ? p.clientY - unit()*2 : p.clientY + unit()*0.75);
+}
 cv.addEventListener('pointermove', pointer);
 cv.addEventListener('pointerdown', pointer);
 cv.addEventListener('touchmove', e => { pointer(e); e.preventDefault(); }, {passive:false});
@@ -430,7 +452,7 @@ function loop(now){
   render(state === 'paused' || state === 'over' ? 0 : dt);
   requestAnimationFrame(loop);
 }
-resize(); basket.x = W/2;
+resize(); basket.x = W/2; basket.y = yMax(); basket.py = basket.y;
 window.__ctv = { get state(){ return state; }, get score(){ return score; }, get lives(){ return lives; }, get level(){ return level; }, get items(){ return items.length; }, basket };
 requestAnimationFrame(loop);
 })();
