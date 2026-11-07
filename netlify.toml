@@ -67,6 +67,14 @@
     Content-Encoding = "br"
     Content-Type = "application/octet-stream"
 
+# 027: every Build file answers CORS, so the page's crossorigin="anonymous" script tags (loader, framework) load and
+# Safari reports an error's real message, file and line to the page's error catcher instead of "Script error".
+# Netlify applies every matching rule, so the exact-path rules above keep their encoding and types.
+[[headers]]
+  for = "/games/lightwalker/Build/*"
+  [headers.values]
+    Access-Control-Allow-Origin = "*"
+
 # Phase 3d: the ASTC texture payload for phones / tablets (the page picks it when the GPU has ASTC on a touch device)
 [[headers]]
   for = "/games/lightwalker/Build/webgl.astc.data.unityweb"
