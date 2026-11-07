@@ -161,6 +161,22 @@ function annotateContentObject(o: any, prefix = '', depth = 0) {
     });
 }
 
-function deepClone(o: object) {
-    return JSON.parse(JSON.stringify(o));
+function deepClone(o: any): any {
+    if (o === null || typeof o !== 'object') {
+        return o;
+    }
+    if (Array.isArray(o)) {
+        const arr = new Array(o.length);
+        for (let i = 0; i < o.length; i++) {
+            arr[i] = deepClone(o[i]);
+        }
+        return arr;
+    }
+    const clone: Record<string, any> = {};
+    for (const key in o) {
+        if (Object.prototype.hasOwnProperty.call(o, key)) {
+            clone[key] = deepClone(o[key]);
+        }
+    }
+    return clone;
 }
