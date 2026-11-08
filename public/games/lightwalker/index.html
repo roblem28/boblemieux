@@ -14,6 +14,59 @@
         }
       })();
     </script>
+    <script>
+      // 027: the error catcher, installed before anything else loads. Every uncaught error, failed script and unhandled
+      // rejection goes into a visible overlay (readable on a phone, over the splash) and is POSTed as JSON to the site's
+      // error log (GET /.netlify/functions/lw-errors lists it). Every script element gets crossorigin="anonymous" (the
+      // loader, and the framework the loader injects) so Safari reports the real message instead of "Script error".
+      // ?dev=1&qcthrow=1 throws a test error once the page has loaded.
+      (function () {
+        var sent = 0, box = null;
+        function show(r) {
+          if (!box) {
+            box = document.createElement("pre");
+            box.id = "lw-errors";
+            box.style.cssText = "position:fixed;left:0;right:0;top:0;z-index:2147483647;margin:0;padding:8px;max-height:60vh;" +
+              "overflow:auto;background:rgba(120,0,0,0.92);color:#fff;font:13px/1.35 monospace;white-space:pre-wrap;" +
+              "word-break:break-word;-webkit-user-select:text;user-select:text";
+            (document.body || document.documentElement).appendChild(box);
+          }
+          box.textContent += (box.textContent ? "\n\n" : "") + r.kind + ": " + r.message + "\n" + r.file + ":" + r.line + ":" +
+            r.column + (r.stack ? "\n" + r.stack : "") + "\n" + r.userAgent;
+        }
+        function report(kind, message, file, line, column, stack) {
+          var r = { kind: kind, message: String(message), file: file || "", line: line || 0, column: column || 0,
+            stack: stack ? String(stack).slice(0, 4000) : "", userAgent: navigator.userAgent, url: location.href,
+            t: Math.round(performance.now()) };
+          try { show(r); } catch (e) {}
+          if (sent++ >= 20) return;
+          try {
+            fetch("/.netlify/functions/lw-errors", { method: "POST", headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(r), keepalive: true }).catch(function () {});
+          } catch (e) {}
+        }
+        window.lwReportError = report;
+        window.addEventListener("error", function (e) {
+          var t = e.target;
+          if (t && t !== window && (t.src || t.href)) { report("load", "failed to load " + t.tagName, t.src || t.href, 0, 0, ""); return; }
+          report("error", e.message, e.filename, e.lineno, e.colno, e.error && e.error.stack);
+        }, true);
+        window.addEventListener("unhandledrejection", function (e) {
+          var why = e.reason;
+          report("rejection", why && why.message ? why.message : why, why && why.fileName, why && why.lineNumber,
+            why && why.columnNumber, why && why.stack);
+        });
+        var make = document.createElement;
+        document.createElement = function (tag) {
+          var el = make.apply(document, arguments);
+          if (String(tag).toLowerCase() === "script") el.crossOrigin = "anonymous";
+          return el;
+        };
+        if (/[?&]dev=1/.test(location.search) && /[?&]qcthrow=1/.test(location.search)) {
+          window.addEventListener("load", function () { setTimeout(function () { throw new Error("qcthrow test error"); }, 0); });
+        }
+      })();
+    </script>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
     <!-- no user scaling; viewport-fit=cover so the canvas reaches the edges and the game reads the safe-area insets.
          No height=device-height: iPhone Safari takes the portrait height in landscape too (the page grows taller than the
@@ -178,6 +231,7 @@
             unityInstance.SetFullscreen(1);
           };
         }).catch((message) => {
+          window.lwReportError("unity", message, loaderUrl, 0, 0, message && message.stack);
           alert(message);
         });
       };
