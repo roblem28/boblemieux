@@ -123,6 +123,18 @@ sections:
       self:
         textAlign: left
   - type: FeaturedItem
+    title: Mole Bop
+    subtitle: Webcam motion · Desktop + TV
+    text: Stand back and bop moles with your hands. Body tracking runs in the browser,
+      video never leaves the device. Two players, mouse fallback.
+    actions:
+    - type: Link
+      label: Play
+      url: /games/mole-bop/
+    styles:
+      self:
+        textAlign: left
+  - type: FeaturedItem
     title: Flash Frenzy
     subtitle: Web · Desktop + touch
     text: Flash card game with quiz, flip and 60-second speed modes and a streak multiplier.
