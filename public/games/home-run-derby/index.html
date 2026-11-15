@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Home Run Derby — webcam batting game</title>
+<style>
+  :root { --bg:#0d1a12; --fg:#f6f3ea; --accent:#ffd23f; }
+  * { box-sizing:border-box; }
+  html,body { margin:0; height:100%; background:var(--bg); color:var(--fg); font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; overflow:hidden; }
+  canvas { position:fixed; inset:0; width:100vw; height:100vh; display:block; touch-action:none; }
+  #overlay { position:fixed; inset:0; display:flex; align-items:center; justify-content:center; background:rgba(6,14,9,.74); z-index:5; }
+  #overlay.hidden { display:none; }
+  .card { max-width:580px; width:92vw; text-align:center; padding:26px; border-radius:18px; background:#17281d; box-shadow:0 20px 60px rgba(0,0,0,.5); }
+  h1 { margin:0 0 6px; font-size:clamp(32px,6vw,54px); color:var(--accent); }
+  p { margin:8px 0; line-height:1.45; font-size:clamp(14px,2.2vw,18px); }
+  .small { font-size:13px; opacity:.75; }
+  button { font:inherit; font-size:20px; font-weight:700; padding:12px 28px; margin:14px 6px 4px; border:0; border-radius:12px; cursor:pointer; background:var(--accent); color:#1b1b1b; }
+  button.secondary { background:#2c4535; color:var(--fg); font-size:16px; padding:10px 18px; }
+  #status { min-height:22px; font-size:14px; opacity:.85; }
+  .keys { font-size:13px; opacity:.7; margin-top:10px; }
+  kbd { background:#2c4535; border-radius:4px; padding:1px 6px; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="overlay">
+  <div class="card" id="card">
+    <h1>Home Run Derby</h1>
+    <p id="intro">Stand sideways about 8 feet from the camera, hands together like you're holding a bat. Swing hard when the pitch reaches the plate. Any swing that isn't a homer is an out. 10 outs.</p>
+    <p><b>Hands-free start:</b> raise both hands over your head and hold.</p>
+    <div id="status">Starting camera…</div>
+    <button id="startBtn">Play ball</button>
+    <div><button class="secondary" id="camBtn">Camera off</button><button class="secondary" id="fsBtn">Full screen</button></div>
+    <p class="small">Video stays on this device. No frames are uploaded or stored.</p>
+    <div class="keys"><kbd>Space</kbd>/click swing · <kbd>P</kbd> pause · <kbd>S</kbd> skeleton · <kbd>C</kbd> camera · <kbd>F</kbd> full screen</div>
+  </div>
+</div>
+<script type="module">
+const MP_VER = '0.10.14';
+const MP_BASE = `https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@${MP_VER}`;
+const MODEL_URL = 'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task';
+
+const qs = new URLSearchParams(location.search);
+const DEBUG = qs.has('debug');
+const OUTS_PER_GAME = Math.max(1, Number(qs.get('outs')) || 10);
+const FENCE_FT = 330;
+
+// Timing windows (ms from ball reaching the plate). Swing early = negative.
+const WIN = { perfect: 55, good: 110, contact: 190 };
+
+const cv = document.getElementById('c'), ctx = cv.getContext('2d');
+const overlay = document.getElementById('overlay'), card = document.getElementById('card');
+const statusEl = document.getElementById('status'), startBtn = document.getElementById('startBtn');
+const camBtn = document.getElementById('camBtn'), fsBtn = document.getElementById('fsBtn');
+
+let W = 0, H = 0, DPR = 1;
+function resize() {
+  DPR = Math.min(window.devicePixelRatio || 1, 2);
+  W = window.innerWidth; H = window.innerHeight;
+  cv.width = Math.round(W * DPR); cv.height = Math.round(H * DPR);
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+}
+window.addEventListener('resize', resize);
+
+function loadBest() { try { return JSON.parse(localStorage.getItem('hrDerbyBest')) || { hr: 0, long: 0 }; } catch { return { hr: 0, long: 0 }; } }
+function saveBest(v) { try { localStorage.setItem('hrDerbyBest', JSON.stringify(v)); } catch {} }
+
+// ---------- audio ----------
+let actx = null;
+function tone(freq, dur = 0.08, type = 'square', vol = 0.12, slide = 0) {
+  try {
+    actx = actx || new (window.AudioContext || window.webkitAudioContext)();
+    const o = actx.createOscillator(), g = actx.createGain(), t = actx.currentTime;
+    o.type = type; o.frequency.setValueAtTime(freq, t);
+    if (slide) o.frequency.exponentialRampToValueAtTime(Math.max(30, freq + slide), t + dur);
+    g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(g).connect(actx.destination); o.start(); o.stop(t + dur);
+  } catch {}
+}
+function noise(dur = 0.06, vol = 0.25) {
+  try {
+    actx = actx || new (window.AudioContext || window.webkitAudioContext)();
+    const n = Math.floor(actx.sampleRate * dur), buf = actx.createBuffer(1, n, actx.sampleRate), d = buf.getChannelData(0);
+    for (let i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / n);
+    const s = actx.createBufferSource(), g = actx.createGain(); g.gain.value = vol;
+    s.buffer = buf; s.connect(g).connect(actx.destination); s.start();
+  } catch {}
+}
+const sfx = {
+  crack: () => { noise(0.05, 0.4); tone(1800, 0.05, 'square', 0.1); },
+  homer: () => [523, 659, 784, 1047].forEach((f, i) => setTimeout(() => tone(f, 0.16, 'triangle', 0.16), 120 + i * 110)),
+  whoosh: () => tone(400, 0.18, 'sawtooth', 0.05, -300),
+  out: () => tone(220, 0.25, 'triangle', 0.14, -80),
+  mitt: () => noise(0.04, 0.3),
+  start: () => [392, 523, 659].forEach((f, i) => setTimeout(() => tone(f, 0.1, 'triangle'), i * 90)),
+  end: () => [659, 523, 440, 392].forEach((f, i) => setTimeout(() => tone(f, 0.15, 'triangle'), i * 130)),
+};
+
+// ---------- camera + pose ----------
+const video = document.createElement('video');
+video.playsInline = true; video.muted = true; video.autoplay = true;
+let stream = null, camOn = false, landmarker = null, poseReady = false;
+let lastVideoTime = -1, poses = [], camFps = 0, camFrames = 0, camFpsT = performance.now();
+let showSkeleton = DEBUG, posesOverride = null;
+
+async function startCamera() {
+  if (!navigator.mediaDevices?.getUserMedia) { setStatus('No camera API — use Space or click to swing.'); return false; }
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({ video: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: 'user' }, audio: false });
+    video.srcObject = stream; await video.play();
+    camOn = true; camBtn.textContent = 'Camera off'; return true;
+  } catch (e) {
+    camOn = false; camBtn.textContent = 'Camera on';
+    setStatus('Camera blocked or not found — use Space or click to swing. (' + (e.name || 'error') + ')'); return false;
+  }
+}
+function stopCamera() { if (stream) stream.getTracks().forEach(t => t.stop()); stream = null; camOn = false; poses = []; camBtn.textContent = 'Camera on'; }
+async function loadPose() {
+  setStatus('Loading body tracker…');
+  try {
+    const { FilesetResolver, PoseLandmarker } = await import(`${MP_BASE}/vision_bundle.mjs`);
+    const fileset = await FilesetResolver.forVisionTasks(`${MP_BASE}/wasm`);
+    const opts = (delegate) => ({ baseOptions: { modelAssetPath: MODEL_URL, delegate }, runningMode: 'VIDEO', numPoses: 1,
+      minPoseDetectionConfidence: 0.5, minPosePresenceConfidence: 0.5, minTrackingConfidence: 0.5 });
+    try { landmarker = await PoseLandmarker.createFromOptions(fileset, opts('GPU')); }
+    catch { landmarker = await PoseLandmarker.createFromOptions(fileset, opts('CPU')); }
+    poseReady = true; return true;
+  } catch (e) { setStatus('Body tracker failed to load — use Space or click to swing.'); if (DEBUG) console.warn(e); return false; }
+}
+function trackPose(now) {
+  if (posesOverride) { poses = posesOverride; return true; }
+  if (!poseReady || !camOn || video.readyState < 2 || video.currentTime === lastVideoTime) return false;
+  lastVideoTime = video.currentTime;
+  try { poses = landmarker.detectForVideo(video, now).landmarks || []; } catch (e) { if (DEBUG) console.warn(e); }
+  camFrames++;
+  if (now - camFpsT >= 1000) { camFps = camFrames * 1000 / (now - camFpsT); camFrames = 0; camFpsT = now; }
+  return true;
+}
+
+// ---------- swing detection ----------
+// Hands midpoint, in shoulder-widths. A swing = horizontal hand speed above threshold.
+// Speed is normalized by shoulder width so distance from camera doesn't matter.
+const SWING_SPEED = 5.0;   // shoulder-widths per second to count as a swing
+const POWER_FULL = 14.0;   // speed that earns full power
+const SWING_COOLDOWN = 700;
+let handHist = [];         // [{t, x, y}] in shoulder-width units
+let lastSwingAt = -1e9, swingTrail = [];
+function handsPoint(p) {
+  const ls = p[11], rs = p[12], lw = p[15], rw = p[16];
+  if (!ls || !rs || !lw || !rw) return null;
+  if (Math.min(lw.visibility ?? 1, rw.visibility ?? 1) < 0.3) return null;
+  const sw = Math.hypot(ls.x - rs.x, ls.y - rs.y);
+  if (sw < 0.03) return null;
+  return { x: (lw.x + rw.x) / 2 / sw, y: (lw.y + rw.y) / 2 / sw, sw, raw: { x: (lw.x + rw.x) / 2, y: (lw.y + rw.y) / 2 } };
+}
+// Swing fires at threshold (for timing), then power is finalized from the peak speed over the next 100 ms.
+// LAG_MS compensates for camera + tracker delay: the real swing happened slightly before we saw it.
+const LAG_MS = Number(qs.get('lag')) || 70;
+let pendingSwing = null;
+function speedOver(win) {
+  if (win.length < 2) return 0;
+  const a = win[0], b = win[win.length - 1], dt = (b.t - a.t) / 1000;
+  return dt >= 0.03 ? Math.abs(b.x - a.x) / dt : 0;
+}
+function powerFrom(speed) { return Math.max(0.45, Math.min(1, 0.45 + 0.55 * (speed - SWING_SPEED) / (POWER_FULL - SWING_SPEED))); }
+function detectSwing(now) {
+  const p = poses[0];
+  const hp = p && handsPoint(p);
+  if (hp) {
+    handHist.push({ t: now, x: hp.x, y: hp.y });
+    swingTrail.push({ t: now, x: hp.raw.x, y: hp.raw.y });
+  }
+  handHist = handHist.filter(h => now - h.t < 200);
+  swingTrail = swingTrail.filter(h => now - h.t < 300);
+  if (pendingSwing) {
+    pendingSwing.peak = Math.max(pendingSwing.peak, speedOver(handHist.filter(h => now - h.t < 90)));
+    if (now - pendingSwing.seen >= 100 || !hp) { const s = pendingSwing; pendingSwing = null; return { t: s.t, power: powerFrom(s.peak) }; }
+    return null;
+  }
+  if (!hp || now - lastSwingAt < SWING_COOLDOWN) return null;
+  const win = handHist.filter(h => now - h.t < 120);
+  if (win.length < 2 || (win[win.length - 1].t - win[0].t) < 50) return null;
+  const speed = speedOver(win);
+  if (speed < SWING_SPEED) return null;
+  lastSwingAt = now;
+  pendingSwing = { seen: now, t: now - LAG_MS, peak: speed };
+  return null;
+}
+function handsUp() {
+  return poses.some(p => p[0] && p[15] && p[16] && p[15].y < p[0].y - 0.03 && p[16].y < p[0].y - 0.03
+    && (p[15].visibility ?? 1) > 0.4 && (p[16].visibility ?? 1) > 0.4);
+}
+
+// ---------- game ----------
+const game = {
+  state: 'menu', outs: 0, hrs: 0, longest: 0, streak: 0, takes: 0, best: loadBest(), pitchNo: 0,
+  phase: 'idle', phaseT: 0, pitch: null, hit: null, msg: '', msgColor: '#fff', msgT: 0, raiseT: 0, log: [],
+};
+function newPitch(now) {
+  const lvl = Math.min(1, game.hrs / 12);
+  const kinds = ['fastball', 'fastball', 'change', 'curve'];
+  const kind = kinds[Math.floor(Math.random() * kinds.length)];
+  const base = kind === 'fastball' ? 1050 : kind === 'change' ? 1450 : 1250;
+  const travel = base - lvl * 220 + (Math.random() * 120 - 60);
+  game.pitch = { kind, windup: 900 + Math.random() * 500, travel, start: now, curve: kind === 'curve' ? (Math.random() < 0.5 ? -1 : 1) : 0,
+    mph: Math.round(kind === 'fastball' ? 88 + lvl * 8 : kind === 'change' ? 74 + lvl * 6 : 78 + lvl * 6), swung: false };
+  game.phase = 'pitch'; game.pitchNo++;
+}
+function arrivalTime() { const p = game.pitch; return p.start + p.windup + p.travel; }
+function swing(now, power) {
+  if (game.state !== 'playing') return;
+  sfx.whoosh();
+  swingFx = { t: now, power };
+  if (game.phase !== 'pitch' || game.pitch.swung) return;
+  const p = game.pitch;
+  if (now < p.start + p.windup) return; // swinging during windup doesn't count
+  p.swung = true;
+  const delta = now - arrivalTime();
+  const ad = Math.abs(delta);
+  let quality = 0, label;
+  if (ad <= WIN.perfect) { quality = 1; label = 'Perfect'; }
+  else if (ad <= WIN.good) { quality = 0.78; label = delta < 0 ? 'A bit early' : 'A bit late'; }
+  else if (ad <= WIN.contact) { quality = 0.45; label = delta < 0 ? 'Early' : 'Late'; }
+  else { label = delta < 0 ? 'Way early' : 'Way late'; }
+  game.log.push({ pitch: game.pitchNo, delta: Math.round(delta), power: +power.toFixed(2), quality });
+  if (quality === 0) { resolve(now, { type: 'whiff', label }); return; }
+  const dist = Math.round(140 + 340 * quality * (0.55 + 0.45 * power) + (Math.random() * 24 - 12));
+  // early = pulled, late = opposite field. Too far off line = foul.
+  const angle = Math.max(-1.25, Math.min(1.25, delta / WIN.contact * 1.1));
+  const foul = Math.abs(angle) > 0.95;
+  const homer = !foul && dist >= FENCE_FT;
+  sfx.crack();
+  resolve(now, { type: foul ? 'foul' : homer ? 'homer' : 'inplay', dist, angle, label, quality });
+}
+function resolve(now, r) {
+  game.hit = { ...r, t: now };
+  game.phase = r.type === 'whiff' ? 'whiff' : 'flight';
+  game.phaseT = now;
+  if (r.type === 'homer') {
+    game.hrs++; game.streak++; game.longest = Math.max(game.longest, r.dist);
+    flash(`HOME RUN!  ${r.dist} ft`, '#ffd23f', 2200); sfx.homer();
+  } else {
+    game.outs++; game.streak = 0;
+    const why = r.type === 'whiff' ? `Strike — ${r.label}` : r.type === 'foul' ? `Foul ball — ${r.label}` : `Caught at ${r.dist} ft — ${r.label}`;
+    flash(`OUT  ·  ${why}`, '#ff7a6b', 1900);
+    setTimeout(sfx.out, r.type === 'whiff' ? 0 : 700);
+  }
+}
+function flash(text, color, ms) { game.msg = text; game.msgColor = color; game.msgT = performance.now() + ms; }
+
+function startGame() {
+  if (game.state === 'playing') return;
+  Object.assign(game, { state: 'playing', outs: 0, hrs: 0, longest: 0, streak: 0, takes: 0, pitchNo: 0,
+    phase: 'idle', phaseT: performance.now() + 900, pitch: null, hit: null, msg: '', msgT: 0, raiseT: 0, log: [] });
+  overlay.classList.add('hidden'); sfx.start();
+}
+function endGame() {
+  game.state = 'over';
+  const b = game.best, newBest = game.hrs > b.hr;
+  game.best = { hr: Math.max(b.hr, game.hrs), long: Math.max(b.long, game.longest) }; saveBest(game.best);
+  sfx.end();
+  card.querySelector('h1').textContent = newBest ? 'New record!' : 'Derby over';
+  document.getElementById('intro').innerHTML = `<b>${game.hrs}</b> home run${game.hrs === 1 ? '' : 's'} · longest <b>${game.longest || '—'}</b>${game.longest ? ' ft' : ''}<br>Record: ${game.best.hr} HR · longest ${game.best.long || '—'}${game.best.long ? ' ft' : ''}`;
+  startBtn.textContent = 'Play again';
+  overlay.classList.remove('hidden'); game.overAt = performance.now(); game.raiseT = 0;
+}
+function togglePause() {
+  if (game.state === 'playing') { game.state = 'paused'; game.pausedAt = performance.now(); }
+  else if (game.state === 'paused') {
+    const d = performance.now() - game.pausedAt;
+    if (game.pitch) game.pitch.start += d; game.phaseT += d; if (game.hit) game.hit.t += d;
+    game.state = 'playing';
+  }
+}
+
+function update(now, dt, fresh) {
+  if (fresh) {
+    const sw = detectSwing(now);
+    if (sw) swing(sw.t, sw.power);
+  }
+  if (game.state === 'menu' || (game.state === 'over' && now - (game.overAt || 0) > 2500)) {
+    if (handsUp()) { game.raiseT += dt; if (game.raiseT > 1.0) startGame(); }
+    else game.raiseT = Math.max(0, game.raiseT - dt * 2);
+  }
+  if (game.state !== 'playing') return;
+  if (game.phase === 'idle' && now >= game.phaseT) newPitch(now);
+  else if (game.phase === 'pitch') {
+    if (now > arrivalTime() + WIN.contact + 150) { // taken pitch
+      sfx.mitt(); game.takes++;
+      if (game.takes >= 3) { game.takes = 0; game.outs++; flash('OUT  ·  3 takes in a row — swing!', '#ff7a6b', 1800); sfx.out(); }
+      else flash('Take', '#cfe8d6', 800);
+      game.phase = 'idle'; game.phaseT = now + 1200;
+    }
+  } else if (game.phase === 'whiff' && now - game.phaseT > 1100) { game.takes = 0; nextOrEnd(now); }
+  else if (game.phase === 'flight' && now - game.phaseT > (game.hit.type === 'homer' ? 3000 : 2200)) { game.takes = 0; nextOrEnd(now); }
+}
+function nextOrEnd(now) {
+  if (game.outs >= OUTS_PER_GAME) { endGame(); return; }
+  game.phase = 'idle'; game.phaseT = now + 700; game.pitch = null; game.hit = null;
+}
+
+// ---------- drawing ----------
+let swingFx = null;
+const BONES = [[11,12],[11,13],[13,15],[12,14],[14,16],[11,23],[12,24],[23,24]];
+function drawField() {
+  const hy = H * 0.3; // horizon
+  const sky = ctx.createLinearGradient(0, 0, 0, hy); sky.addColorStop(0, '#0b1c3a'); sky.addColorStop(1, '#25507a');
+  ctx.fillStyle = sky; ctx.fillRect(0, 0, W, hy);
+  // stands + lights
+  ctx.fillStyle = '#1a2533'; ctx.fillRect(0, hy - H * 0.07, W, H * 0.07);
+  for (let i = 0; i < 40; i++) { ctx.fillStyle = i % 3 ? '#2f3d52' : '#3d4d66'; ctx.fillRect(i * W / 40, hy - H * 0.07 + (i % 2) * 4, W / 44, 6); }
+  [0.15, 0.85].forEach(fx => { ctx.fillStyle = '#fffbe0'; ctx.fillRect(W * fx - 30, hy - H * 0.2, 60, 10); ctx.fillStyle = '#556'; ctx.fillRect(W * fx - 2, hy - H * 0.19, 4, H * 0.12); });
+  // outfield wall
+  ctx.fillStyle = '#0f4d2a'; ctx.fillRect(0, hy, W, H * 0.025);
+  ctx.fillStyle = '#ffd23f'; ctx.fillRect(0, hy + H * 0.025, W, 2);
+  ctx.fillStyle = 'rgba(255,255,255,.75)'; ctx.font = `bold ${Math.max(11, H * 0.018)}px system-ui`; ctx.textAlign = 'center';
+  ctx.fillText(`${FENCE_FT}`, W * 0.5, hy + H * 0.019); ctx.fillText('325', W * 0.12, hy + H * 0.019); ctx.fillText('325', W * 0.88, hy + H * 0.019);
+  // grass with mow stripes
+  const g = ctx.createLinearGradient(0, hy, 0, H); g.addColorStop(0, '#2f7d3b'); g.addColorStop(1, '#3fa04c');
+  ctx.fillStyle = g; ctx.fillRect(0, hy + H * 0.027, W, H);
+  ctx.fillStyle = 'rgba(255,255,255,.05)';
+  for (let i = 0; i < 8; i += 2) { ctx.beginPath(); ctx.moveTo(W * (i / 8), hy + H * 0.03); ctx.lineTo(W * ((i + 1) / 8), hy + H * 0.03); ctx.lineTo(W * 0.5 + (W * ((i + 1) / 8) - W * 0.5) * 3, H); ctx.lineTo(W * 0.5 + (W * (i / 8) - W * 0.5) * 3, H); ctx.fill(); }
+  // infield dirt
+  const px = W / 2, py = H * 0.88, my = H * 0.52;
+  ctx.fillStyle = '#b97a45';
+  ctx.beginPath(); ctx.moveTo(px, py + H * 0.04); ctx.lineTo(px + W * 0.36, H * 0.6); ctx.lineTo(px, H * 0.43); ctx.lineTo(px - W * 0.36, H * 0.6); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = '#3a9446';
+  ctx.beginPath(); ctx.moveTo(px, py - H * 0.06); ctx.lineTo(px + W * 0.24, H * 0.62); ctx.lineTo(px, H * 0.5); ctx.lineTo(px - W * 0.24, H * 0.62); ctx.closePath(); ctx.fill();
+  // foul lines
+  ctx.strokeStyle = 'rgba(255,255,255,.85)'; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(px, py); ctx.lineTo(0, hy + H * 0.15); ctx.moveTo(px, py); ctx.lineTo(W, hy + H * 0.15); ctx.stroke();
+  // mound
+  ctx.fillStyle = '#c38a55'; ctx.beginPath(); ctx.ellipse(px, my, W * 0.045, H * 0.018, 0, 0, Math.PI * 2); ctx.fill();
+  // plate
+  ctx.fillStyle = '#fff'; ctx.beginPath();
+  ctx.moveTo(px - 26, py - 8); ctx.lineTo(px + 26, py - 8); ctx.lineTo(px + 26, py + 4); ctx.lineTo(px, py + 16); ctx.lineTo(px - 26, py + 4); ctx.closePath(); ctx.fill();
+  return { px, py, my };
+}
+function drawPitcher(now, f) {
+  const p = game.pitch, x = f.px, y = f.my - H * 0.01, s = H * 0.0011;
+  let arm = 0;
+  if (p && game.phase === 'pitch') { const t = (now - p.start) / p.windup; arm = Math.max(0, Math.min(1, t)); }
+  ctx.save(); ctx.translate(x, y); ctx.scale(s * 40, s * 40);
+  ctx.fillStyle = '#e8e8ee'; ctx.fillRect(-0.45, -2.2, 0.9, 1.3);           // jersey
+  ctx.fillStyle = '#c33'; ctx.fillRect(-0.45, -1.7, 0.9, 0.12);
+  ctx.fillStyle = '#d9a77a'; ctx.beginPath(); ctx.arc(0, -2.55, 0.32, 0, Math.PI * 2); ctx.fill(); // head
+  ctx.fillStyle = '#1f3a7a'; ctx.beginPath(); ctx.arc(0, -2.65, 0.33, Math.PI, 0); ctx.fill();  // cap
+  ctx.fillStyle = '#9aa'; ctx.fillRect(-0.4, -0.9, 0.32, 0.9); ctx.fillRect(0.08, -0.9, 0.32, 0.9); // legs
+  ctx.strokeStyle = '#e8e8ee'; ctx.lineWidth = 0.22; ctx.lineCap = 'round';
+  const ang = -Math.PI * 0.2 - arm * Math.PI * 1.15;
+  ctx.beginPath(); ctx.moveTo(0.4, -2.0); ctx.lineTo(0.4 + Math.cos(ang) * 0.9, -2.0 + Math.sin(ang) * 0.9); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(-0.4, -2.0); ctx.lineTo(-0.8, -1.5); ctx.stroke();
+  ctx.restore();
+}
+function ballPos(now, f) {
+  const p = game.pitch; if (!p) return null;
+  const t = (now - p.start - p.windup) / p.travel;
+  if (t < 0) return null;
+  const tt = Math.min(1.25, t);
+  const x = f.px + p.curve * Math.sin(Math.min(1, tt) * Math.PI) * W * 0.03 + p.curve * Math.max(0, tt - 0.7) * W * 0.04;
+  const y = f.my - H * 0.03 + (f.py - H * 0.06 - (f.my - H * 0.03)) * Math.pow(tt, 1.25);
+  return { x, y, r: 4 + 22 * Math.pow(tt, 2.2), t };
+}
+function drawBall(x, y, r) {
+  ctx.fillStyle = 'rgba(0,0,0,.25)'; ctx.beginPath(); ctx.ellipse(x, y + r * 2.2, r * 0.9, r * 0.3, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#fbfbf5'; ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
+  if (r > 8) { ctx.strokeStyle = '#d33'; ctx.lineWidth = Math.max(1, r * 0.08);
+    ctx.beginPath(); ctx.arc(x - r * 0.9, y, r * 0.7, -0.9, 0.9); ctx.stroke(); ctx.beginPath(); ctx.arc(x + r * 0.9, y, r * 0.7, Math.PI - 0.9, Math.PI + 0.9); ctx.stroke(); }
+}
+function drawFlight(now, f) {
+  const h = game.hit, t = Math.min(1, (now - h.t) / 1800);
+  const hy = H * 0.3;
+  const fenceY = hy + H * 0.02;
+  // distance → screen: fence distance lands on the wall line, shorter lands in the outfield grass
+  const landFrac = Math.min(1.25, h.dist / FENCE_FT);
+  const landY = landFrac >= 1 ? fenceY - (landFrac - 1) * H * 0.5 : f.py - (f.py - fenceY) * landFrac;
+  const landX = f.px + h.angle * W * 0.42 * Math.min(1, landFrac);
+  const x = f.px + (landX - f.px) * t;
+  const yLin = f.py - H * 0.07 + (landY - (f.py - H * 0.07)) * t;
+  const apex = H * (0.15 + 0.35 * Math.min(1, h.dist / 420));
+  const y = yLin - Math.sin(t * Math.PI) * apex;
+  const r = Math.max(3, 14 * (1 - t * 0.8));
+  if (t < 1 || h.type !== 'homer') drawBall(x, y, r);
+  // live distance counter
+  ctx.fillStyle = '#fff'; ctx.font = `bold ${Math.max(22, H * 0.045)}px system-ui`; ctx.textAlign = 'center';
+  ctx.fillText(`${Math.round(h.dist * t)} ft`, W / 2, H * 0.24);
+  if (h.type === 'homer' && t >= 1) {
+    for (let i = 0; i < 26; i++) { // fireworks
+      const a = i / 26 * Math.PI * 2, k = Math.min(1, (now - h.t - 1800) / 700);
+      ctx.fillStyle = ['#ffd23f', '#ff6b6b', '#6bd0ff', '#fff'][i % 4];
+      ctx.beginPath(); ctx.arc(landX + Math.cos(a) * 90 * k, Math.min(landY, hy) - 40 + Math.sin(a) * 90 * k, 4 * (1 - k * 0.6), 0, Math.PI * 2); ctx.fill();
+    }
+  }
+}
+function drawBatterCue(now, f) {
+  // simple bat silhouette at the plate; animates on swing
+  const sx = f.px + W * 0.07, sy = f.py - H * 0.05;
+  let a = -2.3;
+  if (swingFx) { const k = Math.min(1, (now - swingFx.t) / 220); a = -2.3 + k * 3.4; if (now - swingFx.t > 600) swingFx = null; }
+  ctx.save(); ctx.translate(sx, sy); ctx.rotate(a);
+  ctx.fillStyle = '#c8955a'; ctx.beginPath(); ctx.moveTo(0, -3); ctx.lineTo(H * 0.17, -7); ctx.lineTo(H * 0.17, 7); ctx.lineTo(0, 3); ctx.fill();
+  ctx.restore();
+}
+function drawCam() {
+  if (!camOn || video.readyState < 2) return;
+  const w = Math.min(W * 0.24, 320), h = w * (video.videoHeight || 720) / (video.videoWidth || 1280);
+  const x = W - w - 14, y = H - h - 14;
+  ctx.save(); ctx.globalAlpha = 0.85; ctx.translate(x + w, y); ctx.scale(-1, 1); ctx.drawImage(video, 0, 0, w, h); ctx.restore();
+  ctx.strokeStyle = 'rgba(255,255,255,.6)'; ctx.lineWidth = 2; ctx.strokeRect(x, y, w, h);
+  if (poses[0]) {
+    const p = poses[0], P = i => ({ x: x + (1 - p[i].x) * w, y: y + p[i].y * h });
+    if (showSkeleton) { ctx.strokeStyle = '#ffd23f'; ctx.lineWidth = 2; BONES.forEach(([a, b]) => { if (!p[a] || !p[b]) return; const A = P(a), B = P(b); ctx.beginPath(); ctx.moveTo(A.x, A.y); ctx.lineTo(B.x, B.y); ctx.stroke(); }); }
+    ctx.strokeStyle = 'rgba(255,210,63,.9)'; ctx.lineWidth = 4; ctx.beginPath();
+    swingTrail.forEach((s, i) => { const X = x + (1 - s.x) * w, Y = y + s.y * h; i ? ctx.lineTo(X, Y) : ctx.moveTo(X, Y); }); ctx.stroke();
+  }
+}
+function draw(now) {
+  const f = drawField();
+  drawPitcher(now, f);
+  if (game.phase === 'pitch' || game.phase === 'whiff') { const b = ballPos(now, f); if (b && b.t < 1.25) drawBall(b.x, b.y, b.r); }
+  if (game.phase === 'flight') drawFlight(now, f);
+  drawBatterCue(now, f);
+  drawCam();
+  // HUD
+  ctx.fillStyle = 'rgba(0,0,0,.5)'; ctx.fillRect(0, 0, W, 60);
+  ctx.textBaseline = 'middle'; ctx.font = 'bold 28px system-ui'; ctx.fillStyle = '#fff';
+  ctx.textAlign = 'left'; ctx.fillText(`HR ${game.hrs}`, 18, 30);
+  ctx.textAlign = 'center';
+  let outsTxt = ''; for (let i = 0; i < OUTS_PER_GAME; i++) outsTxt += i < game.outs ? '●' : '○';
+  ctx.font = `bold ${OUTS_PER_GAME > 10 ? 16 : 22}px system-ui`; ctx.fillText(`Outs ${outsTxt}`, W / 2, 30);
+  ctx.textAlign = 'right'; ctx.font = 'bold 22px system-ui';
+  ctx.fillText(game.streak >= 2 ? `${game.streak} in a row!` : `Longest ${game.longest || '—'}${game.longest ? ' ft' : ''}`, W - 18, 30);
+  if (game.pitch && game.phase === 'pitch') { ctx.font = '15px system-ui'; ctx.textAlign = 'left'; ctx.fillStyle = 'rgba(255,255,255,.8)'; ctx.fillText(`${game.pitch.mph} mph ${game.pitch.kind}`, 18, 78); }
+  if (now < game.msgT && game.msg) {
+    ctx.font = `bold ${Math.max(26, Math.min(W, H) * 0.06)}px system-ui`; ctx.textAlign = 'center';
+    ctx.lineWidth = 6; ctx.strokeStyle = 'rgba(0,0,0,.6)'; ctx.strokeText(game.msg, W / 2, H * 0.4);
+    ctx.fillStyle = game.msgColor; ctx.fillText(game.msg, W / 2, H * 0.4);
+  }
+  ctx.font = '13px system-ui'; ctx.textAlign = 'left'; ctx.fillStyle = 'rgba(255,255,255,.75)';
+  const track = !camOn ? 'camera off · Space/click to swing' : !poseReady ? 'tracker loading' : poses.length ? `tracking ${camFps.toFixed(0)} fps` : `tracking ${camFps.toFixed(0)} fps · step into view`;
+  ctx.fillText(track, 18, H - 14);
+  if (game.state === 'paused') { ctx.fillStyle = 'rgba(0,0,0,.5)'; ctx.fillRect(0, 0, W, H); ctx.fillStyle = '#fff'; ctx.font = 'bold 56px system-ui'; ctx.textAlign = 'center'; ctx.fillText('Paused', W / 2, H / 2); }
+  if (game.raiseT > 0 && game.state !== 'playing') { ctx.strokeStyle = '#ffd23f'; ctx.lineWidth = 10; ctx.beginPath(); ctx.arc(W / 2, H * 0.12, 34, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * Math.min(1, game.raiseT)); ctx.stroke(); }
+}
+
+// ---------- loop ----------
+let last = performance.now();
+function frame(now) {
+  const dt = Math.min(0.1, (now - last) / 1000); last = now;
+  const fresh = trackPose(now);
+  if (game.state !== 'paused') update(now, dt, fresh);
+  draw(now);
+  requestAnimationFrame(frame);
+}
+
+// ---------- UI ----------
+function setStatus(t) { statusEl.textContent = t; }
+startBtn.addEventListener('click', () => startGame());
+camBtn.addEventListener('click', async () => {
+  if (camOn) { stopCamera(); setStatus('Camera off — use Space or click to swing.'); }
+  else if (await startCamera()) { if (!poseReady) await loadPose(); if (poseReady) setStatus('Camera on. Raise both hands to start.'); }
+});
+function toggleFs() { try { document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen(); } catch {} }
+fsBtn.addEventListener('click', toggleFs);
+cv.addEventListener('pointerdown', () => swing(performance.now(), 0.85));
+window.addEventListener('keydown', e => {
+  if (e.code === 'Space') { e.preventDefault(); if (game.state === 'menu' || game.state === 'over') startGame(); else if (!e.repeat) swing(performance.now(), 0.85); }
+  else if (e.key === 'p' || e.key === 'P') togglePause();
+  else if (e.key === 's' || e.key === 'S') showSkeleton = !showSkeleton;
+  else if (e.key === 'c' || e.key === 'C') camBtn.click();
+  else if (e.key === 'f' || e.key === 'F') toggleFs();
+});
+document.addEventListener('visibilitychange', () => { if (document.hidden && game.state === 'playing') togglePause(); });
+
+if (DEBUG) {
+  window.__hr = {
+    get state() { return game.state; }, get game() { return game; }, get poseReady() { return poseReady; }, get camFps() { return camFps; },
+    arrivalTime, swing, startGame, endGame, handsUp, WIN, FENCE_FT,
+    setPoses(v) { posesOverride = v; }, // null = live camera
+  };
+}
+
+resize();
+requestAnimationFrame(frame);
+(async () => { if (await startCamera()) { if (await loadPose()) setStatus('Camera on. Raise both hands to start, or press Play ball.'); } })();
+</script>
+</body>
+</html>
