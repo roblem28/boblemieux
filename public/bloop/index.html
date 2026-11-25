@@ -1,0 +1,702 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Bloop Light Show</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Familjen+Grotesk:wght@400;600&family=Shrikhand&display=swap" rel="stylesheet">
+<style>
+/* Layout idea: the light show fills the whole screen; one glass control sheet
+   (bottom in portrait, right side in landscape) that disappears on a tap. */
+:root {
+  color-scheme: dark;
+  --ink: #0b0613;
+  --sheet: rgba(17, 9, 27, 0.74);
+  --text: #f6eeff;
+  --muted: #bdaed3;
+  --line: rgba(255, 255, 255, 0.16);
+  --hot: hsl(14, 92%, 60%);
+  --font-display: "Shrikhand", "Cooper Black", Georgia, serif;
+  --font-body: "Familjen Grotesk", "Avenir Next", "Segoe UI", system-ui, sans-serif;
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; margin: 0; }
+body {
+  background: var(--ink);
+  color: var(--text);
+  font-family: var(--font-body);
+  font-size: 16px;
+  line-height: 1.35;
+  overflow: hidden;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-user-select: none; user-select: none;
+  touch-action: manipulation;
+}
+#show { position: fixed; inset: 0; width: 100%; height: 100%; display: block; background: var(--ink); }
+
+.sheet {
+  position: fixed; left: 0; right: 0; bottom: 0;
+  max-height: 68%;
+  display: flex; flex-direction: column; gap: 14px;
+  padding: 14px max(16px, env(safe-area-inset-right)) calc(14px + env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
+  background: var(--sheet);
+  -webkit-backdrop-filter: blur(18px) saturate(1.3); backdrop-filter: blur(18px) saturate(1.3);
+  border-top: 1px solid var(--line);
+  border-radius: 22px 22px 0 0;
+  overflow-y: auto; overscroll-behavior: contain;
+  transition: transform .35s ease, opacity .35s ease;
+}
+body.hidden-ui .sheet { transform: translateY(104%); opacity: 0; pointer-events: none; }
+
+.head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.brand { font-family: var(--font-display); font-size: 30px; line-height: 1; color: var(--hot); letter-spacing: .01em; margin: 0; font-weight: 400; }
+.now { flex: 1; min-width: 0; color: var(--muted); font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: right; }
+
+button { font: inherit; color: inherit; cursor: pointer; }
+button:focus-visible, input:focus-visible, label.add:focus-within, a:focus-visible { outline: 2px solid var(--hot); outline-offset: 2px; }
+
+.transport { display: flex; align-items: center; gap: 8px; }
+.round {
+  width: 46px; height: 46px; flex: none; border-radius: 50%;
+  display: grid; place-items: center;
+  background: rgba(255,255,255,.08); border: 1px solid var(--line);
+}
+.round svg { width: 20px; height: 20px; fill: currentColor; }
+.round.play { width: 58px; height: 58px; background: var(--hot); border-color: transparent; color: #160a04; }
+.round.play svg { width: 24px; height: 24px; }
+.round:disabled { opacity: .35; cursor: default; }
+.round[aria-pressed="true"] { background: var(--hot); border-color: transparent; color: #160a04; }
+.add {
+  margin-left: auto; display: inline-flex; align-items: center; gap: 8px;
+  padding: 0 16px; height: 46px; border-radius: 23px;
+  background: rgba(255,255,255,.08); border: 1px solid var(--line);
+  font-weight: 600; cursor: pointer; white-space: nowrap;
+}
+.add input { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+body.empty .add { background: var(--hot); color: #160a04; border-color: transparent; }
+
+.seek { display: flex; align-items: center; gap: 10px; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.seek input { flex: 1; }
+
+/* Song names: Shazam (through an iPhone Shortcut) tells the page what is playing */
+.ident { display: flex; align-items: center; gap: 12px; min-height: 44px; }
+.what {
+  flex: none; height: 44px; padding: 0 16px; border-radius: 22px;
+  background: rgba(255,255,255,.08); border: 1px solid var(--line);
+  font-weight: 600; white-space: nowrap;
+}
+.what[aria-expanded="true"] { border-color: var(--hot); color: var(--hot); }
+.song { flex: 1; min-width: 0; font-size: 14px; line-height: 1.3; -webkit-user-select: text; user-select: text; }
+.song:empty { display: none; }
+.song .s-title { display: block; font-weight: 600; font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.song .s-sub { display: block; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pair { display: flex; flex-direction: column; gap: 10px; padding: 14px; border-radius: 16px; background: rgba(255,255,255,.06); border: 1px solid var(--line); font-size: 14px; }
+.pair[hidden] { display: none; }
+.pair p { margin: 0; color: var(--muted); }
+.pair ol { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 6px; }
+.pair b { font-weight: 600; color: var(--text); }
+.link { display: flex; gap: 8px; }
+.link input {
+  flex: 1; min-width: 0; height: 40px; padding: 0 10px; border-radius: 10px; font: inherit; font-size: 13px;
+  color: var(--text); background: rgba(0,0,0,.35); border: 1px solid var(--line);
+  -webkit-user-select: text; user-select: text;
+}
+.link button { flex: none; height: 40px; padding: 0 14px; border-radius: 10px; background: var(--hot); color: #160a04; border: 0; font-weight: 600; }
+
+.status { margin: 0; font-size: 13px; color: var(--muted); }
+.status:empty { display: none; }
+
+.tracks { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; max-height: 132px; overflow-y: auto; }
+.tracks:empty { display: none; }
+.tracks button {
+  width: 100%; text-align: left; background: none; border: 0; border-radius: 10px;
+  padding: 9px 10px; display: flex; gap: 10px; align-items: baseline;
+  white-space: nowrap; overflow: hidden;
+}
+.tracks .n { color: var(--muted); font-variant-numeric: tabular-nums; font-size: 13px; flex: none; }
+.tracks .t { overflow: hidden; text-overflow: ellipsis; }
+.tracks button[aria-current="true"] { background: rgba(255,255,255,.10); color: var(--hot); font-weight: 600; }
+
+.looks { display: flex; gap: 8px; flex-wrap: wrap; }
+.chip {
+  padding: 8px 14px; border-radius: 999px; font-size: 14px; font-weight: 600;
+  background: rgba(255,255,255,.07); border: 1px solid var(--line);
+}
+.chip.go { border-color: var(--hot); color: var(--hot); }
+
+.knobs { display: grid; grid-template-columns: 1fr; gap: 12px 22px; }
+.knob { display: grid; grid-template-columns: 76px 1fr; align-items: center; gap: 12px; }
+.knob label { font-weight: 600; font-size: 15px; }
+
+input[type=range] {
+  -webkit-appearance: none; appearance: none;
+  width: 100%; height: 30px; background: transparent; margin: 0; touch-action: pan-y;
+}
+input[type=range]::-webkit-slider-runnable-track { height: 6px; border-radius: 3px; background: rgba(255,255,255,.2); }
+input[type=range]::-moz-range-track { height: 6px; border-radius: 3px; background: rgba(255,255,255,.2); }
+input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none; width: 26px; height: 26px; margin-top: -10px;
+  border-radius: 50%; background: var(--hot); border: 3px solid #fff3;
+}
+input[type=range]::-moz-range-thumb { width: 22px; height: 22px; border-radius: 50%; background: var(--hot); border: 3px solid #fff3; }
+#k-hue::-webkit-slider-runnable-track { background: linear-gradient(90deg, #f33, #fa0, #ee3, #3d5, #2cf, #46f, #c4f, #f38, #f33); }
+#k-hue::-moz-range-track { background: linear-gradient(90deg, #f33, #fa0, #ee3, #3d5, #2cf, #46f, #c4f, #f38, #f33); }
+
+.foot { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.tip { margin: 0; font-size: 13px; color: var(--muted); }
+.hide { padding: 10px 16px; border-radius: 999px; background: rgba(255,255,255,.08); border: 1px solid var(--line); font-weight: 600; white-space: nowrap; }
+
+.wake {
+  position: fixed; left: 50%; bottom: calc(18px + env(safe-area-inset-bottom)); transform: translateX(-50%);
+  padding: 8px 14px; border-radius: 999px; font-size: 13px; color: var(--text);
+  background: rgba(0,0,0,.45); border: 1px solid var(--line);
+  opacity: 0; pointer-events: none; transition: opacity .4s ease;
+}
+body.hidden-ui.hint .wake { opacity: 1; }
+
+/* The song name, floated over the show so it reads on the TV */
+.toast {
+  position: fixed; left: 50%; top: calc(18px + env(safe-area-inset-top)); transform: translateX(-50%);
+  max-width: min(86%, 640px); padding: 10px 20px; border-radius: 18px; text-align: center;
+  background: rgba(0,0,0,.5); border: 1px solid var(--line);
+  -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
+  opacity: 0; pointer-events: none; transition: opacity .6s ease;
+}
+.toast.on { opacity: 1; }
+.toast .t-title { display: block; font-family: var(--font-display); font-size: 22px; line-height: 1.15; color: var(--hot); }
+.toast .t-sub { display: block; font-size: 15px; color: var(--text); margin-top: 2px; }
+
+@media (orientation: landscape) and (max-height: 520px) {
+  .sheet {
+    left: auto; top: 0; width: min(380px, 52%); max-height: none;
+    border-top: 0; border-left: 1px solid var(--line); border-radius: 22px 0 0 22px;
+    padding: calc(12px + env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) calc(12px + env(safe-area-inset-bottom)) 16px;
+  }
+  body.hidden-ui .sheet { transform: translateX(104%); }
+  .tracks { max-height: 96px; }
+  .toast { left: 24%; }
+  body.hidden-ui .toast { left: 50%; }
+}
+@media (min-width: 760px) and (min-height: 521px) {
+  .sheet { left: 50%; right: auto; width: 720px; margin-left: -360px; }
+  .knobs { grid-template-columns: 1fr 1fr; }
+}
+@media (prefers-reduced-motion: reduce) { .sheet, .wake, .toast { transition: none; } }
+</style>
+</head>
+<body class="empty">
+<canvas id="show" aria-label="Light show. Tap to show or hide the controls."></canvas>
+
+<section class="sheet" id="sheet" aria-label="Controls">
+  <div class="head">
+    <h1 class="brand">Bloop</h1>
+    <div class="now" id="now">No song playing</div>
+  </div>
+
+  <div class="transport">
+    <button class="round" id="prev" type="button" aria-label="Previous song" disabled><svg viewBox="0 0 24 24"><path d="M6 5h2.5v14H6zM20 5v14L9.5 12z"/></svg></button>
+    <button class="round play" id="play" type="button" aria-label="Play" disabled><svg viewBox="0 0 24 24" id="play-ico"><path d="M7 4.5v15l13-7.5z"/></svg></button>
+    <button class="round" id="next" type="button" aria-label="Next song" disabled><svg viewBox="0 0 24 24"><path d="M15.5 5H18v14h-2.5zM4 5v14l10.5-7z"/></svg></button>
+    <button class="round" id="mic" type="button" aria-label="Listen to the room with the microphone" aria-pressed="false"><svg viewBox="0 0 24 24"><path d="M12 15a3.5 3.5 0 0 0 3.5-3.5v-6a3.5 3.5 0 0 0-7 0v6A3.5 3.5 0 0 0 12 15zm6.5-3.5h-1.8a4.7 4.7 0 0 1-9.4 0H5.5a6.5 6.5 0 0 0 5.6 6.4V21h1.8v-3.1a6.5 6.5 0 0 0 5.6-6.4z"/></svg></button>
+    <label class="add" for="files">Add songs<input id="files" type="file" accept="audio/*,.mp3,.m4a,.wav,.aac,.flac,.ogg" multiple></label>
+  </div>
+
+  <div class="seek">
+    <span id="t-cur">0:00</span>
+    <input id="seek" type="range" min="0" max="1000" value="0" step="1" aria-label="Position in song" disabled>
+    <span id="t-dur">0:00</span>
+  </div>
+
+  <div class="ident">
+    <button class="what" id="what" type="button" aria-expanded="false" aria-controls="pair">Song names</button>
+    <div class="song" id="song" role="status" aria-live="polite"></div>
+  </div>
+  <div class="pair" id="pair" hidden>
+    <p id="pair-note">One-time setup on this iPhone. After that, Shazam tells Bloop what is playing.</p>
+    <ol>
+      <li>In the <b>Shortcuts</b> app, make a new shortcut and add <b>Recognize Music</b>.</li>
+      <li>Add <b>Get Contents of URL</b> and paste the link below. Set Method to <b>POST</b> and Request Body to <b>JSON</b>, then add two text fields: <b>title</b> = Title and <b>artist</b> = Artist, both picked from Recognize Music.</li>
+      <li>Name it <b>Bloop Song</b>. Run it with "Hey Siri, Bloop Song" or Back Tap while the music plays.</li>
+    </ol>
+    <div class="link">
+      <input id="pair-url" type="text" readonly aria-label="Link for the shortcut">
+      <button id="pair-copy" type="button">Copy</button>
+    </div>
+  </div>
+
+  <p class="status" id="status" role="status">Add songs from your phone, or tap the microphone to follow whatever the sound system is playing.</p>
+  <ol class="tracks" id="tracks"></ol>
+
+  <div class="looks" aria-label="Looks">
+    <button class="chip" type="button" data-look="lava">Lava lamp</button>
+    <button class="chip" type="button" data-look="acid">Acid rainbow</button>
+    <button class="chip" type="button" data-look="deep">Deep sea</button>
+    <button class="chip go" type="button" id="surprise">Surprise me</button>
+  </div>
+
+  <div class="knobs">
+    <div class="knob"><label for="k-hue">Color</label><input id="k-hue" type="range" min="0" max="1" step="0.005"></div>
+    <div class="knob"><label for="k-spread">Rainbow</label><input id="k-spread" type="range" min="0" max="1" step="0.01"></div>
+    <div class="knob"><label for="k-speed">Speed</label><input id="k-speed" type="range" min="0" max="1" step="0.01"></div>
+    <div class="knob"><label for="k-bloop">Bloopy</label><input id="k-bloop" type="range" min="0" max="1" step="0.01"></div>
+    <div class="knob"><label for="k-count">Blobs</label><input id="k-count" type="range" min="2" max="14" step="1"></div>
+    <div class="knob"><label for="k-kick">Kick</label><input id="k-kick" type="range" min="0" max="1" step="0.01"></div>
+    <div class="knob"><label for="k-swirl">Swirl</label><input id="k-swirl" type="range" min="0" max="1" step="0.01"></div>
+    <div class="knob"><label for="k-glow">Glow</label><input id="k-glow" type="range" min="0" max="1" step="0.01"></div>
+  </div>
+
+  <div class="foot">
+    <p class="tip">Turn the phone sideways to fill the TV.</p>
+    <button class="hide" id="hide" type="button">Hide controls</button>
+  </div>
+</section>
+
+<div class="wake" aria-hidden="true">Tap anywhere for controls</div>
+<div class="toast" id="toast" aria-hidden="true"><span class="t-title" id="toast-title"></span><span class="t-sub" id="toast-sub"></span></div>
+
+<script>
+(function () {
+  'use strict';
+  var $ = function (id) { return document.getElementById(id); };
+  var reduced = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  // ---------- look settings ----------
+  var KEYS = ['hue', 'spread', 'speed', 'bloop', 'count', 'kick', 'swirl', 'glow'];
+  var LOOKS = {
+    lava: { hue: 0.02, spread: 0.22, speed: 0.30, bloop: 0.72, count: 6,  kick: 0.60, swirl: 0.25, glow: 0.60 },
+    acid: { hue: 0.80, spread: 0.95, speed: 0.55, bloop: 0.45, count: 11, kick: 0.85, swirl: 0.80, glow: 0.45 },
+    deep: { hue: 0.55, spread: 0.30, speed: 0.20, bloop: 0.85, count: 8,  kick: 0.45, swirl: 0.50, glow: 0.75 }
+  };
+  var S = Object.assign({}, LOOKS.lava);
+  if (reduced) { S.speed = 0.15; S.kick = 0.3; }
+  try {
+    var saved = JSON.parse(localStorage.getItem('bloop.look') || 'null');
+    if (saved) KEYS.forEach(function (k) { if (typeof saved[k] === 'number' && isFinite(saved[k])) S[k] = saved[k]; });
+  } catch (e) {}
+
+  function save() { try { localStorage.setItem('bloop.look', JSON.stringify(S)); } catch (e) {} }
+  function paintAccent() {
+    document.documentElement.style.setProperty('--hot', 'hsl(' + Math.round(((S.hue * 360) + 14) % 360) + ', 92%, 62%)');
+  }
+  function syncKnobs() { KEYS.forEach(function (k) { $('k-' + k).value = S[k]; }); paintAccent(); }
+  KEYS.forEach(function (k) {
+    $('k-' + k).addEventListener('input', function (e) { S[k] = parseFloat(e.target.value); if (k === 'hue') paintAccent(); save(); poke(); });
+  });
+  function setLook(l) { Object.assign(S, l); syncKnobs(); save(); poke(); }
+  Array.prototype.forEach.call(document.querySelectorAll('[data-look]'), function (b) {
+    b.addEventListener('click', function () { setLook(LOOKS[b.getAttribute('data-look')]); });
+  });
+  $('surprise').addEventListener('click', function () {
+    var r = Math.random;
+    setLook({ hue: r(), spread: r(), speed: 0.15 + r() * 0.6, bloop: 0.2 + r() * 0.8, count: 3 + Math.floor(r() * 11),
+              kick: 0.4 + r() * 0.6, swirl: r(), glow: 0.2 + r() * 0.7 });
+  });
+  syncKnobs();
+
+  // ---------- graphics ----------
+  var canvas = $('show');
+  var gl = null;
+  try { gl = canvas.getContext('webgl', { antialias: false, alpha: false, powerPreference: 'high-performance' }) || canvas.getContext('experimental-webgl'); } catch (e) {}
+
+  var VERT = 'attribute vec2 p; void main(){ gl_Position = vec4(p, 0.0, 1.0); }';
+  var FRAG = [
+    'precision highp float;',
+    'uniform vec2 uRes; uniform float uT;',
+    'uniform float uBass, uMid, uTreb, uBeat;',
+    'uniform float uHue, uSpread, uBloop, uCount, uWarp, uGlow;',
+    'float hash(vec2 p){ p = fract(p * vec2(123.34, 456.21)); p += dot(p, p + 45.32); return fract(p.x * p.y); }',
+    'float noise(vec2 p){ vec2 i = floor(p), f = fract(p); f = f*f*(3.0-2.0*f);',
+    '  return mix(mix(hash(i), hash(i+vec2(1.,0.)), f.x), mix(hash(i+vec2(0.,1.)), hash(i+vec2(1.,1.)), f.x), f.y); }',
+    'float fbm(vec2 p){ float a = 0.5, s = 0.0; for(int i=0;i<4;i++){ s += a*noise(p); p = p*2.03 + vec2(1.7, 9.2); a *= 0.5; } return s; }',
+    'vec3 pal(float t){ return 0.5 + 0.5*cos(6.28318*(t + vec3(0.0, 0.33, 0.67))); }',
+    'void main(){',
+    '  float asp = uRes.x / uRes.y;',
+    '  vec2 uv = (gl_FragCoord.xy - 0.5*uRes) / uRes.y;',
+    '  float t = uT;',
+    '  vec2 w = vec2(fbm(uv*1.7 + vec2(0.0, t*0.16)), fbm(uv*1.7 + vec2(5.2, -t*0.13)));',
+    '  vec2 p = uv + (w - 0.5) * (0.15 + uWarp*1.1) * (1.0 + uMid*0.6);',
+    '  float f = 0.0, hsum = 0.0;',
+    '  for(int i=0;i<14;i++){',
+    '    float fi = float(i);',
+    '    if(fi >= uCount) break;',
+    '    float a = fi*1.731 + 1.0;',
+    '    vec2 c = vec2(sin(t*(0.21 + 0.07*sin(a)) + a*2.1) * asp * 0.44,',
+    '                  sin(t*(0.33 + 0.09*cos(a*1.3)) + a*3.7) * 0.46);',
+    '    float r = (0.10 + 0.10*fract(a*0.618)) * (0.55 + uBloop*1.25);',
+    '    r *= 1.0 + uBass*0.55*(0.6 + 0.4*sin(a*5.0)) + uBeat*0.22;',
+    '    vec2 d = p - c;',
+    '    float m = r*r / (dot(d, d) + 0.0004);',
+    '    f += m; hsum += m * fract(fi*0.381);',
+    '  }',
+    '  float hmix = hsum / max(f, 0.0001);',
+    '  float edge = mix(0.03, 0.55, uBloop);',
+    '  float body = smoothstep(1.0 - edge, 1.0 + edge, f);',
+    '  float lf = log(f + 1.0);',
+    '  float rings = 0.78 + 0.22*sin(lf*(5.0 + uWarp*9.0) - t*1.4);',
+    '  vec3 blob = pal(uHue + uSpread*((hmix - 0.5)*0.9 + (lf - 0.9)*0.25) + 0.02*sin(t*0.3)) * rings;',
+    '  blob *= 0.75 + 0.45*smoothstep(1.0, 3.0, f);',
+    '  float n = fbm(p*1.3 + vec2(t*0.05, -t*0.04));',
+    '  vec3 bg = pal(uHue + 0.62 + uSpread*(n - 0.5)*0.9) * (0.05 + 0.26*n*n) * (1.0 + uMid*0.8);',
+    '  vec3 halo = pal(uHue + uSpread*(hmix - 0.5)*0.9 + 0.06) * pow(clamp(f, 0.0, 1.0), 1.6) * uGlow * (0.7 + uBass*0.9);',
+    '  vec3 col = mix(bg + halo, blob, body);',
+    '  col += uTreb * 0.35 * pow(noise(p*26.0 + vec2(t*1.7, -t*1.1)), 7.0) * pal(uHue + 0.15);',
+    '  col *= 1.0 + uBeat*0.14;',
+    '  col *= 1.0 - 0.45*dot(uv, uv);',
+    '  gl_FragColor = vec4(pow(max(col, 0.0), vec3(0.92)), 1.0);',
+    '}'
+  ].join('\n');
+
+  var U = {}, glOK = false, glError = '';
+  function initGL() {
+    if (!gl) { glError = 'no WebGL'; return; }
+    function sh(type, src) {
+      var s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s);
+      if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s) || 'shader failed');
+      return s;
+    }
+    try {
+      var prog = gl.createProgram();
+      gl.attachShader(prog, sh(gl.VERTEX_SHADER, VERT));
+      gl.attachShader(prog, sh(gl.FRAGMENT_SHADER, FRAG));
+      gl.linkProgram(prog);
+      if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(prog) || 'link failed');
+      gl.useProgram(prog);
+      var buf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+      gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW);
+      var loc = gl.getAttribLocation(prog, 'p'); gl.enableVertexAttribArray(loc); gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
+      ['uRes', 'uT', 'uBass', 'uMid', 'uTreb', 'uBeat', 'uHue', 'uSpread', 'uBloop', 'uCount', 'uWarp', 'uGlow'].forEach(function (n) { U[n] = gl.getUniformLocation(prog, n); });
+      glOK = true;
+    } catch (e) { glError = String(e.message || e); }
+  }
+  initGL();
+  window.__bloop = { glOK: glOK, glError: glError };
+
+  function resize() {
+    var w = canvas.clientWidth, h = canvas.clientHeight;
+    var dpr = window.devicePixelRatio || 1;
+    var scale = Math.min(dpr, 1280 / Math.max(w, h, 1));   // cap the long side: plenty for a mirrored TV, easy on the phone
+    var cw = Math.max(2, Math.round(w * scale)), ch = Math.max(2, Math.round(h * scale));
+    if (canvas.width !== cw || canvas.height !== ch) { canvas.width = cw; canvas.height = ch; if (glOK) gl.viewport(0, 0, cw, ch); }
+  }
+  window.addEventListener('resize', resize);
+  window.addEventListener('orientationchange', function () { setTimeout(resize, 250); });
+
+  // ---------- audio ----------
+  var audio = new Audio();
+  audio.preload = 'auto';
+  audio.setAttribute('playsinline', '');
+  var actx = null, analyser = null, bins = null, binHz = 21.5;
+  var tracks = [], cur = -1;
+  var bass = 0, mid = 0, treb = 0, beat = 0, bassAvg = 0.2, deafFor = 0, deaf = false;
+
+  var micOn = false, micStream = null, micNode = null, micAnalyser = null, micBins = null, agc = 0.08;
+  var lastSong = '', wantMic = false, micRetries = 0, micSince = 0;
+  function session(type) { try { if (navigator.audioSession) navigator.audioSession.type = type; } catch (e) {} }
+  function ensureCtx() {          // call from a tap, so the phone lets audio start
+    try {
+      if (!actx) { var AC = window.AudioContext || window.webkitAudioContext; actx = new AC(); }
+      if (actx.state === 'suspended') actx.resume().catch(function () {});
+      binHz = actx.sampleRate / 2048;
+    } catch (e) { actx = null; }
+    return actx;
+  }
+  function ensureAudioGraph() {
+    session('playback');          // keep sound on with the ring switch off
+    if (!ensureCtx() || analyser) return;
+    try {
+      var src = actx.createMediaElementSource(audio);
+      analyser = actx.createAnalyser();
+      analyser.fftSize = 2048; analyser.smoothingTimeConstant = 0.55;
+      src.connect(analyser); analyser.connect(actx.destination);
+      bins = new Uint8Array(analyser.frequencyBinCount);
+    } catch (e) { analyser = null; }
+  }
+  function stopMic() {
+    if (micStream) micStream.getTracks().forEach(function (t) { t.stop(); });
+    if (micNode) { try { micNode.disconnect(); } catch (e) {} }
+    micStream = null; micNode = null; micAnalyser = null; micOn = false;
+  }
+  function startMic() {           // resolves true once the room can be heard, false if it cannot
+    problem = '';
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      problem = 'This browser does not offer the microphone on this page. Open Bloop in Safari.';
+      refreshStatus(); return Promise.resolve(false);
+    }
+    audio.pause();
+    session('play-and-record');
+    ensureCtx();
+    return navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } }).then(function (stream) {
+      if (!actx) throw new Error('no audio engine');
+      micStream = stream;
+      micNode = actx.createMediaStreamSource(stream);
+      micAnalyser = actx.createAnalyser();           // analysis only: never sent to the speaker, so no feedback
+      micAnalyser.fftSize = 2048; micAnalyser.smoothingTimeConstant = 0.5;
+      micNode.connect(micAnalyser);
+      micBins = new Uint8Array(micAnalyser.frequencyBinCount);
+      micOn = true; agc = 0.08; wantMic = true; micSince = Date.now();
+      stream.getTracks().forEach(function (t) {
+        t.addEventListener('ended', function () {
+          // Another app (Shazam, a call) took the microphone. Drop to autopilot, then try to pick the room back up.
+          if (Date.now() - micSince > 30000) micRetries = 0;
+          stopMic(); refreshButtons(); refreshStatus();
+          if (wantMic && micRetries < 3) { micRetries += 1; setTimeout(function () { if (wantMic && !micOn) startMic(); }, 2500); }
+        });
+      });
+      keepAwake(); refreshButtons(); refreshStatus(); poke();
+      return true;
+    }).catch(function (e) {
+      stopMic();
+      var n = e && e.name;
+      problem = (n === 'NotAllowedError' || n === 'SecurityError')
+        ? 'The microphone is blocked on this page. Open the Safari version of Bloop and tap Allow when it asks.'
+        : (n === 'NotFoundError' ? 'No microphone was found on this device.' : 'Could not open the microphone. Close other apps using it and try again.');
+      refreshButtons(); refreshStatus();
+      return false;
+    });
+  }
+  function band(data, lo, hi) {
+    var a = Math.max(1, Math.floor(lo / binHz)), b = Math.min(data.length - 1, Math.ceil(hi / binHz)), s = 0;
+    for (var i = a; i <= b; i++) s += data[i];
+    return s / ((b - a + 1) * 255);
+  }
+  function follow(v, target, dt) { var k = target > v ? 22 : 5; return v + (target - v) * Math.min(1, k * dt); }
+  function listen(dt, now) {
+    var micLive = micOn && micAnalyser;
+    var playing = !micLive && !audio.paused && !audio.ended && cur >= 0;
+    var b, m, tr, heard = false;
+    if (micLive) {               // the room: level it automatically so quiet and loud systems both drive the show
+      micAnalyser.getByteFrequencyData(micBins);
+      b = band(micBins, 40, 200); m = band(micBins, 200, 2000); tr = band(micBins, 2000, 8000);
+      var pk = Math.max(b, m, tr);
+      agc += (pk - agc) * Math.min(1, (pk > agc ? 8 : 0.25) * dt);
+      var g = 1 / Math.max(agc, 0.05);
+      heard = pk > 0.012;
+      b = Math.min(1, b * g * 0.95); m = Math.min(1, m * g * 0.75); tr = Math.min(1, tr * g * 0.7);
+    } else if (playing && analyser) {
+      analyser.getByteFrequencyData(bins);
+      b = Math.min(1, band(bins, 30, 160) * 1.25); m = Math.min(1, band(bins, 160, 2000) * 1.7); tr = Math.min(1, band(bins, 2000, 9000) * 2.4);
+      heard = (b + m + tr) > 0.004;
+      deafFor = heard ? 0 : deafFor + dt;
+    }
+    var nowDeaf = playing && (!analyser || deafFor > 2.5);
+    if (nowDeaf !== deaf) { deaf = nowDeaf; refreshStatus(); }
+    if (!heard) {                        // idle, a silent room, or the browser won't let us hear the song: gentle autopilot
+      var s = now * 0.001, lvl = playing ? 0.5 : 0.28;
+      b = lvl * (0.55 + 0.45 * Math.pow(0.5 + 0.5 * Math.sin(s * 2.1), 3));
+      m = lvl * (0.5 + 0.5 * Math.sin(s * 0.7 + 1.0)) * 0.7;
+      tr = lvl * 0.3 * (0.5 + 0.5 * Math.sin(s * 3.3));
+    }
+    if (b > bassAvg * 1.35 && b > 0.22 && beat < 0.4) beat = 1;
+    bassAvg += (b - bassAvg) * Math.min(1, 1.2 * dt);
+    beat *= Math.exp(-dt * 5.5);
+    bass = follow(bass, b, dt); mid = follow(mid, m, dt); treb = follow(treb, tr, dt);
+  }
+
+  // ---------- render loop ----------
+  var last = performance.now(), phase = Math.random() * 100;
+  function frame(now) {
+    var dt = Math.min(0.1, (now - last) / 1000); last = now;
+    listen(dt, now);
+    var k = S.kick, spd = 0.08 + S.speed * S.speed * 2.6;
+    phase += dt * spd * (1 + k * (bass * 1.6 + mid * 0.8));
+    if (glOK) {
+      resize();
+      gl.uniform2f(U.uRes, canvas.width, canvas.height);
+      gl.uniform1f(U.uT, phase);
+      gl.uniform1f(U.uBass, bass * k * 1.3); gl.uniform1f(U.uMid, mid * k); gl.uniform1f(U.uTreb, treb * k);
+      gl.uniform1f(U.uBeat, reduced ? 0 : beat * k);
+      gl.uniform1f(U.uHue, S.hue); gl.uniform1f(U.uSpread, 0.04 + S.spread * 1.1); gl.uniform1f(U.uBloop, S.bloop);
+      gl.uniform1f(U.uCount, S.count); gl.uniform1f(U.uWarp, S.swirl); gl.uniform1f(U.uGlow, S.glow);
+      gl.drawArrays(gl.TRIANGLES, 0, 3);
+    }
+    window.__bloop.levels = [bass, mid, treb]; window.__bloop.mic = micOn; window.__bloop.room = room;
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+
+  // ---------- player UI ----------
+  var PLAY = 'M7 4.5v15l13-7.5z', PAUSE = 'M6.5 5h4v14h-4zM13.5 5h4v14h-4z';
+  var problem = '';
+  function fmt(s) { if (!isFinite(s) || s < 0) s = 0; var m = Math.floor(s / 60), x = Math.floor(s % 60); return m + ':' + (x < 10 ? '0' : '') + x; }
+  function refreshStatus() {
+    var msg = '';
+    if (!glOK) msg = 'This browser could not start the graphics (' + glError + '). Try opening the page in Safari.';
+    else if (problem) msg = problem;
+    else if (micOn) msg = 'Following the room. Hold the phone where it can hear the speakers.';
+    else if (!tracks.length) msg = 'Add songs from your phone, or tap the microphone to follow whatever the sound system is playing.';
+    else if (deaf) msg = 'The browser is not letting the show hear this song, so it is running on autopilot.';
+    $('status').textContent = msg;
+  }
+  function refreshButtons() {
+    var has = tracks.length > 0, playing = has && !audio.paused && !audio.ended;
+    $('play').disabled = !has; $('prev').disabled = !has; $('next').disabled = !has; $('seek').disabled = !has;
+    $('play-ico').firstElementChild.setAttribute('d', playing ? PAUSE : PLAY);
+    $('play').setAttribute('aria-label', playing ? 'Pause' : 'Play');
+    $('now').textContent = micOn ? (lastSong || 'Listening to the room') : (cur >= 0 ? tracks[cur].name : 'No song playing');
+    $('mic').setAttribute('aria-pressed', micOn ? 'true' : 'false');
+    $('mic').setAttribute('aria-label', micOn ? 'Stop listening to the room' : 'Listen to the room with the microphone');
+    document.body.classList.toggle('empty', !has);
+    Array.prototype.forEach.call($('tracks').querySelectorAll('button'), function (b, i) { b.setAttribute('aria-current', (!micOn && i === cur) ? 'true' : 'false'); });
+  }
+  function renderTracks() {
+    var ol = $('tracks'); ol.textContent = '';
+    tracks.forEach(function (t, i) {
+      var li = document.createElement('li'), b = document.createElement('button'), n = document.createElement('span'), s = document.createElement('span');
+      b.type = 'button'; n.className = 'n'; n.textContent = String(i + 1); s.className = 't'; s.textContent = t.name;
+      b.appendChild(n); b.appendChild(s); b.addEventListener('click', function () { playAt(i); });
+      li.appendChild(b); ol.appendChild(li);
+    });
+  }
+  function playAt(i) {
+    if (!tracks.length) return;
+    cur = (i + tracks.length) % tracks.length;
+    problem = '';
+    wantMic = false; lastSong = '';
+    stopMic();
+    ensureAudioGraph();
+    audio.src = tracks[cur].url;
+    var p = audio.play();
+    if (p && p.catch) p.catch(function () { problem = 'Tap the play button to start the music.'; refreshStatus(); refreshButtons(); });
+    keepAwake(); refreshButtons(); refreshStatus(); poke();
+  }
+  $('files').addEventListener('change', function (e) {
+    var first = tracks.length;
+    Array.prototype.forEach.call(e.target.files || [], function (f) {
+      tracks.push({ name: f.name.replace(/\.[^.]+$/, ''), url: URL.createObjectURL(f) });
+    });
+    e.target.value = '';
+    renderTracks();
+    if (tracks.length > first && !micOn && (cur < 0 || audio.paused)) playAt(first); else refreshButtons();
+    refreshStatus();
+  });
+  $('play').addEventListener('click', function () {
+    if (!tracks.length) return;
+    if (cur < 0) { playAt(0); return; }
+    if (micOn) { wantMic = false; lastSong = ''; stopMic(); refreshStatus(); }
+    ensureAudioGraph();
+    if (audio.paused) { var p = audio.play(); if (p && p.catch) p.catch(function () {}); keepAwake(); } else audio.pause();
+    poke();
+  });
+  $('mic').addEventListener('click', function () {
+    if (micOn) { wantMic = false; lastSong = ''; stopMic(); session('playback'); problem = ''; refreshButtons(); refreshStatus(); } else { micRetries = 0; startMic(); }
+    poke();
+  });
+  $('prev').addEventListener('click', function () { if (audio.currentTime > 3) { audio.currentTime = 0; } else playAt(cur - 1); });
+  $('next').addEventListener('click', function () { playAt(cur + 1); });
+  audio.addEventListener('ended', function () { if (!micOn) playAt(cur + 1); });
+  audio.addEventListener('play', refreshButtons);
+  audio.addEventListener('pause', refreshButtons);
+  audio.addEventListener('error', function () {
+    if (cur < 0) return;
+    problem = 'Could not play "' + tracks[cur].name + '". MP3, M4A and WAV files work best.';
+    refreshStatus(); refreshButtons();
+  });
+  var seeking = false;
+  audio.addEventListener('timeupdate', function () {
+    $('t-cur').textContent = fmt(audio.currentTime); $('t-dur').textContent = fmt(audio.duration);
+    if (!seeking && audio.duration > 0) $('seek').value = Math.round(audio.currentTime / audio.duration * 1000);
+  });
+  $('seek').addEventListener('input', function () { seeking = true; poke(); });
+  $('seek').addEventListener('change', function (e) {
+    if (audio.duration > 0) audio.currentTime = e.target.value / 1000 * audio.duration;
+    seeking = false;
+  });
+
+  // ---------- song names: an iPhone Shortcut runs Shazam and posts the result; this page shows it ----------
+  var NOW_URL = '/.netlify/functions/bloop-now', POLL_MS = 8000, FRESH_MS = 10 * 60 * 1000;
+  var room = '', seenAt = 0, pollDead = false, pairOpen = false, toastTimer = 0;
+  try { room = localStorage.getItem('bloop.room') || ''; } catch (e) {}
+  if (!/^[A-Za-z0-9]{16,40}$/.test(room)) {
+    var abc = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789', rnd = new Uint8Array(24);
+    (window.crypto || window.msCrypto).getRandomValues(rnd);
+    room = Array.prototype.map.call(rnd, function (n) { return abc[n % abc.length]; }).join('');
+    try { localStorage.setItem('bloop.room', room); } catch (e) {}
+  }
+  $('pair-url').value = location.origin + NOW_URL + '?room=' + room;
+
+  function songShow(m) {
+    var box = $('song'); box.textContent = '';
+    var t = document.createElement('span'); t.className = 's-title'; t.textContent = m.title; box.appendChild(t);
+    if (m.artist) { var s = document.createElement('span'); s.className = 's-sub'; s.textContent = m.artist; box.appendChild(s); }
+    lastSong = m.artist ? (m.title + ' - ' + m.artist) : m.title;
+    $('toast-title').textContent = m.title; $('toast-sub').textContent = m.artist || '';
+    $('toast').classList.add('on');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { $('toast').classList.remove('on'); }, 12000);
+    refreshButtons();
+  }
+  function poll() {
+    if (pollDead || document.visibilityState !== 'visible') return;
+    var showing = micOn || (!audio.paused && cur >= 0);
+    if (!showing && !pairOpen) return;
+    fetch(NOW_URL + '?room=' + room, { cache: 'no-store' }).then(function (r) {
+      if (r.status === 404 || r.status === 405 || r.status === 501) {      // this copy of the page has no song service behind it
+        pollDead = true;
+        $('pair-note').textContent = 'Song names only work on the boblemieux.ai copy of Bloop.';
+        return null;
+      }
+      return r.ok ? r.json() : null;
+    }).then(function (j) {
+      if (!j || !j.ok || !j.song || typeof j.song.title !== 'string' || !j.song.title) return;
+      if (!(j.song.at > seenAt)) return;
+      seenAt = j.song.at;
+      if (j.now - j.song.at < FRESH_MS) songShow({ title: j.song.title, artist: typeof j.song.artist === 'string' ? j.song.artist : '' });
+    }).catch(function () {});
+  }
+  setInterval(poll, POLL_MS);
+  $('what').addEventListener('click', function () {
+    pairOpen = !pairOpen;
+    $('pair').hidden = !pairOpen;
+    $('what').setAttribute('aria-expanded', pairOpen ? 'true' : 'false');
+    if (pairOpen) poll();
+    poke();
+  });
+  $('pair-copy').addEventListener('click', function () {
+    var input = $('pair-url'), b = $('pair-copy');
+    function done(ok) { b.textContent = ok ? 'Copied' : 'Select and copy'; setTimeout(function () { b.textContent = 'Copy'; }, 2500); }
+    input.focus(); input.select(); try { input.setSelectionRange(0, input.value.length); } catch (e) {}
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(input.value).then(function () { done(true); }, function () { done(false); });
+    else { var ok = false; try { ok = document.execCommand('copy'); } catch (e) {} done(ok); }
+    poke();
+  });
+
+  // ---------- screen stays on while the show runs ----------
+  var lock = null;
+  function keepAwake() {
+    try {
+      if (navigator.wakeLock && !lock) navigator.wakeLock.request('screen').then(function (l) {
+        lock = l; l.addEventListener('release', function () { lock = null; });
+      }).catch(function () {});
+    } catch (e) {}
+  }
+  document.addEventListener('visibilitychange', function () {
+    if (document.visibilityState !== 'visible') return;
+    if (actx && actx.state !== 'running') actx.resume().catch(function () {});
+    if (micOn || !audio.paused) keepAwake();
+    poll();
+  });
+
+  // ---------- show / hide controls ----------
+  var idleTimer = 0, hintTimer = 0;
+  function showUI(on) {
+    document.body.classList.toggle('hidden-ui', !on);
+    clearTimeout(hintTimer); document.body.classList.remove('hint');
+    if (!on) { document.body.classList.add('hint'); hintTimer = setTimeout(function () { document.body.classList.remove('hint'); }, 2600); }
+    else poke();
+  }
+  function poke() {            // any touch on the controls postpones the auto-hide
+    clearTimeout(idleTimer);
+    idleTimer = setTimeout(function () { if (pairOpen) { poke(); return; } if (micOn || (!audio.paused && tracks.length)) showUI(false); }, 12000);
+  }
+  $('sheet').addEventListener('pointerdown', poke);
+  $('sheet').addEventListener('scroll', poke);
+  $('hide').addEventListener('click', function () { showUI(false); });
+  canvas.addEventListener('click', function () { showUI(document.body.classList.contains('hidden-ui')); });
+
+  refreshButtons(); refreshStatus();
+})();
+</script>
+</body>
+</html>
