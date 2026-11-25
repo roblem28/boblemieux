@@ -216,12 +216,13 @@ body.hidden-ui.hint .wake { opacity: 1; }
   <div class="pair" id="pair" hidden>
     <p id="pair-note">One-time setup on this iPhone. After that, Shazam tells Bloop what is playing.</p>
     <ol>
-      <li>In the <b>Shortcuts</b> app, make a new shortcut and add <b>Recognize Music</b>.</li>
-      <li>Add <b>Get Contents of URL</b> and paste the link below. Set Method to <b>POST</b> and Request Body to <b>JSON</b>, then add two text fields: <b>title</b> = Title and <b>artist</b> = Artist, both picked from Recognize Music.</li>
-      <li>Name it <b>Bloop Song</b>. Run it with "Hey Siri, Bloop Song" or Back Tap while the music plays.</li>
+      <li>Tap <b>Copy</b> below.</li>
+      <li>Open the <b>Shortcuts</b> app and tap <b>+</b>.</li>
+      <li>Where it asks what you want to do, <b>paste</b> and send. The phone builds it.</li>
+      <li>While music plays, say "Hey Siri, Bloop Song".</li>
     </ol>
     <div class="link">
-      <input id="pair-url" type="text" readonly aria-label="Link for the shortcut">
+      <input id="pair-url" type="text" readonly aria-label="Text to paste into Shortcuts">
       <button id="pair-copy" type="button">Copy</button>
     </div>
   </div>
@@ -614,7 +615,11 @@ body.hidden-ui.hint .wake { opacity: 1; }
     room = Array.prototype.map.call(rnd, function (n) { return abc[n % abc.length]; }).join('');
     try { localStorage.setItem('bloop.room', room); } catch (e) {}
   }
-  $('pair-url').value = location.origin + NOW_URL + '?room=' + room;
+  var pairLink = location.origin + NOW_URL + '?room=' + room;
+  $('pair-url').value = 'Recognize the music that is playing. Then use Get Contents of URL with method POST to send it to ' + pairLink +
+    ' as a JSON request body with a text field named title set to the Title of the recognized music and a text field named artist set to its Artist.' +
+    ' Do not show a result. Name the shortcut Bloop Song.';
+  window.__bloop.link = pairLink;
 
   function songShow(m) {
     var box = $('song'); box.textContent = '';
