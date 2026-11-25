@@ -18,7 +18,7 @@ const post = (room, body) => call('POST', room, body);
   const R = 'TestRoomAAAAAAAAAAAA' + Math.random().toString(36).slice(2, 8);
   let r = await call('GET', 'short');                    ok('bad room refused', r.status === 400 && r.json.error === 'room');
   r = await call('GET', R);                               ok('empty room answers null', r.status === 200 && r.json.ok && r.json.song === null);
-  r = await post(R, 'not json');                          ok('bad JSON refused', r.status === 400 && r.json.error === 'json');
+  r = await post(R, '[1,2]');                             ok('non-object JSON refused', r.status === 400 && r.json.error === 'json');
   r = await post(R, { artist: 'x' });                     ok('missing title refused', r.status === 400 && r.json.error === 'title');
   r = await post(R, { title: 'x'.repeat(3000) });         ok('oversize body refused', r.status === 413);
   r = await call('DELETE', R);                            ok('other methods refused', r.status === 405);
@@ -26,6 +26,15 @@ const post = (room, body) => call('POST', room, body);
   ok('post stored, cleaned and trimmed', r.status === 200 && r.json.song.title === 'One Song' && r.json.song.artist.length === 200);
   r = await call('GET', R);                               ok('get returns it with server time', r.json.song.title === 'One Song' && r.json.now >= r.json.song.at);
   r = await call('GET', R + 'x');                         ok('rooms are separate', r.json.song === null);
+  // the phone builds the Shortcut, so accept the shapes it might send
+  const raw = async (method, qs, body, type) => { const q = await fetch(`${FN}?room=${R}${qs}`, { method, headers: type ? { 'content-type': type } : {}, body }); await q.json(); return (await call('GET', R)).json.song; };
+  let g = await raw('POST', '', JSON.stringify({ Title: 'Caps Keys', Artist: 'Someone' }), 'application/json');   ok('capitalised keys', g.title === 'Caps Keys' && g.artist === 'Someone');
+  g = await raw('POST', '', JSON.stringify({ song: 'One Piece by The Band' }), 'application/json');               ok('"Song by Artist" split', g.title === 'One Piece' && g.artist === 'The Band');
+  g = await raw('POST', '', 'title=Form+Song&artist=Form+Artist', 'application/x-www-form-urlencoded');           ok('form body', g.title === 'Form Song' && g.artist === 'Form Artist');
+  g = await raw('POST', '', 'Plain Text by Somebody', 'text/plain');                                              ok('plain text body', g.title === 'Plain Text' && g.artist === 'Somebody');
+  g = await raw('POST', '&title=In%20Link&artist=Linker', undefined);                                             ok('POST with values in the link', g.title === 'In Link' && g.artist === 'Linker');
+  g = await raw('GET', '&title=Get%20Song&artist=Getter', undefined);                                             ok('GET with values in the link', g.title === 'Get Song' && g.artist === 'Getter');
+  r = await call('GET', R);                                                                                       ok('plain GET still only reads', r.json.song.title === 'Get Song' && typeof r.json.now === 'number');
 
   // ---- the page
   const errors = [];
@@ -42,7 +51,7 @@ const post = (room, body) => call('POST', room, body);
 
   await page.click('#what');
   ok('setup panel opens', await page.isVisible('#pair'));
-  ok('link carries this page and room', (await page.inputValue('#pair-url')) === `${FN}?room=${room}`);
+  ok('pasted text carries this page and room', (await page.inputValue('#pair-url')).includes(` ${FN}?room=${room} `) && (await page.inputValue('#pair-url')).startsWith('Recognize the music'));
   ok('no sideways overflow at 390px', await page.evaluate(() => { const s = document.getElementById('sheet'); return s.scrollWidth <= s.clientWidth; }));
   await page.screenshot({ path: 'tests/bloop/shot-setup.png' });
   await page.click('#what');
