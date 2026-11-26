@@ -1,4 +1,4 @@
-// Bloop song-names suite.   node tests/bloop/serve.mjs 8765   then   node tests/bloop/run.js http://127.0.0.1:8765
+// Bloop suite (song names + the three styles).   node tests/bloop/serve.mjs 8765   then   node tests/bloop/run.js http://127.0.0.1:8765
 // Covers the bloop-now function (as the Shortcut and the page use it) and the page showing what the Shortcut posts.
 // CHROME=/path/to/chrome picks the browser; otherwise Playwright's own Chromium is used.
 const { chromium } = require('playwright');
@@ -89,6 +89,26 @@ const post = (room, body) => call('POST', room, body);
   await p2.route('**/bloop-now**', q => q.fulfill({ status: 404, contentType: 'text/html', body: '<h1>404</h1>' }));
   await p2.goto(base + '/bloop/'); await p2.click('#what'); await p2.waitForTimeout(800);
   ok('page without the function explains itself', (await p2.textContent('#pair-note')).includes('only work on the boblemieux.ai copy'));
+  // ---- the three styles are separate shows, each with its own shader ('graphics start' above fails if any one does not compile)
+  const p3 = await b.newPage({ viewport: { width: 844, height: 390 } });
+  p3.on('pageerror', e => errors.push(String(e)));
+  await p3.goto(base + '/bloop/'); await p3.waitForTimeout(500);
+  ok('opens on the lava lamp', (await p3.evaluate(() => window.__bloop.style)) === 'lava' && (await p3.getAttribute('[data-look="lava"]', 'aria-pressed')) === 'true');
+  for (const st of ['acid', 'deep', 'lava']) {
+    await p3.click(`[data-look="${st}"]`); await p3.waitForTimeout(400);
+    const pressed = await p3.evaluate(() => Array.from(document.querySelectorAll('[data-look]')).filter(x => x.getAttribute('aria-pressed') === 'true').map(x => x.getAttribute('data-look')).join());
+    ok(`${st} style switches on and is the only chip lit`, (await p3.evaluate(() => window.__bloop.style)) === st && pressed === st);
+    await p3.evaluate(() => document.body.classList.add('hidden-ui')); await p3.waitForTimeout(300);
+    await p3.screenshot({ path: `tests/bloop/shot-style-${st}.png` });
+    await p3.evaluate(() => document.body.classList.remove('hidden-ui'));
+  }
+  await p3.click('[data-look="deep"]'); await p3.reload(); await p3.waitForTimeout(500);
+  ok('style survives a reload', (await p3.evaluate(() => window.__bloop.style)) === 'deep' && (await p3.getAttribute('[data-look="deep"]', 'aria-pressed')) === 'true');
+  await p3.click('#surprise'); await p3.waitForTimeout(300);
+  ok('surprise picks a real style', ['lava', 'acid', 'deep'].includes(await p3.evaluate(() => window.__bloop.style)));
+  await p3.evaluate(() => localStorage.setItem('bloop.look', JSON.stringify({ hue: 0.5, spread: 0.5, speed: 0.3, bloop: 0.5, count: 6, kick: 0.5, swirl: 0.5, glow: 0.5 })));
+  await p3.reload(); await p3.waitForTimeout(500);
+  ok('settings saved before styles existed still load', (await p3.evaluate(() => window.__bloop.glOK && window.__bloop.style)) === 'lava');
   ok('no page errors', errors.length === 0, errors.join(' | '));
   await b.close();
   console.log(fail ? `BLOOP: ${fail} FAILED` : 'BLOOP: ALL PASS'); process.exit(fail ? 1 : 0);
