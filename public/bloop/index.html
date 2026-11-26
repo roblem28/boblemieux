@@ -3,6 +3,11 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Bloop">
+<meta name="theme-color" content="#0b0613">
 <title>Bloop Light Show</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -722,13 +727,18 @@ body.hidden-ui.hint .wake { opacity: 1; }
   // ---------- song names: an iPhone Shortcut runs Shazam and posts the result; this page shows it ----------
   var NOW_URL = '/.netlify/functions/bloop-now', POLL_MS = 8000, FRESH_MS = 10 * 60 * 1000;
   var room = '', seenAt = 0, pollDead = false, pairOpen = false, toastTimer = 0;
-  try { room = localStorage.getItem('bloop.room') || ''; } catch (e) {}
-  if (!/^[A-Za-z0-9]{16,40}$/.test(room)) {
+  // The room rides in the address, so a Home Screen icon (which gets its own storage) keeps the room the Shortcut posts to.
+  var ROOM_RE = /^[A-Za-z0-9]{16,40}$/, urlRoom = '';
+  try { urlRoom = new URLSearchParams(location.search).get('room') || ''; } catch (e) {}
+  if (ROOM_RE.test(urlRoom)) { room = urlRoom; try { localStorage.setItem('bloop.room', room); } catch (e) {} }
+  else { try { room = localStorage.getItem('bloop.room') || ''; } catch (e) {} }
+  if (!ROOM_RE.test(room)) {
     var abc = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789', rnd = new Uint8Array(24);
     (window.crypto || window.msCrypto).getRandomValues(rnd);
     room = Array.prototype.map.call(rnd, function (n) { return abc[n % abc.length]; }).join('');
     try { localStorage.setItem('bloop.room', room); } catch (e) {}
   }
+  if (urlRoom !== room) { try { history.replaceState(null, '', location.pathname + '?room=' + room + location.hash); } catch (e) {} }
   var pairLink = location.origin + NOW_URL + '?room=' + room;
   $('pair-url').value = 'Recognize the music that is playing. Then use Get Contents of URL with method POST to send it to ' + pairLink +
     ' as a JSON request body with a text field named title set to the Title of the recognized music and a text field named artist set to its Artist.' +

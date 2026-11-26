@@ -109,6 +109,14 @@ const post = (room, body) => call('POST', room, body);
   await p3.evaluate(() => localStorage.setItem('bloop.look', JSON.stringify({ hue: 0.5, spread: 0.5, speed: 0.3, bloop: 0.5, count: 6, kick: 0.5, swirl: 0.5, glow: 0.5 })));
   await p3.reload(); await p3.waitForTimeout(500);
   ok('settings saved before styles existed still load', (await p3.evaluate(() => window.__bloop.glOK && window.__bloop.style)) === 'lava');
+  // ---- Home Screen: full-screen tags, and the room travels in the address because the icon gets its own storage
+  ok('page asks to run full-screen from the Home Screen', (await p3.getAttribute('meta[name="apple-mobile-web-app-capable"]', 'content')) === 'yes');
+  ok('address carries the room', new URL(page.url()).searchParams.get('room') === room);
+  const ctx2 = await b.newContext({ viewport: { width: 390, height: 844 } }); const p4 = await ctx2.newPage();
+  await p4.goto(base + '/bloop/?room=' + room); await p4.waitForTimeout(500);
+  ok('fresh storage opened from that address keeps the room', (await p4.evaluate(() => window.__bloop.room)) === room && (await p4.evaluate(() => window.__bloop.link)).endsWith('?room=' + room));
+  await p4.goto(base + '/bloop/?room=bad'); await p4.waitForTimeout(500);
+  ok('bad room in the address is ignored', (await p4.evaluate(() => window.__bloop.room)) === room);
   ok('no page errors', errors.length === 0, errors.join(' | '));
   await b.close();
   console.log(fail ? `BLOOP: ${fail} FAILED` : 'BLOOP: ALL PASS'); process.exit(fail ? 1 : 0);
