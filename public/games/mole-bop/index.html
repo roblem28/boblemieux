@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Mole Bop — webcam motion game</title>
+<style>
+  :root { --bg:#10141c; --fg:#f4f1e8; --accent:#ffd23f; --good:#3ddc84; --bad:#ff4d4d; }
+  * { box-sizing:border-box; }
+  html,body { margin:0; height:100%; background:var(--bg); color:var(--fg); font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; overflow:hidden; }
+  canvas { position:fixed; inset:0; width:100vw; height:100vh; display:block; touch-action:none; }
+  #overlay { position:fixed; inset:0; display:flex; align-items:center; justify-content:center; background:rgba(10,12,18,.72); z-index:5; }
+  #overlay.hidden { display:none; }
+  .card { max-width:560px; width:92vw; text-align:center; padding:28px 26px; border-radius:18px; background:#1b2230; box-shadow:0 20px 60px rgba(0,0,0,.5); }
+  h1 { margin:0 0 6px; font-size:clamp(34px,6vw,56px); letter-spacing:.5px; color:var(--accent); }
+  p { margin:8px 0; line-height:1.45; font-size:clamp(14px,2.2vw,18px); }
+  .small { font-size:13px; opacity:.75; }
+  button { font:inherit; font-size:20px; font-weight:700; padding:12px 28px; margin:14px 6px 4px; border:0; border-radius:12px; cursor:pointer; background:var(--accent); color:#1b1b1b; }
+  button.secondary { background:#334055; color:var(--fg); font-size:16px; padding:10px 18px; }
+  #status { min-height:22px; font-size:14px; opacity:.85; }
+  .keys { font-size:13px; opacity:.7; margin-top:10px; }
+  kbd { background:#334055; border-radius:4px; padding:1px 6px; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="overlay">
+  <div class="card" id="card">
+    <h1>Mole Bop</h1>
+    <p>Stand back about 8 feet so the camera sees your whole upper body. Bop the moles with your hands. Skip the red bombs. Gold moles are worth 5.</p>
+    <p><b>Hands-free start:</b> raise both hands over your head and hold.</p>
+    <div id="status">Starting camera…</div>
+    <button id="startBtn">Start</button>
+    <div><button class="secondary" id="camBtn">Camera off</button><button class="secondary" id="fsBtn">Full screen</button></div>
+    <p class="small">Video stays on this device. No frames are uploaded or stored.</p>
+    <div class="keys"><kbd>Space</kbd> start · <kbd>P</kbd> pause · <kbd>S</kbd> skeleton · <kbd>C</kbd> camera · <kbd>F</kbd> full screen. No camera? Mouse or touch works.</div>
+  </div>
+</div>
+<script type="module">
+const MP_VER = '0.10.14';
+const MP_BASE = `https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@${MP_VER}`;
+const MODEL_URL = 'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task';
+
+const qs = new URLSearchParams(location.search);
+const DEBUG = qs.has('debug');
+const ROUND_SEC = Math.max(5, Number(qs.get('t')) || 60);
+
+const cv = document.getElementById('c');
+const ctx = cv.getContext('2d');
+const overlay = document.getElementById('overlay');
+const card = document.getElementById('card');
+const statusEl = document.getElementById('status');
+const startBtn = document.getElementById('startBtn');
+const camBtn = document.getElementById('camBtn');
+const fsBtn = document.getElementById('fsBtn');
+
+let W = 0, H = 0, DPR = 1;
+function resize() {
+  DPR = Math.min(window.devicePixelRatio || 1, 2);
+  W = window.innerWidth; H = window.innerHeight;
+  cv.width = Math.round(W * DPR); cv.height = Math.round(H * DPR);
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  layoutHoles();
+}
+window.addEventListener('resize', resize);
+
+// ---------- storage (best score) ----------
+function loadBest() { try { return Number(localStorage.getItem('moleBopBest')) || 0; } catch { return 0; } }
+function saveBest(v) { try { localStorage.setItem('moleBopBest', String(v)); } catch {} }
+
+// ---------- audio ----------
+let actx = null;
+function beep(freq, dur = 0.08, type = 'square', vol = 0.12) {
+  try {
+    actx = actx || new (window.AudioContext || window.webkitAudioContext)();
+    const o = actx.createOscillator(), g = actx.createGain();
+    o.type = type; o.frequency.value = freq;
+    g.gain.setValueAtTime(vol, actx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.0001, actx.currentTime + dur);
+    o.connect(g).connect(actx.destination); o.start(); o.stop(actx.currentTime + dur);
+  } catch {}
+}
+const sfx = {
+  hit: () => { beep(660, .07); setTimeout(() => beep(990, .08), 50); },
+  gold: () => { [660, 880, 1320].forEach((f, i) => setTimeout(() => beep(f, .09, 'triangle', .15), i * 60)); },
+  bomb: () => beep(110, .35, 'sawtooth', .18),
+  start: () => [523, 659, 784].forEach((f, i) => setTimeout(() => beep(f, .1, 'triangle'), i * 90)),
+  end: () => [784, 659, 523, 392].forEach((f, i) => setTimeout(() => beep(f, .14, 'triangle'), i * 120)),
+};
+
+// ---------- camera + pose ----------
+const video = document.createElement('video');
+video.playsInline = true; video.muted = true; video.autoplay = true;
+let stream = null, camOn = false, landmarker = null, poseReady = false;
+let lastVideoTime = -1, poses = [], camFps = 0, camFrames = 0, camFpsT = performance.now();
+let showSkeleton = DEBUG;
+
+async function startCamera() {
+  if (!navigator.mediaDevices?.getUserMedia) { setStatus('No camera API in this browser — mouse/touch mode.'); return false; }
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({ video: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: 'user' }, audio: false });
+    video.srcObject = stream;
+    await video.play();
+    camOn = true; camBtn.textContent = 'Camera off';
+    return true;
+  } catch (e) {
+    camOn = false; camBtn.textContent = 'Camera on';
+    setStatus('Camera blocked or not found — mouse/touch mode. (' + (e.name || 'error') + ')');
+    return false;
+  }
+}
+function stopCamera() {
+  if (stream) stream.getTracks().forEach(t => t.stop());
+  stream = null; camOn = false; poses = []; camBtn.textContent = 'Camera on';
+}
+async function loadPose() {
+  setStatus('Loading body tracker…');
+  try {
+    const { FilesetResolver, PoseLandmarker } = await import(`${MP_BASE}/vision_bundle.mjs`);
+    const fileset = await FilesetResolver.forVisionTasks(`${MP_BASE}/wasm`);
+    const opts = (delegate) => ({ baseOptions: { modelAssetPath: MODEL_URL, delegate }, runningMode: 'VIDEO', numPoses: 2,
+      minPoseDetectionConfidence: 0.5, minPosePresenceConfidence: 0.5, minTrackingConfidence: 0.5 });
+    try { landmarker = await PoseLandmarker.createFromOptions(fileset, opts('GPU')); }
+    catch { landmarker = await PoseLandmarker.createFromOptions(fileset, opts('CPU')); }
+    poseReady = true;
+    return true;
+  } catch (e) {
+    setStatus('Body tracker failed to load — mouse/touch mode.');
+    if (DEBUG) console.warn('pose load failed', e);
+    return false;
+  }
+}
+function trackPose(now) {
+  if (!poseReady || !camOn || video.readyState < 2) return;
+  if (video.currentTime === lastVideoTime) return;
+  lastVideoTime = video.currentTime;
+  try {
+    const res = landmarker.detectForVideo(video, now);
+    poses = res.landmarks || [];
+  } catch (e) { if (DEBUG) console.warn(e); }
+  camFrames++;
+  if (now - camFpsT >= 1000) { camFps = camFrames * 1000 / (now - camFpsT); camFrames = 0; camFpsT = now; }
+}
+
+// Video is drawn mirrored with object-fit: cover. Landmarks go through the same transform.
+function coverRect() {
+  const vw = video.videoWidth || 1280, vh = video.videoHeight || 720;
+  const s = Math.max(W / vw, H / vh);
+  const dw = vw * s, dh = vh * s;
+  return { ox: (W - dw) / 2, oy: (H - dh) / 2, dw, dh };
+}
+function lmToScreen(lm, r) { return { x: r.ox + (1 - lm.x) * r.dw, y: r.oy + lm.y * r.dh }; }
+
+// ---------- hands (pose + pointer) ----------
+const pointer = { x: -1, y: -1, active: false };
+cv.addEventListener('pointermove', e => { pointer.x = e.clientX; pointer.y = e.clientY; pointer.active = true; });
+cv.addEventListener('pointerdown', e => { pointer.x = e.clientX; pointer.y = e.clientY; pointer.active = true; });
+cv.addEventListener('pointerleave', () => { pointer.active = false; });
+
+let injected = []; // debug: [{id,x,y}]
+function getHands() {
+  const hands = [];
+  const r = coverRect();
+  poses.forEach((p, i) => {
+    // hand point = blend of wrist (15/16) and index knuckle (19/20), pushed slightly past the knuckle
+    [[15, 19, 'L'], [16, 20, 'R']].forEach(([w, k, side]) => {
+      const a = p[w], b = p[k];
+      if (!a || !b) return;
+      const vis = Math.min(a.visibility ?? 1, b.visibility ?? 1);
+      if (vis < 0.35) return;
+      const pa = lmToScreen(a, r), pb = lmToScreen(b, r);
+      hands.push({ id: `p${i}${side}`, x: pb.x + (pb.x - pa.x) * 0.3, y: pb.y + (pb.y - pa.y) * 0.3, player: i });
+    });
+  });
+  if (pointer.active) hands.push({ id: 'ptr', x: pointer.x, y: pointer.y, player: -1 });
+  injected.forEach(h => hands.push({ ...h, player: -2 }));
+  return hands;
+}
+// Both wrists above nose for any tracked player
+function handsUp() {
+  return poses.some(p => p[0] && p[15] && p[16] && p[15].y < p[0].y - 0.03 && p[16].y < p[0].y - 0.03
+    && (p[15].visibility ?? 1) > 0.4 && (p[16].visibility ?? 1) > 0.4);
+}
+
+// ---------- game ----------
+const COLS = 4, ROWS = 3;
+let holes = [];
+function layoutHoles() {
+  const padX = W * 0.1, top = H * 0.2, bottom = H * 0.9;
+  const cw = (W - padX * 2) / COLS, ch = (bottom - top) / ROWS;
+  const r = Math.max(28, Math.min(cw, ch) * 0.34);
+  const old = holes;
+  holes = [];
+  for (let row = 0; row < ROWS; row++) for (let col = 0; col < COLS; col++) {
+    const i = row * COLS + col;
+    holes.push({ x: padX + cw * (col + 0.5), y: top + ch * (row + 0.5), r, mole: old[i]?.mole || null });
+  }
+}
+
+const game = {
+  state: 'menu', score: 0, best: loadBest(), combo: 0, maxCombo: 0, hits: 0, misses: 0, bombs: 0,
+  timeLeft: ROUND_SEC, nextSpawn: 0, flash: 0, popups: [], raiseT: 0, players: 0,
+};
+
+function difficulty() { // 0 → 1 over the round
+  return Math.min(1, 1 - game.timeLeft / ROUND_SEC);
+}
+function spawn(now, at) {
+  const free = holes.filter(h => !h.mole);
+  if (!free.length) return;
+  const h = at != null ? holes[at] : free[Math.floor(Math.random() * free.length)];
+  const d = difficulty();
+  const roll = Math.random();
+  const kind = roll < 0.12 + d * 0.06 ? 'bomb' : roll > 0.95 ? 'gold' : 'mole';
+  const life = (kind === 'gold' ? 1100 : 1700) - d * 700;
+  const hands = getHands();
+  h.mole = { kind, born: now, life, hit: false, hitAt: 0,
+    // hands already inside at spawn must leave first, so a parked hand can't farm points
+    blocked: new Set(hands.filter(p => Math.hypot(p.x - h.x, p.y - h.y) < h.r * 1.1).map(p => p.id)) };
+}
+function startGame() {
+  if (game.state === 'playing') return;
+  Object.assign(game, { state: 'playing', score: 0, combo: 0, maxCombo: 0, hits: 0, misses: 0, bombs: 0,
+    timeLeft: ROUND_SEC, nextSpawn: performance.now() + 600, flash: 0, popups: [], raiseT: 0 });
+  holes.forEach(h => h.mole = null);
+  overlay.classList.add('hidden');
+  sfx.start();
+}
+function endGame() {
+  game.state = 'over';
+  holes.forEach(h => h.mole = null);
+  const newBest = game.score > game.best;
+  if (newBest) { game.best = game.score; saveBest(game.best); }
+  sfx.end();
+  card.querySelector('h1').textContent = newBest ? 'New best!' : 'Time!';
+  card.querySelector('p').innerHTML = `Score <b>${game.score}</b> · Best <b>${game.best}</b><br>Hits ${game.hits} · Missed ${game.misses} · Bombs ${game.bombs} · Best combo ${game.maxCombo}`;
+  startBtn.textContent = 'Play again';
+  overlay.classList.remove('hidden');
+  game.raiseT = 0; game.overAt = performance.now();
+}
+function togglePause() {
+  if (game.state === 'playing') { game.state = 'paused'; }
+  else if (game.state === 'paused') { game.state = 'playing'; game.nextSpawn = performance.now() + 400; }
+}
+function popup(x, y, text, color) { game.popups.push({ x, y, text, color, t: 0 }); }
+
+function update(now, dt) {
+  const hands = getHands();
+  game.players = poses.length;
+
+  // hands-free start / restart
+  if (game.state === 'menu' || (game.state === 'over' && now - (game.overAt || 0) > 2500)) {
+    if (handsUp()) { game.raiseT += dt; if (game.raiseT > 1.0) startGame(); }
+    else game.raiseT = Math.max(0, game.raiseT - dt * 2);
+  }
+  if (game.state !== 'playing') return hands;
+
+  game.timeLeft -= dt;
+  if (game.timeLeft <= 0) { game.timeLeft = 0; endGame(); return hands; }
+
+  const d = difficulty();
+  if (now >= game.nextSpawn) {
+    spawn(now);
+    if (Math.random() < 0.25 + d * 0.35) spawn(now); // doubles get more common
+    game.nextSpawn = now + (950 - d * 500) * (0.75 + Math.random() * 0.5);
+  }
+
+  for (const h of holes) {
+    const m = h.mole;
+    if (!m) continue;
+    const age = now - m.born;
+    if (m.hit) { if (now - m.hitAt > 260) h.mole = null; continue; }
+    if (age > m.life) {
+      if (m.kind !== 'bomb') { game.misses++; game.combo = 0; }
+      h.mole = null; continue;
+    }
+    const up = age > 120; // must be visibly up
+    for (const p of hands) {
+      const inside = Math.hypot(p.x - h.x, p.y - h.y) < h.r * 1.1;
+      if (!inside) { m.blocked.delete(p.id); continue; }
+      if (!up || m.blocked.has(p.id)) continue;
+      m.hit = true; m.hitAt = now;
+      if (m.kind === 'bomb') {
+        game.score = Math.max(0, game.score - 5); game.combo = 0; game.bombs++; game.flash = 1;
+        popup(h.x, h.y - h.r, '-5', '#ff4d4d'); sfx.bomb();
+      } else {
+        game.combo++; game.hits++; game.maxCombo = Math.max(game.maxCombo, game.combo);
+        const mult = 1 + Math.floor(game.combo / 5);
+        const pts = (m.kind === 'gold' ? 5 : 1) * mult;
+        game.score += pts;
+        popup(h.x, h.y - h.r, (m.kind === 'gold' ? 'GOLD +' : '+') + pts, m.kind === 'gold' ? '#ffd23f' : '#3ddc84');
+        m.kind === 'gold' ? sfx.gold() : sfx.hit();
+      }
+      break;
+    }
+  }
+  game.flash = Math.max(0, game.flash - dt * 2.5);
+  game.popups.forEach(p => p.t += dt);
+  game.popups = game.popups.filter(p => p.t < 0.9);
+  return hands;
+}
+
+// ---------- drawing ----------
+const BONES = [[11,12],[11,13],[13,15],[12,14],[14,16],[11,23],[12,24],[23,24],[15,19],[16,20]];
+function drawMole(h, m, now) {
+  const age = now - m.born;
+  let rise = Math.min(1, age / 120);
+  if (m.hit) rise = Math.max(0, 1 - (now - m.hitAt) / 260);
+  else if (age > m.life - 150) rise = Math.max(0, (m.life - age) / 150);
+  const r = h.r * 0.82, cy = h.y + (1 - rise) * r * 1.2;
+  ctx.save();
+  ctx.beginPath(); ctx.ellipse(h.x, h.y + h.r * 0.2, h.r, h.r * 0.95, 0, 0, Math.PI * 2); ctx.clip();
+  if (m.kind === 'bomb') {
+    ctx.fillStyle = '#222'; ctx.beginPath(); ctx.arc(h.x, cy, r, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = '#ff4d4d'; ctx.lineWidth = r * 0.14; ctx.stroke();
+    ctx.fillStyle = '#ff4d4d'; ctx.font = `bold ${r * 0.9}px system-ui`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('✕', h.x, cy + r * 0.05);
+    ctx.fillStyle = '#ffb300'; ctx.beginPath(); ctx.arc(h.x + r * 0.55, cy - r * 0.85, r * 0.16 * (1 + 0.3 * Math.sin(now / 60)), 0, Math.PI * 2); ctx.fill();
+  } else {
+    const body = m.kind === 'gold' ? '#f2b705' : '#8b5a2b';
+    ctx.fillStyle = body; ctx.beginPath(); ctx.arc(h.x, cy, r, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = m.kind === 'gold' ? '#ffe680' : '#c79363';
+    ctx.beginPath(); ctx.ellipse(h.x, cy + r * 0.35, r * 0.55, r * 0.4, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#111';
+    const eye = m.hit ? 'x' : 'o';
+    if (eye === 'o') {
+      ctx.beginPath(); ctx.arc(h.x - r * 0.32, cy - r * 0.2, r * 0.11, 0, Math.PI * 2); ctx.arc(h.x + r * 0.32, cy - r * 0.2, r * 0.11, 0, Math.PI * 2); ctx.fill();
+    } else {
+      ctx.strokeStyle = '#111'; ctx.lineWidth = r * 0.08;
+      [-1, 1].forEach(s => { const ex = h.x + s * r * 0.32, ey = cy - r * 0.2, k = r * 0.1;
+        ctx.beginPath(); ctx.moveTo(ex - k, ey - k); ctx.lineTo(ex + k, ey + k); ctx.moveTo(ex + k, ey - k); ctx.lineTo(ex - k, ey + k); ctx.stroke(); });
+    }
+    ctx.fillStyle = '#ff7aa2'; ctx.beginPath(); ctx.arc(h.x, cy + r * 0.12, r * 0.13, 0, Math.PI * 2); ctx.fill();
+  }
+  ctx.restore();
+}
+function draw(now, hands) {
+  ctx.fillStyle = '#10141c'; ctx.fillRect(0, 0, W, H);
+  if (camOn && video.readyState >= 2) {
+    const r = coverRect();
+    ctx.save(); ctx.translate(W, 0); ctx.scale(-1, 1);
+    ctx.globalAlpha = 0.55; ctx.drawImage(video, W - r.ox - r.dw, r.oy, r.dw, r.dh);
+    ctx.restore(); ctx.globalAlpha = 1;
+  }
+  // grass band + holes
+  for (const h of holes) {
+    ctx.fillStyle = 'rgba(40,120,60,.55)'; ctx.beginPath(); ctx.ellipse(h.x, h.y + h.r * 0.9, h.r * 1.25, h.r * 0.38, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = 'rgba(15,10,6,.85)'; ctx.beginPath(); ctx.ellipse(h.x, h.y + h.r * 0.85, h.r, h.r * 0.3, 0, 0, Math.PI * 2); ctx.fill();
+    if (h.mole) drawMole(h, h.mole, now);
+  }
+  // skeleton
+  if (showSkeleton && poses.length) {
+    const r = coverRect();
+    poses.forEach((p, i) => {
+      ctx.strokeStyle = i ? '#7fd1ff' : '#ffd23f'; ctx.lineWidth = 4;
+      BONES.forEach(([a, b]) => { if (!p[a] || !p[b]) return; const A = lmToScreen(p[a], r), B = lmToScreen(p[b], r);
+        ctx.beginPath(); ctx.moveTo(A.x, A.y); ctx.lineTo(B.x, B.y); ctx.stroke(); });
+    });
+  }
+  // hand markers
+  for (const p of hands) {
+    const col = p.player === 1 ? '#7fd1ff' : '#ffd23f';
+    ctx.fillStyle = col + 'cc'; ctx.strokeStyle = '#fff'; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.arc(p.x, p.y, 18, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+  }
+  // popups
+  for (const p of game.popups) {
+    ctx.globalAlpha = 1 - p.t / 0.9; ctx.fillStyle = p.color; ctx.font = 'bold 34px system-ui'; ctx.textAlign = 'center';
+    ctx.fillText(p.text, p.x, p.y - p.t * 60); ctx.globalAlpha = 1;
+  }
+  if (game.flash > 0) { ctx.fillStyle = `rgba(255,60,60,${game.flash * 0.35})`; ctx.fillRect(0, 0, W, H); }
+  // HUD
+  ctx.fillStyle = 'rgba(0,0,0,.45)'; ctx.fillRect(0, 0, W, 64);
+  ctx.fillStyle = '#f4f1e8'; ctx.font = 'bold 30px system-ui'; ctx.textBaseline = 'middle';
+  ctx.textAlign = 'left'; ctx.fillText(`Score ${game.score}`, 18, 32);
+  ctx.textAlign = 'center'; ctx.fillText(`${Math.ceil(game.timeLeft)}s`, W / 2, 32);
+  ctx.textAlign = 'right';
+  const mult = 1 + Math.floor(game.combo / 5);
+  ctx.fillText(game.combo >= 2 ? `Combo ${game.combo}${mult > 1 ? '  x' + mult : ''}` : `Best ${game.best}`, W - 18, 32);
+  ctx.font = '13px system-ui'; ctx.textAlign = 'left'; ctx.fillStyle = 'rgba(244,241,232,.7)';
+  const track = !camOn ? 'camera off' : !poseReady ? 'tracker loading' : `tracking ${camFps.toFixed(0)} fps · players ${poses.length}`;
+  ctx.fillText(track, 18, H - 14);
+  if (game.state === 'paused') {
+    ctx.fillStyle = 'rgba(0,0,0,.5)'; ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = '#fff'; ctx.font = 'bold 56px system-ui'; ctx.textAlign = 'center'; ctx.fillText('Paused', W / 2, H / 2);
+  }
+  // raise-hands progress ring
+  if (game.raiseT > 0 && game.state !== 'playing') {
+    ctx.strokeStyle = '#ffd23f'; ctx.lineWidth = 10; ctx.beginPath();
+    ctx.arc(W / 2, H * 0.12, 34, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * Math.min(1, game.raiseT));
+    ctx.stroke();
+  }
+}
+
+// ---------- loop ----------
+let last = performance.now();
+function frame(now) {
+  const dt = Math.min(0.1, (now - last) / 1000); last = now;
+  trackPose(now);
+  const hands = update(now, game.state === 'paused' ? 0 : dt);
+  draw(now, hands);
+  requestAnimationFrame(frame);
+}
+
+// ---------- UI ----------
+function setStatus(t) { statusEl.textContent = t; }
+startBtn.addEventListener('click', () => startGame());
+camBtn.addEventListener('click', async () => {
+  if (camOn) { stopCamera(); setStatus('Camera off — mouse/touch mode.'); }
+  else if (await startCamera()) { if (!poseReady) await loadPose(); setStatus(poseReady ? 'Camera on. Raise both hands to start.' : statusEl.textContent); }
+});
+function toggleFs() { try { document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen(); } catch {} }
+fsBtn.addEventListener('click', toggleFs);
+window.addEventListener('keydown', e => {
+  if (e.code === 'Space') { e.preventDefault(); if (game.state === 'menu' || game.state === 'over') startGame(); }
+  else if (e.key === 'p' || e.key === 'P') togglePause();
+  else if (e.key === 's' || e.key === 'S') showSkeleton = !showSkeleton;
+  else if (e.key === 'c' || e.key === 'C') camBtn.click();
+  else if (e.key === 'f' || e.key === 'F') toggleFs();
+});
+document.addEventListener('visibilitychange', () => { if (document.hidden && game.state === 'playing') togglePause(); });
+
+if (DEBUG) {
+  window.__mb = {
+    get state() { return game.state; }, get score() { return game.score; }, get game() { return game; },
+    get holes() { return holes; }, get poses() { return poses; }, set poses(v) { poses = v; },
+    get poseReady() { return poseReady; }, get camOn() { return camOn; }, get camFps() { return camFps; },
+    getHands, handsUp, lmToScreen, coverRect, startGame, endGame,
+    setInjected(v) { injected = v; },
+    spawnAt(i) { spawn(performance.now(), i); },
+    forceMole(i, kind = 'mole') { const h = holes[i]; h.mole = { kind, born: performance.now() - 200, life: 5000, hit: false, hitAt: 0, blocked: new Set() }; },
+  };
+}
+
+resize();
+requestAnimationFrame(frame);
+(async () => {
+  const cam = await startCamera();
+  if (cam) {
+    const ok = await loadPose();
+    if (ok) setStatus('Camera on. Raise both hands to start, or press Start.');
+  }
+})();
+</script>
+</body>
+</html>
