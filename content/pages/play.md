@@ -147,6 +147,18 @@ sections:
     styles:
       self:
         textAlign: left
+  - type: FeaturedItem
+    title: Home Run Derby
+    subtitle: Webcam motion · Desktop + TV
+    text: Swing your arms like a bat and time the pitch. Ten outs, how many homers?
+      Body tracking runs in the browser, video never leaves the device.
+    actions:
+    - type: Link
+      label: Play
+      url: /games/home-run-derby/
+    styles:
+      self:
+        textAlign: left
   styles:
     self:
       height: auto
