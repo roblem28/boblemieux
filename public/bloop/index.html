@@ -135,6 +135,7 @@ body.empty .add { background: var(--hot); color: #160a04; border-color: transpar
 .chip.pal .sw { width: 22px; height: 22px; border-radius: 50%; flex: none; border: 1px solid rgba(255,255,255,.35); }
 .chip.pal[aria-pressed="true"] { background: rgba(255,255,255,.18); border-color: var(--text); color: var(--text); }
 .chip.door { border-color: var(--text); letter-spacing: .04em; }
+.chip.pic[aria-pressed="true"] { background: rgba(255,255,255,.18); border-color: var(--text); color: var(--text); }
 .chip.layer.broken { opacity: .4; text-decoration: line-through; }
 .doors-on [data-look] { display: none; }
 #doors-panel { display: flex; flex-direction: column; gap: 14px; }
@@ -320,7 +321,8 @@ body.hidden-ui.hint .wake { opacity: 1; }
       if (PALS[saved.pal]) S.pal = saved.pal; else { S.pal = LOOKS[S.style].pal; S.hue = 0; }   // looks saved before colour sets existed
       S.hue = Math.max(0, Math.min(HUE_MAX, S.hue));
       if (saved.doors === true) S.doors = true;
-      if (Array.isArray(saved.layers)) S.layers = saved.layers.slice(0, 18);
+      if (typeof saved.pic === 'string') S.pic = saved.pic;
+      if (Array.isArray(saved.layers)) S.layers = saved.layers.slice(0, 24);
     }
   } catch (e) {}
 
@@ -788,10 +790,11 @@ body.hidden-ui.hint .wake { opacity: 1; }
   recolor();
   window.__bloop.seek = function (v) { phase = v; };
 
-  // ---------- Doors mode: eighteen effects as layers that stack in any combination ----------
+  // ---------- Doors mode: effects as layers that stack in any combination ----------
   // 'paint' layers draw into the picture (each is laid over the last like one more projector on the same wall),
   // 'lines' is drawn as line art, 'warp' layers bend everything already drawn, and 'echo' feeds the picture back into itself.
   var LAYERS = [
+    ['picture',  'Your pictures',   'Projections',  'paint'],
     ['liquid',   'Liquid light',    'Projections',  'paint'],
     ['wash',     'Color wash',      'Projections',  'paint'],
     ['organic',  'Organic shapes',  'Projections',  'paint'],
@@ -812,16 +815,17 @@ body.hidden-ui.hint .wake { opacity: 1; }
     ['rings',    'Wave rings',      'Sound-driven', 'paint']
   ];
   var LAYER_KEYS = LAYERS.map(function (l) { return l[0]; });
-  var DRAW_ORDER = ['liquid', 'wash', 'organic', 'overlap', 'kaleido', 'moire', 'fractal', 'rings', 'terrain', 'beams', 'orbs', 'standing', 'travel', 'vocal', 'lissa'];
-  var FULL_FRAME = { liquid: 1, organic: 1, kaleido: 1, moire: 1, fractal: 1, rings: 1 };     // these fill the screen, so they are dimmed when stacked
+  var DRAW_ORDER = ['picture', 'liquid', 'wash', 'organic', 'overlap', 'kaleido', 'moire', 'fractal', 'rings', 'terrain', 'beams', 'orbs', 'standing', 'travel', 'vocal', 'lissa'];
+  var FULL_FRAME = { picture: 1, liquid: 1, organic: 1, kaleido: 1, moire: 1, fractal: 1, rings: 1 };     // these fill the screen, so they are dimmed when stacked
   var USES_SOUND = { standing: 1, terrain: 1, vocal: 1 };
-  var DOOR_DEFAULT = ['liquid', 'standing', 'ripples', 'undulate'];
+  var DOOR_DEFAULT = ['picture', 'ripples'];
   S.layers = (Array.isArray(S.layers) ? S.layers : DOOR_DEFAULT).filter(function (l, i, a) { return LAYER_KEYS.indexOf(l) >= 0 && a.indexOf(l) === i; });
   S.doors = S.doors === true;
 
   var DOOR_PRE = COMMON.concat([
     'uniform float uGain;',
     'uniform sampler2D uAudio;',
+    'uniform sampler2D uPicA; uniform sampler2D uPicB; uniform float uPicMix; uniform float uPicAmt;',
     'float wav(float x){ return texture2D(uAudio, vec2(clamp(x, 0.0, 1.0), 0.75)).r*2.0 - 1.0; }',
     'float spc(float x){ return texture2D(uAudio, vec2(clamp(x, 0.0, 1.0), 0.25)).r; }'
   ]);
@@ -831,6 +835,21 @@ body.hidden-ui.hint .wake { opacity: 1; }
   function reuse(src, extra) { return src.replace('precision highp float;', 'precision highp float;\nuniform float uGain;').replace(OLD_END, (extra || '') + DOOR_END); }
 
   var DOOR_SRC = {
+    picture: function () { return layerSrc([
+      '  float r = length(uv);',
+      '  float a = atan(uv.y, uv.x) + uWarp*0.8*uPicAmt*sin(r*3.0 - t*0.3);',
+      '  vec2 q = r*vec2(cos(a), sin(a))*(1.0 - 0.10*uBass - 0.05*sin(t*0.13));',
+      '  vec2 w1 = vec2(fbm(q*1.6 + vec2(0.0, t*0.12)), fbm(q*1.6 + vec2(5.2, -t*0.10))) - 0.47;',
+      '  vec2 w2 = vec2(fbm(q*3.1 + w1*2.0 + vec2(t*0.07, 3.3)), fbm(q*3.1 + w1*2.0 + vec2(8.1, t*0.09))) - 0.47;',
+      '  float amt = (0.08 + 0.45*uBloop)*(0.6 + uBass*0.9 + uMid*0.4)*uPicAmt;',
+      '  vec2 p = q + (w1*0.6 + w2*0.4)*amt;',
+      '  vec2 tuv = vec2(p.x*0.5515, p.y) + 0.5;',
+      '  tuv = 1.0 - abs(mod(tuv, 2.0) - 1.0);',
+      '  float mk = smoothstep(-0.12, 0.12, uPicMix*1.4 - 0.2 - fbm(q*2.2 + 11.0));',
+      '  vec3 col = mix(texture2D(uPicA, tuv).rgb, texture2D(uPicB, tuv).rgb, mk);',
+      '  float lum = dot(col, vec3(0.3, 0.6, 0.1));',
+      '  col = mix(vec3(lum), col, 1.15)*(0.92 + 0.25*uBeat + 0.25*uGlow*lum);'
+    ]); },
     // 1. the oil show, with the white lamp taken out so other layers show through the gaps
     liquid: function () { return reuse(FRAG_OIL, '  col *= 1.0 - 0.92*smoothstep(0.30, 0.75, min(col.r, min(col.g, col.b)));\n'); },
     // 2. slow drifting clouds of colour
@@ -1036,11 +1055,26 @@ body.hidden-ui.hint .wake { opacity: 1; }
       '  gl_FragColor = vec4(max(texture2D(uSrc, v).rgb*0.85, prev), 1.0);',
       '}'
     ]).join('\n'); },
-    blit: function () { return 'precision mediump float; uniform vec2 uRes; uniform sampler2D uSrc; void main(){ gl_FragColor = vec4(pow(texture2D(uSrc, gl_FragCoord.xy/uRes).rgb, vec3(0.92)), 1.0); }'; },
+    blit: function () { return [
+      'precision mediump float; uniform vec2 uRes; uniform sampler2D uSrc; uniform float uGlow; uniform float uT;',
+      'void main(){',
+      '  vec2 v = gl_FragCoord.xy / uRes;',
+      '  vec3 c = texture2D(uSrc, v).rgb, b = vec3(0.0);',
+      '  for(int i=0;i<8;i++){',
+      '    float a = float(i)*0.7854 + 0.3;',
+      '    vec2 d = vec2(cos(a), sin(a))*uRes.y/(uRes*590.0);',
+      '    b += max(texture2D(uSrc, v + d*7.0).rgb - 0.5, 0.0) + max(texture2D(uSrc, v + d*17.0).rgb - 0.5, 0.0);',
+      '  }',
+      '  c += b*(0.035 + 0.075*uGlow);',
+      '  vec2 g = fract((gl_FragCoord.xy + vec2(uT*37.0, uT*17.0))*vec2(0.1031, 0.1030)); g += dot(g, g.yx + 33.33);',
+      '  c += (fract((g.x + g.y)*g.y) - 0.5)*0.035;',
+      '  gl_FragColor = vec4(pow(max(c, 0.0), vec3(0.92)), 1.0);',
+      '}'
+    ].join('\n'); },
     lines: function () { return 'precision mediump float; uniform vec3 uCol; void main(){ gl_FragColor = vec4(uCol, 1.0); }'; }
   };
   var LINE_VERT = 'attribute vec2 p; uniform vec2 uS; uniform vec2 uO; void main(){ gl_Position = vec4(p*uS + uO, 0.0, 1.0); }';
-  var DOOR_UNI = UNIFORMS.concat(['uGain', 'uSrc', 'uPrev', 'uS', 'uO', 'uCol']);
+  var DOOR_UNI = UNIFORMS.concat(['uGain', 'uSrc', 'uPrev', 'uS', 'uO', 'uCol', 'uPicA', 'uPicB', 'uPicMix', 'uPicAmt']);
 
   var dprog = {}, dErr = {};       // each layer's shader is built the first time it is switched on, so opening the page stays quick
   function dGet(name) {
@@ -1131,11 +1165,204 @@ body.hidden-ui.hint .wake { opacity: 1; }
     gl.bindBuffer(gl.ARRAY_BUFFER, quadBuf); gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
   }
 
-  function doorsDraw(now, k) {
+
+  // ---------- Your pictures: finished artwork, moved live by the music ----------
+  // The richness comes from the pictures (made once, by an image generator); the motion is worked out on the phone every
+  // frame, so nothing is a loop. The picture flows like liquid, breathes with the bass, and melts into the next one.
+  // Each entry: file name, label, and how much liquid flow it takes (scenes get less so they stay readable).
+  var PICS = [['liquid', 'Liquid light', 1], ['cells', 'Oil cells', 1], ['mandala', 'Mandala', 0.8], ['peaks', 'Neon peaks', 0.45], ['projections', 'Projections', 1],
+              ['dancers', 'Dancers', 0.3], ['meadow', 'Dream meadow', 0.3], ['poster', 'Pop poster', 0.45], ['cosmic', 'Cosmic rings', 0.9], ['tunnel', 'Light tunnel', 0.6], ['tv', 'Bent TV', 1]];
+  var PIC_KEYS = PICS.map(function (q) { return q[0]; }), picTex = [], picA = 0, picB = 1, picMix = 0, picHold = 0;
+  var picBase = (function () { var q = location.pathname; if (!/\/$/.test(q)) q = /\.[a-z0-9]+$/i.test(q) ? q.replace(/[^/]*$/, '') : q + '/'; return location.origin + q + 'pics/'; })();
+  if (S.pic !== 'auto' && PIC_KEYS.indexOf(S.pic) < 0) S.pic = 'auto';
+  if (S.pic !== 'auto') { picA = PIC_KEYS.indexOf(S.pic); picB = (picA + 1) % PIC_KEYS.length; }
+  function picLoad(i) {
+    var slot = picTex[i]; if (slot) return slot;
+    slot = picTex[i] = { tex: gl.createTexture(), ok: false, bad: false };
+    var im = new Image();
+    im.onload = function () {
+      gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, slot.tex);
+      gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, gl.RGB, gl.UNSIGNED_BYTE, im);
+      gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+      slot.ok = true;
+    };
+    im.onerror = function () { slot.bad = true; };
+    im.src = picBase + PIC_KEYS[i] + '.jpg';
+    return slot;
+  }
+  function picInit() { picLoad(picA); picLoad(picB); }
+  function picDraw(P, dt, k) {
+    var n = PIC_KEYS.length, a = picLoad(picA), b = picLoad(picB), want = PIC_KEYS.indexOf(S.pic);
+    if (!a.ok) { if (a.bad) { picA = (picA + 1) % n; picB = (picA + 1) % n; } return false; }      // a picture that will not load is skipped
+    if (picMix > 0) {                                   // melting into the next one
+      if (b.ok) picMix += dt / 4; else if (b.bad) { picMix = 0; picB = (picB + 1) % n; }
+      if (picMix >= 1) { picA = picB; picB = (picA + 1) % n; picMix = 0; picHold = 0; picLoad(picB); }
+    } else if (want >= 0) {                             // one picture chosen: go to it and stay
+      if (want !== picA) { picB = want; if (picLoad(want).ok) picMix = 0.001; else if (picLoad(want).bad) S.pic = 'auto'; }
+    } else {                                            // auto: hold a while, then move on
+      picHold += dt * (0.6 + S.speed * 1.2);
+      if (b.bad) picB = (picB + 1) % n; else if (picHold > 12 && b.ok) picMix = 0.001;
+    }
+    b = picLoad(picB);
+    gl.activeTexture(gl.TEXTURE3); gl.bindTexture(gl.TEXTURE_2D, a.tex);
+    gl.activeTexture(gl.TEXTURE4); gl.bindTexture(gl.TEXTURE_2D, b.ok ? b.tex : a.tex);
+    gl.activeTexture(gl.TEXTURE0);
+    gl.uniform1i(P.U.uPicA, 3); gl.uniform1i(P.U.uPicB, 4); gl.uniform1f(P.U.uPicMix, picMix);
+    gl.uniform1f(P.U.uPicAmt, PICS[picA][2] + (PICS[picB][2] - PICS[picA][2]) * picMix);
+    window.__bloop.pic = PIC_KEYS[picA];
+    return true;
+  }
+
+  // ---------- Fluid ink: a real fluid simulation, not a drawing (built as a trial; not offered as a layer at present) ----------
+  // A grid of velocities and a grid of dye are stepped forward every frame (stable-fluids method: push, keep the swirls,
+  // make it incompressible, carry everything along the flow). The music does not move shapes, it injects ink and force,
+  // and the physics makes the picture. Nothing is pre-planned, so it never repeats.
+  var FL = { ready: false, failed: false, prog: {}, emit: [], prevBeat: 0 };
+  var FL_VERT = 'attribute vec2 p; varying vec2 vUv; void main(){ vUv = p*0.5 + 0.5; gl_Position = vec4(p, 0.0, 1.0); }';
+  var FL_HEAD = 'precision highp float; precision mediump sampler2D; varying vec2 vUv; uniform vec2 uTexel;\n';
+  var FL_SRC = {
+    splat: 'uniform sampler2D uTarget; uniform float uAspect; uniform vec3 uColor; uniform vec2 uPoint; uniform float uRadius;' +
+           'void main(){ vec2 d = vUv - uPoint; d.x *= uAspect; gl_FragColor = vec4(texture2D(uTarget, vUv).xyz + exp(-dot(d, d)/uRadius)*uColor, 1.0); }',
+    advect: 'uniform sampler2D uVelocity; uniform sampler2D uSource; uniform vec2 uSrcTexel; uniform float uDt; uniform float uFade; uniform float uManual;' +
+            'vec4 bilerp(sampler2D s, vec2 uv, vec2 ts){ vec2 st = uv/ts - 0.5; vec2 i = floor(st), f = fract(st);' +
+            '  vec4 a = texture2D(s, (i + vec2(0.5, 0.5))*ts), b = texture2D(s, (i + vec2(1.5, 0.5))*ts), c = texture2D(s, (i + vec2(0.5, 1.5))*ts), d = texture2D(s, (i + vec2(1.5, 1.5))*ts);' +
+            '  return mix(mix(a, b, f.x), mix(c, d, f.x), f.y); }' +
+            'void main(){ vec2 vel = uManual > 0.5 ? bilerp(uVelocity, vUv, uTexel).xy : texture2D(uVelocity, vUv).xy; vec2 c = vUv - uDt*vel*uTexel;' +
+            '  vec4 r = uManual > 0.5 ? bilerp(uSource, c, uSrcTexel) : texture2D(uSource, c); gl_FragColor = r/(1.0 + uFade*uDt); }',
+    curl: 'uniform sampler2D uVelocity; void main(){ float L = texture2D(uVelocity, vUv - vec2(uTexel.x, 0.0)).y, R = texture2D(uVelocity, vUv + vec2(uTexel.x, 0.0)).y,' +
+          ' T = texture2D(uVelocity, vUv + vec2(0.0, uTexel.y)).x, B = texture2D(uVelocity, vUv - vec2(0.0, uTexel.y)).x; gl_FragColor = vec4(0.5*(R - L - T + B), 0.0, 0.0, 1.0); }',
+    vort: 'uniform sampler2D uVelocity; uniform sampler2D uCurl; uniform float uStrength; uniform float uDt;' +
+          'void main(){ float L = texture2D(uCurl, vUv - vec2(uTexel.x, 0.0)).x, R = texture2D(uCurl, vUv + vec2(uTexel.x, 0.0)).x, T = texture2D(uCurl, vUv + vec2(0.0, uTexel.y)).x,' +
+          ' B = texture2D(uCurl, vUv - vec2(0.0, uTexel.y)).x, C = texture2D(uCurl, vUv).x; vec2 f = 0.5*vec2(abs(T) - abs(B), abs(R) - abs(L)); f /= length(f) + 0.0001; f *= uStrength*C; f.y *= -1.0;' +
+          ' vec2 v = texture2D(uVelocity, vUv).xy + f*uDt; gl_FragColor = vec4(clamp(v, -1000.0, 1000.0), 0.0, 1.0); }',
+    diverge: 'uniform sampler2D uVelocity; void main(){ vec2 l = vUv - vec2(uTexel.x, 0.0), r = vUv + vec2(uTexel.x, 0.0), t = vUv + vec2(0.0, uTexel.y), b = vUv - vec2(0.0, uTexel.y);' +
+             ' float L = texture2D(uVelocity, l).x, R = texture2D(uVelocity, r).x, T = texture2D(uVelocity, t).y, B = texture2D(uVelocity, b).y; vec2 C = texture2D(uVelocity, vUv).xy;' +
+             ' if(l.x < 0.0) L = -C.x; if(r.x > 1.0) R = -C.x; if(t.y > 1.0) T = -C.y; if(b.y < 0.0) B = -C.y; gl_FragColor = vec4(0.5*(R - L + T - B), 0.0, 0.0, 1.0); }',
+    scale: 'uniform sampler2D uTarget; uniform float uValue; void main(){ gl_FragColor = uValue*texture2D(uTarget, vUv); }',
+    pressure: 'uniform sampler2D uPressure; uniform sampler2D uDivergence; void main(){ float L = texture2D(uPressure, vUv - vec2(uTexel.x, 0.0)).x, R = texture2D(uPressure, vUv + vec2(uTexel.x, 0.0)).x,' +
+              ' T = texture2D(uPressure, vUv + vec2(0.0, uTexel.y)).x, B = texture2D(uPressure, vUv - vec2(0.0, uTexel.y)).x; gl_FragColor = vec4((L + R + B + T - texture2D(uDivergence, vUv).x)*0.25, 0.0, 0.0, 1.0); }',
+    project: 'uniform sampler2D uPressure; uniform sampler2D uVelocity; void main(){ float L = texture2D(uPressure, vUv - vec2(uTexel.x, 0.0)).x, R = texture2D(uPressure, vUv + vec2(uTexel.x, 0.0)).x,' +
+             ' T = texture2D(uPressure, vUv + vec2(0.0, uTexel.y)).x, B = texture2D(uPressure, vUv - vec2(0.0, uTexel.y)).x; gl_FragColor = vec4(texture2D(uVelocity, vUv).xy - vec2(R - L, T - B), 0.0, 1.0); }',
+    // show the dye: lit from the front so thick ink has ridges, and rolled off so stacked colours do not burn out
+    show: 'uniform sampler2D uDye; uniform float uGain; uniform float uGlow; void main(){ vec3 c = texture2D(uDye, vUv).rgb;' +
+          ' float L = length(texture2D(uDye, vUv - vec2(uTexel.x, 0.0)).rgb), R = length(texture2D(uDye, vUv + vec2(uTexel.x, 0.0)).rgb), T = length(texture2D(uDye, vUv + vec2(0.0, uTexel.y)).rgb), B = length(texture2D(uDye, vUv - vec2(0.0, uTexel.y)).rgb);' +
+          ' vec3 n = normalize(vec3(R - L, T - B, 0.35)); float lit = clamp(dot(n, normalize(vec3(-0.3, 0.5, 0.8))) + 0.25, 0.55, 1.25);' +
+          ' c = (1.0 - exp(-c*(0.9 + 0.9*uGlow)))*lit; gl_FragColor = vec4(max(c, 0.0)*uGain, 1.0); }'
+  };
+  function flProg(name) {
+    var P = FL.prog[name]; if (P) return P;
+    var mk = function (type, src) {
+      var s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s);
+      if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error(name + ': ' + (gl.getShaderInfoLog(s) || 'shader failed'));
+      return s;
+    };
+    var prog = gl.createProgram();
+    gl.attachShader(prog, mk(gl.VERTEX_SHADER, FL_VERT)); gl.attachShader(prog, mk(gl.FRAGMENT_SHADER, FL_HEAD + FL_SRC[name]));
+    gl.bindAttribLocation(prog, 0, 'p'); gl.linkProgram(prog);
+    if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) throw new Error(name + ': ' + (gl.getProgramInfoLog(prog) || 'link failed'));
+    P = FL.prog[name] = { prog: prog, U: {} };
+    var n = gl.getProgramParameter(prog, gl.ACTIVE_UNIFORMS);
+    for (var i = 0; i < n; i++) { var nm = gl.getActiveUniform(prog, i).name; P.U[nm] = gl.getUniformLocation(prog, nm); }
+    return P;
+  }
+  function flTarget(w, h, type, filter) {
+    gl.activeTexture(gl.TEXTURE0);
+    var tx = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, tx);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, filter); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, filter);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, w, h, 0, gl.RGBA, type, null);
+    var fo = gl.createFramebuffer(); gl.bindFramebuffer(gl.FRAMEBUFFER, fo);
+    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, tx, 0);
+    var ok = gl.checkFramebufferStatus(gl.FRAMEBUFFER) === gl.FRAMEBUFFER_COMPLETE;
+    gl.viewport(0, 0, w, h); gl.clearColor(0, 0, 0, 1); gl.clear(gl.COLOR_BUFFER_BIT);
+    return { tex: tx, fbo: fo, w: w, h: h, ok: ok };
+  }
+  function flPair(w, h, type, filter) {
+    var a = flTarget(w, h, type, filter), b = flTarget(w, h, type, filter);
+    return { read: a, write: b, w: w, h: h, ok: a.ok && b.ok, swap: function () { var t = this.read; this.read = this.write; this.write = t; } };
+  }
+  function fluidInit() {
+    if (FL.ready || FL.failed) return FL.ready;
+    try {
+      var hf = gl.getExtension('OES_texture_half_float'), type = hf ? hf.HALF_FLOAT_OES : null, lin = !!gl.getExtension('OES_texture_half_float_linear');
+      gl.getExtension('EXT_color_buffer_half_float');
+      if (type === null || !flTarget(4, 4, type, gl.NEAREST).ok) {            // some phones only do full floats
+        if (gl.getExtension('OES_texture_float')) { type = gl.FLOAT; lin = !!gl.getExtension('OES_texture_float_linear'); gl.getExtension('WEBGL_color_buffer_float'); }
+        if (type === null || !flTarget(4, 4, type, gl.NEAREST).ok) throw new Error('this device cannot run the fluid (no float render targets)');
+      }
+      var asp = canvas.width / Math.max(1, canvas.height), sh = 112, dh = 384, filt = lin ? gl.LINEAR : gl.NEAREST;
+      FL.manual = lin ? 0 : 1; FL.asp = asp;
+      FL.vel = flPair(Math.round(sh * asp), sh, type, filt); FL.dye = flPair(Math.round(dh * asp), dh, type, filt);
+      FL.div = flTarget(FL.vel.w, sh, type, gl.NEAREST); FL.curl = flTarget(FL.vel.w, sh, type, gl.NEAREST); FL.pres = flPair(FL.vel.w, sh, type, gl.NEAREST);
+      if (!(FL.vel.ok && FL.dye.ok && FL.div.ok && FL.curl.ok && FL.pres.ok)) throw new Error('this device cannot run the fluid (render target refused)');
+      Object.keys(FL_SRC).forEach(flProg);
+      for (var i = 0; i < 3; i++) FL.emit.push({ a: Math.random() * 6.28, b: Math.random() * 6.28, fa: 0.21 + 0.09 * i, fb: 0.17 + 0.11 * i, x: 0.5, y: 0.5, hue: i / 3 });
+      FL.ready = true;
+    } catch (e) { FL.failed = true; dErr.fluid = String(e.message || e); }
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    return FL.ready;
+  }
+  function flPass(P, target) { gl.bindFramebuffer(gl.FRAMEBUFFER, target.fbo); gl.viewport(0, 0, target.w, target.h); gl.drawArrays(gl.TRIANGLES, 0, 3); }
+  function flBind(unit, tex, loc) { gl.activeTexture(gl.TEXTURE0 + unit); gl.bindTexture(gl.TEXTURE_2D, tex); gl.uniform1i(loc, unit); }
+  function flSplat(x, y, dx, dy, col, radius) {
+    var P = FL.prog.splat; gl.useProgram(P.prog);
+    gl.uniform1f(P.U.uAspect, FL.asp); gl.uniform2f(P.U.uPoint, x, y); gl.uniform1f(P.U.uRadius, radius);
+    flBind(0, FL.vel.read.tex, P.U.uTarget); gl.uniform3f(P.U.uColor, dx, dy, 0); flPass(P, FL.vel.write); FL.vel.swap();
+    flBind(0, FL.dye.read.tex, P.U.uTarget); gl.uniform3f(P.U.uColor, col[0], col[1], col[2]); flPass(P, FL.dye.write); FL.dye.swap();
+  }
+  function fluidStep(dt, k) {
+    var P, i, n, r = Math.random, kb = bass * k, km = mid * k, kt = treb * k;
+    var step = Math.min(dt, 1 / 30) * (0.5 + S.speed * 1.6), rad = 0.0006 + 0.0030 * S.bloop * S.bloop;
+    gl.disable(gl.BLEND);
+    // music in: three wandering nozzles always trickle ink (more with the mids, harder with the bass) ...
+    for (i = 0; i < FL.emit.length; i++) {
+      var e = FL.emit[i], px = e.x, py = e.y;
+      e.a += dt * e.fa * (0.6 + S.speed * 1.5); e.b += dt * e.fb * (0.6 + S.speed * 1.5);
+      e.x = 0.5 + 0.40 * Math.sin(e.a) * Math.cos(e.b * 0.37); e.y = 0.5 + 0.36 * Math.sin(e.b);
+      var c = jsInk(e.hue * (0.25 + S.spread * 0.75) + phase * 0.01), amt = 0.10 + 0.55 * km + 0.25 * kb, push = 2200 + 9000 * kb;
+      flSplat(e.x, e.y, (e.x - px) * push, (e.y - py) * push, [c[0] * amt, c[1] * amt, c[2] * amt], rad);
+    }
+    // ... every beat throws a burst in from a random spot ...
+    if (beat > 0.9 && FL.prevBeat <= 0.9) {
+      for (i = 0, n = 1 + Math.round(S.count / 4); i < n; i++) {
+        var ang = r() * 6.28, force = (500 + 900 * r()) * (0.5 + k), bc = jsInk(r() * (0.25 + S.spread * 0.75));
+        flSplat(0.12 + 0.76 * r(), 0.12 + 0.76 * r(), Math.cos(ang) * force, Math.sin(ang) * force, [bc[0] * 1.6, bc[1] * 1.6, bc[2] * 1.6], rad * 1.8);
+      }
+    }
+    FL.prevBeat = beat;
+    // ... and the highs flick in small drops
+    if (kt > 0.25 && r() < kt * 0.6) { var tc = jsInk(r()); flSplat(r(), r(), (r() - 0.5) * 300, (r() - 0.5) * 300, [tc[0] * 0.5, tc[1] * 0.5, tc[2] * 0.5], rad * 0.35); }
+
+    var tx = 1 / FL.vel.w, ty = 1 / FL.vel.h;
+    P = FL.prog.curl; gl.useProgram(P.prog); gl.uniform2f(P.U.uTexel, tx, ty); flBind(0, FL.vel.read.tex, P.U.uVelocity); flPass(P, FL.curl);
+    P = FL.prog.vort; gl.useProgram(P.prog); gl.uniform2f(P.U.uTexel, tx, ty); flBind(0, FL.vel.read.tex, P.U.uVelocity); flBind(1, FL.curl.tex, P.U.uCurl);
+    gl.uniform1f(P.U.uStrength, 8 + 46 * S.swirl); gl.uniform1f(P.U.uDt, step); flPass(P, FL.vel.write); FL.vel.swap();
+    P = FL.prog.diverge; gl.useProgram(P.prog); gl.uniform2f(P.U.uTexel, tx, ty); flBind(0, FL.vel.read.tex, P.U.uVelocity); flPass(P, FL.div);
+    P = FL.prog.scale; gl.useProgram(P.prog); flBind(0, FL.pres.read.tex, P.U.uTarget); gl.uniform1f(P.U.uValue, 0.8); flPass(P, FL.pres.write); FL.pres.swap();
+    P = FL.prog.pressure; gl.useProgram(P.prog); gl.uniform2f(P.U.uTexel, tx, ty); flBind(1, FL.div.tex, P.U.uDivergence);
+    for (i = 0; i < 14; i++) { flBind(0, FL.pres.read.tex, P.U.uPressure); flPass(P, FL.pres.write); FL.pres.swap(); }
+    P = FL.prog.project; gl.useProgram(P.prog); gl.uniform2f(P.U.uTexel, tx, ty); flBind(0, FL.pres.read.tex, P.U.uPressure); flBind(1, FL.vel.read.tex, P.U.uVelocity); flPass(P, FL.vel.write); FL.vel.swap();
+    P = FL.prog.advect; gl.useProgram(P.prog); gl.uniform2f(P.U.uTexel, tx, ty); gl.uniform1f(P.U.uDt, step); gl.uniform1f(P.U.uManual, FL.manual);
+    gl.uniform2f(P.U.uSrcTexel, tx, ty); gl.uniform1f(P.U.uFade, 0.25); flBind(0, FL.vel.read.tex, P.U.uVelocity); flBind(1, FL.vel.read.tex, P.U.uSource); flPass(P, FL.vel.write); FL.vel.swap();
+    gl.uniform2f(P.U.uSrcTexel, 1 / FL.dye.w, 1 / FL.dye.h); gl.uniform1f(P.U.uFade, 0.55); flBind(0, FL.vel.read.tex, P.U.uVelocity); flBind(1, FL.dye.read.tex, P.U.uSource); flPass(P, FL.dye.write); FL.dye.swap();
+    gl.activeTexture(gl.TEXTURE0);
+  }
+  function fluidShow(gain) {
+    var P = FL.prog.show; gl.useProgram(P.prog);
+    gl.uniform2f(P.U.uTexel, 1 / FL.dye.w, 1 / FL.dye.h); gl.uniform1f(P.U.uGain, gain); gl.uniform1f(P.U.uGlow, S.glow);
+    flBind(0, FL.dye.read.tex, P.U.uDye); gl.drawArrays(gl.TRIANGLES, 0, 3);
+  }
+
+  function doorsDraw(now, k, dt) {
     var blit = dGet('blit');
     if (!blit || !ensureTargets()) return false;
     var W = canvas.width, H = canvas.height, on = {}, nFull = 0, sound = false, i, P;
     S.layers.forEach(function (l) { on[l] = 1; if (FULL_FRAME[l]) nFull++; if (USES_SOUND[l]) sound = true; });
+    if (on.fluid && fluidInit()) fluidStep(dt, k);
+    if (on.picture) picInit();
     if (sound) {
       fillAudioTex(now);
       gl.activeTexture(gl.TEXTURE2); gl.bindTexture(gl.TEXTURE_2D, audioTex);
@@ -1150,8 +1377,10 @@ body.hidden-ui.hint .wake { opacity: 1; }
       var name = DRAW_ORDER[i];
       if (!on[name]) continue;
       if (name === 'lissa') { drawLissa(k); continue; }
+      if (name === 'fluid') { if (FL.ready) fluidShow(1); continue; }
       P = dGet(name); if (!P) continue;
       gl.useProgram(P.prog); setCommon(P, k);
+      if (name === 'picture' && !picDraw(P, dt, k)) continue;
       gl.uniform1f(P.U.uGain, FULL_FRAME[name] ? gain : 1); gl.uniform1i(P.U.uAudio, 2);
       gl.drawArrays(gl.TRIANGLES, 0, 3);
     }
@@ -1180,7 +1409,7 @@ body.hidden-ui.hint .wake { opacity: 1; }
       echoPrev = nx; out = fbT.tex[nx];
     } else echoFresh = true;
     gl.bindFramebuffer(gl.FRAMEBUFFER, null); gl.viewport(0, 0, W, H);
-    gl.useProgram(blit.prog); gl.uniform2f(blit.U.uRes, W, H);
+    gl.useProgram(blit.prog); gl.uniform2f(blit.U.uRes, W, H); gl.uniform1f(blit.U.uGlow, S.glow); gl.uniform1f(blit.U.uT, phase);
     gl.bindTexture(gl.TEXTURE_2D, out); gl.uniform1i(blit.U.uSrc, 0);
     gl.drawArrays(gl.TRIANGLES, 0, 3);
     return true;
@@ -1188,6 +1417,21 @@ body.hidden-ui.hint .wake { opacity: 1; }
 
   // ---- Doors controls
   var doorBtn = $('doors'), doorPanel = $('doors-panel');
+  (function buildPicChips() {
+    var cap = document.createElement('p'); cap.className = 'cap'; cap.textContent = 'Pictures';
+    var row = document.createElement('div'); row.className = 'looks'; row.id = 'pics'; row.setAttribute('aria-label', 'Pictures');
+    [['auto', 'All, in turn']].concat(PICS).forEach(function (q) {
+      var b = document.createElement('button');
+      b.type = 'button'; b.className = 'chip pic'; b.id = 'pic-' + q[0]; b.setAttribute('data-pic', q[0]); b.setAttribute('aria-pressed', 'false'); b.textContent = q[1];
+      b.addEventListener('click', function () {
+        S.pic = q[0];
+        if (S.layers.indexOf('picture') < 0) { S.layers.unshift('picture'); dGet('picture'); }
+        picInit(); syncDoors(); save(); poke();
+      });
+      row.appendChild(b);
+    });
+    doorPanel.appendChild(cap); doorPanel.appendChild(row);
+  })();
   (function buildLayerChips() {
     var groups = {};
     LAYERS.forEach(function (l, idx) {
@@ -1201,7 +1445,7 @@ body.hidden-ui.hint .wake { opacity: 1; }
       b.textContent = l[1];
       b.addEventListener('click', function () {
         var at = S.layers.indexOf(l[0]);
-        if (at >= 0) S.layers.splice(at, 1); else { S.layers.push(l[0]); dGet(l[0] === 'lissa' ? 'lines' : l[0]); }
+        if (at >= 0) S.layers.splice(at, 1); else { S.layers.push(l[0]); if (l[0] === 'fluid') fluidInit(); else dGet(l[0] === 'lissa' ? 'lines' : l[0]); }
         syncDoors(); save(); poke();
       });
       groups[l[2]].appendChild(b);
@@ -1215,6 +1459,7 @@ body.hidden-ui.hint .wake { opacity: 1; }
     document.body.classList.toggle('doors-on', S.doors);
     doorBtn.setAttribute('aria-pressed', S.doors ? 'true' : 'false');
     doorPanel.hidden = !S.doors;
+    Array.prototype.forEach.call(document.querySelectorAll('[data-pic]'), function (b) { b.setAttribute('aria-pressed', b.getAttribute('data-pic') === S.pic ? 'true' : 'false'); });
     Array.prototype.forEach.call(document.querySelectorAll('[data-layer]'), function (b) {
       var key = b.getAttribute('data-layer');
       b.setAttribute('aria-pressed', S.layers.indexOf(key) >= 0 ? 'true' : 'false');
@@ -1227,7 +1472,7 @@ body.hidden-ui.hint .wake { opacity: 1; }
     var rest = pick.filter(function (l) { return l !== base && !FULL_FRAME[l]; }).slice(0, 2 + Math.floor(r() * 2));
     Object.assign(S, { pal: PAL_KEYS[Math.floor(r() * PAL_KEYS.length)], hue: r() * HUE_MAX, spread: r(), speed: 0.15 + r() * 0.6, bloop: 0.2 + r() * 0.8,
                        count: 3 + Math.floor(r() * 9), kick: 0.4 + r() * 0.6, swirl: r(), glow: 0.2 + r() * 0.7 });
-    S.layers = [base].concat(rest);
+    S.layers = [base].concat(rest); S.pic = 'auto';
     syncKnobs(); syncDoors(); save(); poke();
   }
   doorBtn.addEventListener('click', function () {
@@ -1370,7 +1615,7 @@ body.hidden-ui.hint .wake { opacity: 1; }
     phase += dt * spd * (1 + k * (bass * 1.6 + mid * 0.8));
     if (glOK) {
       resize();
-      if (!(S.doors && doorsDraw(now, k))) {
+      if (!(S.doors && doorsDraw(now, k, dt))) {
       var P = progs[S.style] || progs.lava;
       gl.useProgram(P.prog);
       gl.uniform2f(P.U.uRes, canvas.width, canvas.height);
@@ -1393,7 +1638,7 @@ body.hidden-ui.hint .wake { opacity: 1; }
       gl.drawArrays(gl.TRIANGLES, 0, 3);
       }
     }
-    window.__bloop.levels = [bass, mid, treb]; window.__bloop.style = S.style; window.__bloop.pal = S.pal; window.__bloop.doors = S.doors; window.__bloop.layers = S.layers.join(); window.__bloop.layerErr = dErr; window.__bloop.cap = capPx; window.__bloop.mic = micOn; window.__bloop.room = room;
+    window.__bloop.levels = [bass, mid, treb]; window.__bloop.style = S.style; window.__bloop.pal = S.pal; window.__bloop.doors = S.doors; window.__bloop.picWant = S.pic; window.__bloop.layers = S.layers.join(); window.__bloop.layerErr = dErr; window.__bloop.cap = capPx; window.__bloop.mic = micOn; window.__bloop.room = room;
     requestAnimationFrame(frame);
   }
   requestAnimationFrame(frame);

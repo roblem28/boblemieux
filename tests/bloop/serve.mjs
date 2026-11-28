@@ -16,7 +16,7 @@ register('data:text/javascript,' + encodeURIComponent(
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const { default: handler } = await import(path.join(root, 'netlify/functions/bloop-now.mjs'));
 const PORT = Number(process.argv[2] || 8765);
-const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css', '.png': 'image/png', '.json': 'application/json' };
+const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css', '.png': 'image/png', '.jpg': 'image/jpeg', '.json': 'application/json' };
 
 http.createServer(async (req, res) => {
   const url = new URL(req.url, `http://127.0.0.1:${PORT}`);
