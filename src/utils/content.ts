@@ -161,6 +161,6 @@ function annotateContentObject(o: any, prefix = '', depth = 0) {
     });
 }
 
-function deepClone(o: object) {
-    return JSON.parse(JSON.stringify(o));
+function deepClone<T>(o: T): T {
+    return structuredClone(o);
 }
