@@ -142,13 +142,25 @@ const post = (room, body) => call('POST', room, body);
   ok('fireworks launch', (await p3.evaluate(() => window.__bloop.shells)) > 0);
   await p3.waitForTimeout(4000);
   ok('fireworks stay within the Blobs limit', (await p3.evaluate(() => window.__bloop.shells)) <= 7);
-  // ---- Doors mode: eighteen layers that stack, with the same controls
+  // ---- Doors mode: nineteen layers that stack, with the same controls (Your pictures moves real artwork live)
   await p3.click('#play'); await p3.click('[data-look="lava"]');
   ok('Doors is off to begin with and its layers are hidden', (await p3.evaluate(() => window.__bloop.doors)) === false && !(await p3.isVisible('#doors-panel')));
   await p3.click('#doors'); await p3.waitForTimeout(800);
-  ok('Doors opens on a starter mix', (await p3.evaluate(() => window.__bloop.doors && window.__bloop.layers)) === 'liquid,standing,ripples,undulate' && (await p3.isVisible('#doors-panel')));
-  ok('eighteen layers offered', (await p3.locator('[data-layer]').count()) === 18);
+  ok('Doors opens on a starter mix', (await p3.evaluate(() => window.__bloop.doors && window.__bloop.layers)) === 'picture,ripples' && (await p3.isVisible('#doors-panel')));
+  ok('nineteen layers offered', (await p3.locator('[data-layer]').count()) === 19);
   ok('the six shows step aside but colours and sliders stay', !(await p3.isVisible('[data-look="lava"]')) && (await p3.isVisible('#pal-sunset')) && (await p3.isVisible('#k-bloop')) && (await p3.isVisible('#k-hue')));
+  // Your pictures: eleven pictures served beside the page, moved live; one can be picked, or all taken in turn
+  ok('twelve picture buttons (all in turn + eleven pictures)', (await p3.locator('[data-pic]').count()) === 12 && (await p3.getAttribute('#pic-auto', 'aria-pressed')) === 'true');
+  await p3.waitForFunction(() => window.__bloop.pic === 'liquid', null, { timeout: 8000 }).catch(() => {});
+  ok('the first picture loads and shows', (await p3.evaluate(() => window.__bloop.pic)) === 'liquid');
+  await p3.click('#pic-mandala');
+  await p3.waitForFunction(() => window.__bloop.pic === 'mandala', null, { timeout: 12000 }).catch(() => {});
+  ok('picking a picture melts over to it', (await p3.evaluate(() => window.__bloop.pic + '/' + window.__bloop.picWant)) === 'mandala/mandala' && (await p3.getAttribute('#pic-mandala', 'aria-pressed')) === 'true');
+  for (const k of ['liquid', 'cells', 'mandala', 'peaks', 'projections', 'dancers', 'meadow', 'poster', 'cosmic', 'tunnel', 'tv']) {
+    const r = await p3.request.get(base + '/bloop/pics/' + k + '.jpg');
+    ok(`picture ${k} is served`, r.status() === 200 && /image\/jpeg/.test(r.headers()['content-type'] || '') && (await r.body()).length > 50000);
+  }
+  await p3.click('#pic-auto');
   await p3.click('#layers-clear');
   for (const key of await p3.evaluate(() => Array.from(document.querySelectorAll('[data-layer]')).map(b => b.getAttribute('data-layer')))) {
     await p3.click('#layer-' + key); await p3.waitForTimeout(250);
@@ -156,7 +168,7 @@ const post = (room, body) => call('POST', room, body);
     ok(`layer ${key} switches on and builds`, st.on === 'true' && st.err === '{}' && st.layers.split(',').includes(key), st.err === '{}' ? '' : st.err);
   }
   await p3.waitForTimeout(1500);
-  ok('all eighteen run together without an error', (await p3.evaluate(() => window.__bloop.layers.split(',').length)) === 18 && errors.length === 0, errors.join(' | '));
+  ok('all nineteen run together without an error', (await p3.evaluate(() => window.__bloop.layers.split(',').length)) === 19 && errors.length === 0, errors.join(' | '));
   await p3.evaluate(() => document.body.classList.add('hidden-ui')); await p3.waitForTimeout(300);
   await p3.screenshot({ path: 'tests/bloop/shot-doors-all.png' });
   await p3.evaluate(() => document.body.classList.remove('hidden-ui'));
