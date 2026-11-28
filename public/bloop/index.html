@@ -684,7 +684,7 @@ body.hidden-ui.hint .wake { opacity: 1; }
   ]).join('\n');
 
   var progs = {}, glOK = false, glError = '';
-  var audioTex = null, AT = new Uint8Array(512), tdBuf = null, waveGain = 1, specGain = 1;
+  var audioTex = null, AT = new Uint8Array(512), tdBuf = null, waveGain = 1, specGain = 1, heardAt = -1e9;
   for (var ati = 0; ati < 256; ati++) AT[256 + ati] = 128;
   // Sound wave: copy what the analyser hears into the texture, levelled so a quiet mic still fills the screen.
   function fillAudioTex(now) {
@@ -698,10 +698,13 @@ body.hidden-ui.hint .wake { opacity: 1; }
       var top = 1, pk = 1;
       for (i = 0; i < 256; i++) { var v = fb[Math.min(fb.length - 1, Math.round(40 * Math.pow(250, i / 255) / binHz))]; AT[i] = v; if (v > top) top = v; }
       for (i = 0; i < tdBuf.length; i++) { var dv = Math.abs(tdBuf[i] - 128); if (dv > pk) pk = dv; }
-      live = top > 24 && pk > 1;
-      if (live) {
+      if (top > 24 && pk > 1) {      // something to hear: set the levels from it
+        heardAt = now;
         specGain += (Math.min(4, 215 / top) - specGain) * 0.08;
         waveGain += (Math.min(10, 100 / pk) - waveGain) * 0.12;
+      }
+      live = now - heardAt < 4000;   // a pause between words or songs shows as a flat line, not as the idle wave
+      if (live) {
         var half = tdBuf.length >> 1, st = 0;
         for (i = 1; i < half; i++) { if (tdBuf[i - 1] < 128 && tdBuf[i] >= 128) { st = i; break; } }     // start on a rising edge so the line holds still
         for (i = 0; i < 256; i++) {

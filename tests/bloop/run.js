@@ -125,13 +125,18 @@ const post = (room, body) => call('POST', room, body);
   await p3.evaluate(() => localStorage.setItem('bloop.look', JSON.stringify({ style: 'opart', hue: 0.97, spread: 0.5, speed: 0.3, bloop: 0.5, count: 6, kick: 0.5, swirl: 0.5, glow: 0.5 })));
   await p3.reload(); await p3.waitForTimeout(500);
   ok('a look saved under an old version still loads', (await p3.evaluate(() => window.__bloop.glOK && (window.__bloop.style + '/' + window.__bloop.pal))) === 'lava/sunset');
-  // Sound wave draws what the mic hears; Fireworks launches shells without being asked
+  // Sound wave draws what is playing; Fireworks launches shells without being asked
   await p3.click('[data-look="wave"]'); await p3.waitForTimeout(500);
   ok('sound wave idles when there is nothing to hear', (await p3.evaluate(() => window.__bloop.waveLive)) === false);
-  await p3.click('#mic'); await p3.waitForFunction(() => window.__bloop.mic, null, { timeout: 8000 });
+  // a steady tone as the "song": the headless fake microphone only beeps now and then, which made this check a coin toss
+  const sr = 22050, secs = 6, wavBuf = Buffer.alloc(44 + sr * secs * 2);
+  wavBuf.write('RIFF', 0); wavBuf.writeUInt32LE(36 + sr * secs * 2, 4); wavBuf.write('WAVEfmt ', 8); wavBuf.writeUInt32LE(16, 16); wavBuf.writeUInt16LE(1, 20); wavBuf.writeUInt16LE(1, 22);
+  wavBuf.writeUInt32LE(sr, 24); wavBuf.writeUInt32LE(sr * 2, 28); wavBuf.writeUInt16LE(2, 32); wavBuf.writeUInt16LE(16, 34); wavBuf.write('data', 36); wavBuf.writeUInt32LE(sr * secs * 2, 40);
+  for (let i = 0; i < sr * secs; i++) wavBuf.writeInt16LE(Math.round(20000 * Math.sin(2 * Math.PI * 220 * i / sr)), 44 + i * 2);
+  await p3.setInputFiles('#files', { name: 'Test Tone.wav', mimeType: 'audio/wav', buffer: wavBuf });
   await p3.waitForFunction(() => window.__bloop.waveLive === true, null, { timeout: 8000 }).catch(() => {});
-  ok('sound wave follows the microphone', (await p3.evaluate(() => window.__bloop.waveLive)) === true);
-  await p3.click('#mic');
+  ok('sound wave follows the song', (await p3.evaluate(() => window.__bloop.waveLive)) === true, await p3.textContent('#now'));
+  await p3.click('#play');
   await p3.click('[data-look="fire"]');
   await p3.waitForFunction(() => window.__bloop.shells > 0, null, { timeout: 8000 }).catch(() => {});
   ok('fireworks launch', (await p3.evaluate(() => window.__bloop.shells)) > 0);
