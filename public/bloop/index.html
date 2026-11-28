@@ -134,6 +134,11 @@ body.empty .add { background: var(--hot); color: #160a04; border-color: transpar
 .chip.pal { display: inline-flex; align-items: center; gap: 8px; padding: 5px 13px 5px 6px; }
 .chip.pal .sw { width: 22px; height: 22px; border-radius: 50%; flex: none; border: 1px solid rgba(255,255,255,.35); }
 .chip.pal[aria-pressed="true"] { background: rgba(255,255,255,.18); border-color: var(--text); color: var(--text); }
+.chip.door { border-color: var(--text); letter-spacing: .04em; }
+.chip.layer.broken { opacity: .4; text-decoration: line-through; }
+.doors-on [data-look] { display: none; }
+#doors-panel { display: flex; flex-direction: column; gap: 14px; }
+#doors-panel[hidden] { display: none; }
 .cap { margin: 0 0 -6px; font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
 
 .knobs { display: grid; grid-template-columns: 1fr; gap: 12px 22px; }
@@ -248,8 +253,10 @@ body.hidden-ui.hint .wake { opacity: 1; }
     <button class="chip" type="button" data-look="acid" aria-pressed="false">Acid rainbow</button>
     <button class="chip" type="button" data-look="wave" aria-pressed="false">Sound wave</button>
     <button class="chip" type="button" data-look="fire" aria-pressed="false">Fireworks</button>
+    <button class="chip door" type="button" id="doors" aria-pressed="false">Doors</button>
     <button class="chip go" type="button" id="surprise">Surprise me</button>
   </div>
+  <div id="doors-panel" hidden></div>
   <p class="cap">Colors</p>
   <div class="looks" id="pals" aria-label="Colors"></div>
 
@@ -312,6 +319,8 @@ body.hidden-ui.hint .wake { opacity: 1; }
       if (STYLES.indexOf(saved.style) >= 0) S.style = saved.style;
       if (PALS[saved.pal]) S.pal = saved.pal; else { S.pal = LOOKS[S.style].pal; S.hue = 0; }   // looks saved before colour sets existed
       S.hue = Math.max(0, Math.min(HUE_MAX, S.hue));
+      if (saved.doors === true) S.doors = true;
+      if (Array.isArray(saved.layers)) S.layers = saved.layers.slice(0, 18);
     }
   } catch (e) {}
 
@@ -365,6 +374,7 @@ body.hidden-ui.hint .wake { opacity: 1; }
     b.addEventListener('click', function () { setLook(LOOKS[b.getAttribute('data-look')]); });
   });
   $('surprise').addEventListener('click', function () {
+    if (S.doors) { doorsSurprise(); return; }
     var r = Math.random;
     setLook({ style: STYLES[Math.floor(r() * STYLES.length)], pal: PAL_KEYS[Math.floor(r() * PAL_KEYS.length)],
               hue: r() * HUE_MAX, spread: r(), speed: 0.15 + r() * 0.6, bloop: 0.2 + r() * 0.8, count: 3 + Math.floor(r() * 9),
@@ -683,7 +693,7 @@ body.hidden-ui.hint .wake { opacity: 1; }
     '}'
   ]).join('\n');
 
-  var progs = {}, glOK = false, glError = '';
+  var progs = {}, glOK = false, glError = '', quadBuf = null;
   var audioTex = null, AT = new Uint8Array(512), tdBuf = null, waveGain = 1, specGain = 1, heardAt = -1e9;
   for (var ati = 0; ati < 256; ati++) AT[256 + ati] = 128;
   // Sound wave: copy what the analyser hears into the texture, levelled so a quiet mic still fills the screen.
@@ -762,7 +772,7 @@ body.hidden-ui.hint .wake { opacity: 1; }
     }
     try {
       build('lava', FRAG_LAVA); build('oil', FRAG_OIL); build('amoeba', FRAG_AMOEBA); build('acid', FRAG_ACID); build('wave', FRAG_WAVE); build('fire', FRAG_FIRE);
-      var buf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+      var buf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, buf); quadBuf = buf;
       gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW);
       gl.enableVertexAttribArray(0); gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
       audioTex = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, audioTex);      // 256 x 2: row 0 = low-to-high notes, row 1 = the wave itself
@@ -777,6 +787,455 @@ body.hidden-ui.hint .wake { opacity: 1; }
   window.__bloop = { glOK: glOK, glError: glError };
   recolor();
   window.__bloop.seek = function (v) { phase = v; };
+
+  // ---------- Doors mode: eighteen effects as layers that stack in any combination ----------
+  // 'paint' layers draw into the picture (each is laid over the last like one more projector on the same wall),
+  // 'lines' is drawn as line art, 'warp' layers bend everything already drawn, and 'echo' feeds the picture back into itself.
+  var LAYERS = [
+    ['liquid',   'Liquid light',    'Projections',  'paint'],
+    ['wash',     'Color wash',      'Projections',  'paint'],
+    ['organic',  'Organic shapes',  'Projections',  'paint'],
+    ['overlap',  'Overlap',         'Projections',  'paint'],
+    ['beams',    'Light beams',     'Projections',  'paint'],
+    ['standing', 'Standing waves',  'Projections',  'paint'],
+    ['travel',   'Traveling wave',  'Geometry',     'paint'],
+    ['kaleido',  'Kaleidoscope',    'Geometry',     'paint'],
+    ['feedback', 'Feedback',        'Geometry',     'echo'],
+    ['moire',    'Moiré',      'Geometry',     'paint'],
+    ['lissa',    'Lissajous',       'Geometry',     'lines'],
+    ['fractal',  'Fractal',         'Geometry',     'paint'],
+    ['orbs',     'Fluid orbs',      'Sound-driven', 'paint'],
+    ['terrain',  'Sound mountains', 'Sound-driven', 'paint'],
+    ['ripples',  'Ripples',         'Sound-driven', 'warp'],
+    ['undulate', 'Bass warp',       'Sound-driven', 'warp'],
+    ['vocal',    'Voice smoke',     'Sound-driven', 'paint'],
+    ['rings',    'Wave rings',      'Sound-driven', 'paint']
+  ];
+  var LAYER_KEYS = LAYERS.map(function (l) { return l[0]; });
+  var DRAW_ORDER = ['liquid', 'wash', 'organic', 'overlap', 'kaleido', 'moire', 'fractal', 'rings', 'terrain', 'beams', 'orbs', 'standing', 'travel', 'vocal', 'lissa'];
+  var FULL_FRAME = { liquid: 1, organic: 1, kaleido: 1, moire: 1, fractal: 1, rings: 1 };     // these fill the screen, so they are dimmed when stacked
+  var USES_SOUND = { standing: 1, terrain: 1, vocal: 1 };
+  var DOOR_DEFAULT = ['liquid', 'standing', 'ripples', 'undulate'];
+  S.layers = (Array.isArray(S.layers) ? S.layers : DOOR_DEFAULT).filter(function (l, i, a) { return LAYER_KEYS.indexOf(l) >= 0 && a.indexOf(l) === i; });
+  S.doors = S.doors === true;
+
+  var DOOR_PRE = COMMON.concat([
+    'uniform float uGain;',
+    'uniform sampler2D uAudio;',
+    'float wav(float x){ return texture2D(uAudio, vec2(clamp(x, 0.0, 1.0), 0.75)).r*2.0 - 1.0; }',
+    'float spc(float x){ return texture2D(uAudio, vec2(clamp(x, 0.0, 1.0), 0.25)).r; }'
+  ]);
+  var DOOR_END = '  gl_FragColor = vec4(max(col, 0.0)*uGain, 1.0);\n}';
+  var OLD_END = "  gl_FragColor = vec4(pow(max(col, 0.0), vec3(0.92)), 1.0);\n}";
+  function layerSrc(lines) { return DOOR_PRE.concat(['void main(){', '  vec2 uv = (gl_FragCoord.xy - 0.5*uRes) / uRes.y;', '  float asp = uRes.x / uRes.y;', '  float x = gl_FragCoord.x / uRes.x;', '  float t = uT;']).concat(lines).join('\n') + '\n' + DOOR_END; }
+  function reuse(src, extra) { return src.replace('precision highp float;', 'precision highp float;\nuniform float uGain;').replace(OLD_END, (extra || '') + DOOR_END); }
+
+  var DOOR_SRC = {
+    // 1. the oil show, with the white lamp taken out so other layers show through the gaps
+    liquid: function () { return reuse(FRAG_OIL, '  col *= 1.0 - 0.92*smoothstep(0.30, 0.75, min(col.r, min(col.g, col.b)));\n'); },
+    // 2. slow drifting clouds of colour
+    wash: function () { return layerSrc([
+      '  float a = fbm(uv*0.9 + vec2(t*0.05, -t*0.03));',
+      '  float b = fbm(uv*1.4 + vec2(-t*0.04, t*0.06) + 3.7);',
+      '  float c = fbm(uv*0.6 + vec2(t*0.02, t*0.03) + 9.1);',
+      '  float cs = 0.3 + uSpread*0.7;',
+      '  vec3 col = ink(0.0)*pow(a, 2.2)*1.3 + ink(0.33*cs)*pow(b, 2.6)*1.2 + ink(0.66*cs)*pow(c, 2.0)*0.9;',
+      '  col *= 0.55 + uBass*0.9 + uMid*0.4;'
+    ]); },
+    // 3. flat cells of colour with dark seams and bubbles, sliding past each other
+    organic: function () { return layerSrc([
+      '  vec2 p = uv*mix(2.6, 1.1, uBloop)*(1.0 - uBass*0.06);',
+      '  p += (vec2(noise(p*0.7 + t*0.10), noise(p*0.7 + 5.2 - t*0.09)) - 0.5)*(0.4 + uWarp*1.2);',
+      '  float n1 = noise(p + vec2(t*0.07, 0.0)), n2 = noise(p*1.1 + vec2(4.3, t*0.06)), n3 = noise(p*0.9 + vec2(-t*0.05, 8.1));',
+      '  float m = max(n1, max(n2, n3));',
+      '  float second = n1 + n2 + n3 - m - min(n1, min(n2, n3));',
+      '  vec3 c = n1 >= m ? ink(0.0) : (n2 >= m ? ink(0.33) : ink(0.66));',
+      '  float seam = smoothstep(0.0, 0.035, m - second);',
+      '  vec3 col = c*seam;',
+      '  vec2 gq = p*7.0; vec2 id = floor(gq); vec2 f = fract(gq) - 0.5;',
+      '  float hh = hash(id), rad = 0.12 + 0.28*hash(id + 2.3)*(1.0 + uBeat*0.3);',
+      '  float bub = step(0.55, hh)*(1.0 - smoothstep(rad - 0.04, rad, length(f - (vec2(hash(id + 5.1), hash(id + 9.4)) - 0.5)*0.3)));',
+      '  col = mix(col, ink(hh + 0.17)*1.1, bub*0.75*seam);'
+    ]); },
+    // 4. two ink-in-water projections laid over each other
+    overlap: function () { return layerSrc([
+      '  float r1 = 1.0 - abs(2.0*fbm(uv*2.0 + vec2(t*0.06, t*0.04) + uWarp*fbm(uv*3.0 - t*0.05)) - 1.0);',
+      '  float r2 = 1.0 - abs(2.0*fbm(uv*3.1 + vec2(-t*0.05, t*0.07) + 7.7) - 1.0);',
+      '  vec3 col = ink(0.02)*pow(r1, 6.0)*1.6 + ink(0.12 + 0.3*uSpread)*pow(r2, 8.0)*1.3 + ink(0.6)*pow(r1*r2, 3.0)*0.8;',
+      '  col *= 0.32 + uMid*0.45 + uBass*0.28;'
+    ]); },
+    // 5. stage beams fanning up from below. They brighten on the beat but never flash on and off: hard strobing is unsafe for some viewers
+    beams: function () { return layerSrc([
+      '  vec2 d = uv - vec2(0.0, -0.62);',
+      '  float a = atan(d.x, d.y), r = length(d);',
+      '  float n = 4.0 + floor(uCount*0.5);',
+      '  vec3 col = vec3(0.0);',
+      '  for(int i=0;i<11;i++){',
+      '    float fi = float(i);',
+      '    if(fi >= n) break;',
+      '    float ba = sin(t*(0.5 + 0.13*fi) + fi*1.9)*1.1;',
+      '    float w = 0.035*(0.6 + uBloop);',
+      '    float b = exp(-(a - ba)*(a - ba)/(w*w));',
+      '    col += mix(ink(fi*0.13*(0.2 + uSpread)), vec3(1.0), 0.35*b)*b;',
+      '  }',
+      '  col *= (0.30 + 0.75*uBeat + 0.5*uTreb + 0.3*uGlow)/(0.6 + r*1.2)*smoothstep(0.0, 0.08, r);'
+    ]); },
+    // 6. six strings, one per band of the sound from low to high; each stands in place and swings wider as its band gets louder
+    standing: function () { return layerSrc([
+      '  vec3 col = vec3(0.0);',
+      '  for(int k=0;k<6;k++){',
+      '    float fk = float(k);',
+      '    float amp = (0.010 + 0.075*spc(0.08 + fk*0.15))*(0.5 + uBloop);',
+      '    float y = (fk - 2.5)*0.14 + amp*sin(x*6.28318*(3.0 + fk))*cos(t*3.0 + fk);',
+      '    col += ink(fk/6.0*(0.3 + uSpread*0.9))*(0.0026 + 0.0040*uGlow)/(abs(uv.y - y) + 0.0040);',
+      '  }'
+    ]); },
+    // 7. a ribbon of sine waves rolling across
+    travel: function () { return layerSrc([
+      '  vec3 col = vec3(0.0);',
+      '  for(int k=0;k<24;k++){',
+      '    float fk = float(k)/23.0;',
+      '    float amp = (0.10 + 0.22*fk)*(0.5 + uBloop*0.8)*(0.6 + uBass*0.8);',
+      '    float ph = x*6.28318*1.5 - t*1.6 + fk*(0.5 + uWarp);',
+      '    float slope = amp*cos(ph)*6.28318*1.5/asp;',
+      '    float d = abs(uv.y - amp*sin(ph))/sqrt(1.0 + slope*slope);',
+      '    col += ink(fk*(0.3 + uSpread*0.7))*(0.0010 + 0.0010*uGlow)/(d + 0.0018);',
+      '  }'
+    ]); },
+    // 8. the mirrored tunnel
+    kaleido: function () { return reuse(FRAG_ACID); },
+    // 10. two sets of rings sliding over each other
+    moire: function () { return layerSrc([
+      '  vec2 c1 = 0.25*vec2(sin(t*0.31), cos(t*0.27));',
+      '  vec2 c2 = 0.25*vec2(cos(t*0.23 + 1.0), sin(t*0.36 + 2.0))*(1.0 + uBass*0.5);',
+      '  float F = mix(110.0, 45.0, uBloop);',
+      '  float tw = uWarp*3.0*atan(uv.y, uv.x);',
+      '  float a = sin(length(uv - c1)*F - t*2.0 + tw), b = sin(length(uv - c2)*F*1.07 + t*1.7);',
+      '  vec3 col = mix(ink(0.0), ink(0.33 + 0.3*uSpread), smoothstep(-0.2, 0.2, a))*(0.30 + 0.70*smoothstep(-0.3, 0.3, a*b));',
+      '  col *= 0.7 + uMid*0.5;'
+    ]); },
+    // 12. a Julia set that keeps changing shape, breathing with the bass
+    fractal: function () { return layerSrc([
+      '  vec2 z = uv*(1.7 - 0.5*sin(t*0.11))*(1.0 - uBass*0.08);',
+      '  float ang = t*0.12;',
+      '  vec2 c = 0.7885*vec2(cos(ang), sin(ang));',
+      '  float it = 0.0;',
+      '  for(int i=0;i<40;i++){',
+      '    z = vec2(z.x*z.x - z.y*z.y, 2.0*z.x*z.y) + c;',
+      '    if(dot(z, z) > 16.0) break;',
+      '    it += 1.0;',
+      '  }',
+      '  float sm = it - log2(max(log2(max(dot(z, z), 1.001)), 0.001)) + 2.0;',
+      '  vec3 col = it >= 39.5 ? ink(0.5)*0.06 : ink(sm*0.035*(0.3 + uSpread) + t*0.02)*(0.35 + 0.65*clamp(sm/22.0, 0.0, 1.0));',
+      '  col *= 0.8 + uMid*0.5;'
+    ]); },
+    // 13. glassy spheres with swirling skins that swell with the sound
+    orbs: function () { return layerSrc([
+      '  vec3 col = vec3(0.0);',
+      '  float n = min(uCount, 5.0);',
+      '  for(int i=0;i<5;i++){',
+      '    float fi = float(i);',
+      '    if(fi >= n) break;',
+      '    vec2 c = vec2(sin(t*(0.17 + 0.05*h1(fi + 1.0)) + fi*2.1)*asp*0.36, sin(t*(0.21 + 0.06*h1(fi + 2.0)) + fi*3.7)*0.30);',
+      '    float R = (0.11 + 0.07*h1(fi + 5.7))*(0.6 + uBloop)*(1.0 + uBass*0.30*(0.6 + 0.4*sin(fi*5.0)) + uBeat*0.08);',
+      '    vec2 d = (uv - c)/R;',
+      '    float rr = dot(d, d);',
+      '    if(rr >= 1.0) continue;',
+      '    float zz = sqrt(1.0 - rr);',
+      '    vec2 sp = d/(0.55 + zz);',
+      '    float sw = fbm(sp*2.2 + vec2(t*0.25 + fi, -t*0.2));',
+      '    float lines = 0.5 + 0.5*sin((sp.x*5.0 + sw*9.0)*(2.0 + uWarp*4.0) + t*0.8);',
+      '    vec3 skin = mix(ink(sw*0.9 + fi*0.21), rb(zz*0.8 + sw*0.6 + fi*0.2 + t*0.05), 0.55);',
+      '    vec3 o = skin*(0.30 + 0.70*lines)*(0.35 + 0.65*zz) + vec3(0.9, 0.95, 1.0)*pow(1.0 - zz, 3.0)*0.6;',
+      '    o += pow(max(0.0, 1.0 - length(d - vec2(-0.35, 0.38))/0.30), 2.0)*0.7;',
+      '    col = mix(col, o, 1.0 - smoothstep(0.94, 1.0, rr));',
+      '  }'
+    ]); },
+    // 14. the sound as a mountain range: rows of ridgelines, low notes in the middle, drawn back to front
+    terrain: function () { return layerSrc([
+      '  vec3 col = vec3(0.0);',
+      '  for(int k=0;k<14;k++){',
+      '    float fk = float(k), depth = fk/13.0;',
+      '    float y0 = mix(0.12, -0.46, depth);',
+      '    float sx = (x - 0.5)*mix(0.70, 1.25, depth) + 0.5;',
+      '    float sa = abs(sx - 0.5)*1.7 + 0.02 + 0.012*fk;',
+      '    float s0 = spc(sa - 0.012), s1 = spc(sa), s2 = spc(sa + 0.012);',
+      '    float sv = (s0 + 2.0*s1 + s2)*0.25;',
+      '    float gainH = 0.30*(0.5 + uBloop)*mix(0.6, 1.0, depth);',
+      '    float h = sv*sv*gainH + 0.035*noise(vec2(sx*6.0 + fk*1.7, t*0.3))*(0.5 + uBloop);',
+      '    float slope = 2.0*sv*(s2 - s0)/0.024*gainH*1.7*mix(0.70, 1.25, depth)/asp;',
+      '    float yy = y0 + h;',
+      '    vec3 c = ink(depth*(0.3 + uSpread*0.7));',
+      '    if(uv.y < yy) col = c*0.07;',
+      '    col += c*(0.0014 + 0.0016*uGlow)/(abs(uv.y - yy)/sqrt(1.0 + slope*slope) + 0.0022);',
+      '  }'
+    ]); },
+    // 17. wisps that follow the actual sound wave, so a voice in the mic shapes them
+    vocal: function () { return layerSrc([
+      '  vec3 col = vec3(0.0);',
+      '  float amp = 0.20*(0.5 + uBloop);',
+      '  for(int k=0;k<6;k++){',
+      '    float fk = float(k);',
+      '    float xs = x + fk*0.013;',
+      '    float y = wav(xs)*amp*(1.0 - 0.12*fk) + (fbm(vec2(xs*4.0 + fk*1.7, t*0.6 + fk)) - 0.47)*(0.10 + 0.30*uMid)*(1.0 + fk*0.35);',
+      '    float d = abs(uv.y - y);',
+      '    col += ink(fk*0.16*(0.3 + uSpread) + x*0.2)*((0.0012 + 0.0012*uGlow)/(d + 0.0025) + 0.045*exp(-d*d*260.0));',
+      '  }'
+    ]); },
+    // 18. two sources sending out rings that cross; lows push them apart and highs shift one against the other
+    //     (a phone mic hears in mono, so this uses low against high notes, not left against right)
+    rings: function () { return layerSrc([
+      '  float sep = 0.22 + 0.18*uBass;',
+      '  vec2 a = vec2(-sep, 0.0), b = vec2(sep, 0.0);',
+      '  float F = mix(70.0, 28.0, uBloop);',
+      '  float w = sin(length(uv - a)*F - t*3.0) + sin(length(uv - b)*F - t*3.0 + uTreb*3.0 + uWarp*2.0);',
+      '  float rr = min(length(uv - a), length(uv - b));',
+      '  vec3 col = ink(rr*1.6*(0.3 + uSpread) - t*0.04)*(0.30 + 0.70*smoothstep(-0.6, 0.6, w));'
+    ]); },
+    // ---- layers that bend the finished picture
+    // 15. rings spreading through the picture, stronger with the middle and high notes (guitar, keys)
+    ripples: function () { return COMMON.concat([
+      'uniform sampler2D uSrc;',
+      'void main(){',
+      '  vec2 v = gl_FragCoord.xy / uRes;',
+      '  vec2 uv = (gl_FragCoord.xy - 0.5*uRes) / uRes.y;',
+      '  float asp = uRes.x / uRes.y;',
+      '  float amp = (0.003 + 0.020*(uMid + uTreb))*(0.6 + uBloop*0.8);',
+      '  vec2 disp = vec2(0.0);',
+      '  for(int i=0;i<3;i++){',
+      '    float fi = float(i);',
+      '    vec2 c = vec2(sin(uT*(0.23 + 0.07*fi) + fi*2.4)*asp*0.32, sin(uT*(0.29 + 0.05*fi) + fi*4.1)*0.28);',
+      '    vec2 d = uv - c; float r = length(d) + 0.0001;',
+      '    disp += d/r*sin(r*60.0 - uT*6.0)*exp(-r*3.0)*amp;',
+      '  }',
+      '  disp.x /= asp;',
+      '  vec3 col = vec3(texture2D(uSrc, v + disp*1.25).r, texture2D(uSrc, v + disp).g, texture2D(uSrc, v + disp*0.75).b);',
+      '  gl_FragColor = vec4(col, 1.0);',
+      '}'
+    ]).join('\n'); },
+    // 16. the whole picture heaves with the bass
+    undulate: function () { return COMMON.concat([
+      'uniform sampler2D uSrc;',
+      'void main(){',
+      '  vec2 v = gl_FragCoord.xy / uRes;',
+      '  float amp = (0.004 + 0.034*uBass + 0.010*uBeat)*(0.5 + uWarp);',
+      '  vec2 o = vec2(sin(v.y*7.0 + uT*1.2) + sin(v.y*3.1 - uT*0.7), cos(v.x*6.0 - uT) + cos(v.x*2.7 + uT*0.6))*amp;',
+      '  gl_FragColor = vec4(texture2D(uSrc, clamp(v + o, 0.001, 0.999)).rgb, 1.0);',
+      '}'
+    ]).join('\n'); },
+    // 9. camera-pointed-at-its-own-screen: the last frame, a little bigger and turned, shows through behind this one
+    feedback: function () { return COMMON.concat([
+      'uniform sampler2D uSrc; uniform sampler2D uPrev;',
+      'void main(){',
+      '  vec2 v = gl_FragCoord.xy / uRes;',
+      '  vec2 q = (v - 0.5)*(0.965 - 0.020*uBass);',
+      '  float a = 0.012*(uWarp - 0.3);',
+      '  q = vec2(q.x*cos(a) - q.y*sin(a)*uRes.y/uRes.x, q.x*sin(a)*uRes.x/uRes.y + q.y*cos(a)) + 0.5;',
+      '  vec3 prev = texture2D(uPrev, q).rgb;',
+      '  prev = mix(prev, prev.gbr, 0.08)*(0.84 + 0.10*uGlow);',
+      '  gl_FragColor = vec4(max(texture2D(uSrc, v).rgb*0.85, prev), 1.0);',
+      '}'
+    ]).join('\n'); },
+    blit: function () { return 'precision mediump float; uniform vec2 uRes; uniform sampler2D uSrc; void main(){ gl_FragColor = vec4(pow(texture2D(uSrc, gl_FragCoord.xy/uRes).rgb, vec3(0.92)), 1.0); }'; },
+    lines: function () { return 'precision mediump float; uniform vec3 uCol; void main(){ gl_FragColor = vec4(uCol, 1.0); }'; }
+  };
+  var LINE_VERT = 'attribute vec2 p; uniform vec2 uS; uniform vec2 uO; void main(){ gl_Position = vec4(p*uS + uO, 0.0, 1.0); }';
+  var DOOR_UNI = UNIFORMS.concat(['uGain', 'uSrc', 'uPrev', 'uS', 'uO', 'uCol']);
+
+  var dprog = {}, dErr = {};       // each layer's shader is built the first time it is switched on, so opening the page stays quick
+  function dGet(name) {
+    if (dprog[name] !== undefined) return dprog[name];
+    dprog[name] = null;
+    try {
+      var compile = function (type, src) {
+        var s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s);
+        if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s) || 'shader failed');
+        return s;
+      };
+      var prog = gl.createProgram();
+      gl.attachShader(prog, compile(gl.VERTEX_SHADER, name === 'lines' ? LINE_VERT : VERT));
+      gl.attachShader(prog, compile(gl.FRAGMENT_SHADER, DOOR_SRC[name]()));
+      gl.bindAttribLocation(prog, 0, 'p');
+      gl.linkProgram(prog);
+      if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(prog) || 'link failed');
+      var U = {};
+      DOOR_UNI.forEach(function (n) { U[n] = gl.getUniformLocation(prog, n); });
+      dprog[name] = { prog: prog, U: U };
+    } catch (e) { dErr[name] = String(e.message || e); }
+    return dprog[name];
+  }
+  function setCommon(P, k) {
+    gl.uniform2f(P.U.uRes, canvas.width, canvas.height);
+    gl.uniform1f(P.U.uT, phase);
+    gl.uniform1f(P.U.uBass, bass * k * 1.3); gl.uniform1f(P.U.uMid, mid * k); gl.uniform1f(P.U.uTreb, treb * k);
+    gl.uniform1f(P.U.uBeat, reduced ? 0 : beat * k);
+    gl.uniform1f(P.U.uSpread, S.spread); gl.uniform1f(P.U.uBloop, S.bloop); gl.uniform1f(P.U.uFull, FULL);
+    gl.uniform3f(P.U.uC1, COL[0][0], COL[0][1], COL[0][2]); gl.uniform3f(P.U.uC2, COL[1][0], COL[1][1], COL[1][2]); gl.uniform3f(P.U.uC3, COL[2][0], COL[2][1], COL[2][2]);
+    gl.uniform1f(P.U.uCount, S.count); gl.uniform1f(P.U.uWarp, S.swirl); gl.uniform1f(P.U.uGlow, S.glow);
+  }
+
+  // four off-screen pictures the size of the canvas: two to pass the picture between warps, two for the feedback echo
+  var fbT = { w: 0, h: 0, tex: [], fbo: [], ok: true }, echoPrev = 2, echoFresh = true;
+  function ensureTargets() {
+    if (!fbT.ok) return false;
+    if (fbT.w === canvas.width && fbT.h === canvas.height && fbT.tex.length) return true;
+    var i;
+    for (i = 0; i < fbT.tex.length; i++) { gl.deleteTexture(fbT.tex[i]); gl.deleteFramebuffer(fbT.fbo[i]); }
+    fbT.tex = []; fbT.fbo = []; fbT.w = canvas.width; fbT.h = canvas.height;
+    gl.activeTexture(gl.TEXTURE0);
+    for (i = 0; i < 4; i++) {
+      var tx = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, tx);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, fbT.w, fbT.h, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+      var fo = gl.createFramebuffer(); gl.bindFramebuffer(gl.FRAMEBUFFER, fo);
+      gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, tx, 0);
+      if (gl.checkFramebufferStatus(gl.FRAMEBUFFER) !== gl.FRAMEBUFFER_COMPLETE) fbT.ok = false;
+      gl.clearColor(0, 0, 0, 1); gl.clear(gl.COLOR_BUFFER_BIT);
+      fbT.tex.push(tx); fbT.fbo.push(fo);
+    }
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    echoFresh = true;
+    return fbT.ok;
+  }
+
+  function jsInk(t) {
+    t = ((t % 1) + 1) % 1;
+    if (FULL) return [0, 0.33, 0.67].map(function (o) { return 0.5 + 0.5 * Math.cos(6.28318 * (t + o)); });
+    var u = t * 3, i = Math.floor(u), f = u - i, a = COL[i % 3], b = COL[(i + 1) % 3];
+    f = f * f * (3 - 2 * f);
+    return [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f, a[2] + (b[2] - a[2]) * f];
+  }
+  // 11. a bundle of Lissajous curves, drawn as real lines
+  var lissaBuf = null, lissaPts = new Float32Array(2 * 241);
+  function drawLissa(k) {
+    var P = dGet('lines'); if (!P) return;
+    var W = canvas.width, H = canvas.height, asp = W / H;
+    gl.useProgram(P.prog);
+    if (!lissaBuf) lissaBuf = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, lissaBuf); gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
+    gl.uniform2f(P.U.uS, 2 / asp, 2);
+    var n = 10 + Math.round(S.count) * 2, A = (0.20 + 0.16 * S.bloop) * (1 + bass * k * 0.3), lit = 0.45 + 0.45 * S.glow;
+    for (var c = 0; c < n; c++) {
+      var f = c / n, sc = 1 - 0.55 * f, ph = phase * 0.35 + f * (0.4 + S.swirl * 1.4);
+      for (var i = 0; i <= 240; i++) {
+        var th = i / 240 * 6.28318;
+        lissaPts[2 * i] = A * 1.7 * sc * Math.sin(3 * th + ph); lissaPts[2 * i + 1] = A * sc * Math.sin(2 * th + f * 0.6);
+      }
+      gl.bufferData(gl.ARRAY_BUFFER, lissaPts, gl.DYNAMIC_DRAW);
+      var col = jsInk(f * (0.3 + S.spread * 0.7));
+      gl.uniform3f(P.U.uCol, col[0] * lit, col[1] * lit, col[2] * lit);
+      gl.uniform2f(P.U.uO, 0, 0); gl.drawArrays(gl.LINE_STRIP, 0, 241);
+      gl.uniform2f(P.U.uO, 1.5 / W, 1.5 / H); gl.drawArrays(gl.LINE_STRIP, 0, 241);     // a second pass half a pixel over, so the lines hold up on a TV
+    }
+    gl.bindBuffer(gl.ARRAY_BUFFER, quadBuf); gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
+  }
+
+  function doorsDraw(now, k) {
+    var blit = dGet('blit');
+    if (!blit || !ensureTargets()) return false;
+    var W = canvas.width, H = canvas.height, on = {}, nFull = 0, sound = false, i, P;
+    S.layers.forEach(function (l) { on[l] = 1; if (FULL_FRAME[l]) nFull++; if (USES_SOUND[l]) sound = true; });
+    if (sound) {
+      fillAudioTex(now);
+      gl.activeTexture(gl.TEXTURE2); gl.bindTexture(gl.TEXTURE_2D, audioTex);
+      gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, 256, 2, gl.LUMINANCE, gl.UNSIGNED_BYTE, AT);
+    }
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, fbT.fbo[0]); gl.viewport(0, 0, W, H);
+    gl.clearColor(0, 0, 0, 1); gl.clear(gl.COLOR_BUFFER_BIT);
+    gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_COLOR);       // "screen": light adds up like projectors, without burning out to white
+    var gain = nFull > 1 ? Math.pow(nFull, -0.6) : 1;
+    for (i = 0; i < DRAW_ORDER.length; i++) {
+      var name = DRAW_ORDER[i];
+      if (!on[name]) continue;
+      if (name === 'lissa') { drawLissa(k); continue; }
+      P = dGet(name); if (!P) continue;
+      gl.useProgram(P.prog); setCommon(P, k);
+      gl.uniform1f(P.U.uGain, FULL_FRAME[name] ? gain : 1); gl.uniform1i(P.U.uAudio, 2);
+      gl.drawArrays(gl.TRIANGLES, 0, 3);
+    }
+    gl.disable(gl.BLEND);
+    var src = 0, warps = ['undulate', 'ripples'];
+    for (i = 0; i < warps.length; i++) {
+      if (!on[warps[i]]) continue;
+      P = dGet(warps[i]); if (!P) continue;
+      gl.bindFramebuffer(gl.FRAMEBUFFER, fbT.fbo[1 - src]);
+      gl.useProgram(P.prog); setCommon(P, k);
+      gl.bindTexture(gl.TEXTURE_2D, fbT.tex[src]); gl.uniform1i(P.U.uSrc, 0);
+      gl.drawArrays(gl.TRIANGLES, 0, 3);
+      src = 1 - src;
+    }
+    var out = fbT.tex[src];
+    P = on.feedback ? dGet('feedback') : null;
+    if (P) {
+      var nx = echoPrev === 2 ? 3 : 2;
+      if (echoFresh) { gl.bindFramebuffer(gl.FRAMEBUFFER, fbT.fbo[echoPrev]); gl.clear(gl.COLOR_BUFFER_BIT); echoFresh = false; }
+      gl.bindFramebuffer(gl.FRAMEBUFFER, fbT.fbo[nx]);
+      gl.useProgram(P.prog); setCommon(P, k);
+      gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, fbT.tex[echoPrev]);
+      gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, out);
+      gl.uniform1i(P.U.uSrc, 0); gl.uniform1i(P.U.uPrev, 1);
+      gl.drawArrays(gl.TRIANGLES, 0, 3);
+      echoPrev = nx; out = fbT.tex[nx];
+    } else echoFresh = true;
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null); gl.viewport(0, 0, W, H);
+    gl.useProgram(blit.prog); gl.uniform2f(blit.U.uRes, W, H);
+    gl.bindTexture(gl.TEXTURE_2D, out); gl.uniform1i(blit.U.uSrc, 0);
+    gl.drawArrays(gl.TRIANGLES, 0, 3);
+    return true;
+  }
+
+  // ---- Doors controls
+  var doorBtn = $('doors'), doorPanel = $('doors-panel');
+  (function buildLayerChips() {
+    var groups = {};
+    LAYERS.forEach(function (l, idx) {
+      if (!groups[l[2]]) {
+        var cap = document.createElement('p'); cap.className = 'cap'; cap.textContent = l[2];
+        var row = document.createElement('div'); row.className = 'looks'; row.setAttribute('aria-label', l[2]);
+        doorPanel.appendChild(cap); doorPanel.appendChild(row); groups[l[2]] = row;
+      }
+      var b = document.createElement('button');
+      b.type = 'button'; b.className = 'chip layer'; b.id = 'layer-' + l[0]; b.setAttribute('data-layer', l[0]); b.setAttribute('aria-pressed', 'false');
+      b.textContent = l[1];
+      b.addEventListener('click', function () {
+        var at = S.layers.indexOf(l[0]);
+        if (at >= 0) S.layers.splice(at, 1); else { S.layers.push(l[0]); dGet(l[0] === 'lissa' ? 'lines' : l[0]); }
+        syncDoors(); save(); poke();
+      });
+      groups[l[2]].appendChild(b);
+    });
+    var tools = document.createElement('div'); tools.className = 'looks';
+    var clr = document.createElement('button'); clr.type = 'button'; clr.className = 'chip'; clr.id = 'layers-clear'; clr.textContent = 'Clear layers';
+    clr.addEventListener('click', function () { S.layers = []; syncDoors(); save(); poke(); });
+    tools.appendChild(clr); doorPanel.appendChild(tools);
+  })();
+  function syncDoors() {
+    document.body.classList.toggle('doors-on', S.doors);
+    doorBtn.setAttribute('aria-pressed', S.doors ? 'true' : 'false');
+    doorPanel.hidden = !S.doors;
+    Array.prototype.forEach.call(document.querySelectorAll('[data-layer]'), function (b) {
+      var key = b.getAttribute('data-layer');
+      b.setAttribute('aria-pressed', S.layers.indexOf(key) >= 0 ? 'true' : 'false');
+      b.classList.toggle('broken', !!dErr[key === 'lissa' ? 'lines' : key]);
+    });
+  }
+  function doorsSurprise() {
+    var r = Math.random, pick = LAYER_KEYS.slice().sort(function () { return r() - 0.5; });
+    var base = pick.filter(function (l) { return FULL_FRAME[l] || l === 'wash' || l === 'overlap'; })[0];
+    var rest = pick.filter(function (l) { return l !== base && !FULL_FRAME[l]; }).slice(0, 2 + Math.floor(r() * 2));
+    Object.assign(S, { pal: PAL_KEYS[Math.floor(r() * PAL_KEYS.length)], hue: r() * HUE_MAX, spread: r(), speed: 0.15 + r() * 0.6, bloop: 0.2 + r() * 0.8,
+                       count: 3 + Math.floor(r() * 9), kick: 0.4 + r() * 0.6, swirl: r(), glow: 0.2 + r() * 0.7 });
+    S.layers = [base].concat(rest);
+    syncKnobs(); syncDoors(); save(); poke();
+  }
+  doorBtn.addEventListener('click', function () {
+    S.doors = !S.doors;
+    if (S.doors && !S.layers.length) S.layers = DOOR_DEFAULT.slice();
+    syncDoors(); save(); poke();
+  });
+  syncDoors();
 
   var capPx = 1280, fpsN = 0, fpsT = 0, fpsBad = false;   // drops the picture size if the phone can't keep up
   function resize() {
@@ -911,6 +1370,7 @@ body.hidden-ui.hint .wake { opacity: 1; }
     phase += dt * spd * (1 + k * (bass * 1.6 + mid * 0.8));
     if (glOK) {
       resize();
+      if (!(S.doors && doorsDraw(now, k))) {
       var P = progs[S.style] || progs.lava;
       gl.useProgram(P.prog);
       gl.uniform2f(P.U.uRes, canvas.width, canvas.height);
@@ -931,8 +1391,9 @@ body.hidden-ui.hint .wake { opacity: 1; }
         window.__bloop.shells = shells.length;
       }
       gl.drawArrays(gl.TRIANGLES, 0, 3);
+      }
     }
-    window.__bloop.levels = [bass, mid, treb]; window.__bloop.style = S.style; window.__bloop.pal = S.pal; window.__bloop.cap = capPx; window.__bloop.mic = micOn; window.__bloop.room = room;
+    window.__bloop.levels = [bass, mid, treb]; window.__bloop.style = S.style; window.__bloop.pal = S.pal; window.__bloop.doors = S.doors; window.__bloop.layers = S.layers.join(); window.__bloop.layerErr = dErr; window.__bloop.cap = capPx; window.__bloop.mic = micOn; window.__bloop.room = room;
     requestAnimationFrame(frame);
   }
   requestAnimationFrame(frame);

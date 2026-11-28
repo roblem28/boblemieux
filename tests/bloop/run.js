@@ -1,4 +1,4 @@
-// Bloop suite (song names, the six shows and the colour sets).   node tests/bloop/serve.mjs 8765   then   node tests/bloop/run.js http://127.0.0.1:8765
+// Bloop suite (song names, the six shows, the colour sets and Doors mode).   node tests/bloop/serve.mjs 8765   then   node tests/bloop/run.js http://127.0.0.1:8765
 // Covers the bloop-now function (as the Shortcut and the page use it) and the page showing what the Shortcut posts.
 // CHROME=/path/to/chrome picks the browser; otherwise Playwright's own Chromium is used.
 const { chromium } = require('playwright');
@@ -142,6 +142,35 @@ const post = (room, body) => call('POST', room, body);
   ok('fireworks launch', (await p3.evaluate(() => window.__bloop.shells)) > 0);
   await p3.waitForTimeout(4000);
   ok('fireworks stay within the Blobs limit', (await p3.evaluate(() => window.__bloop.shells)) <= 7);
+  // ---- Doors mode: eighteen layers that stack, with the same controls
+  await p3.click('#play'); await p3.click('[data-look="lava"]');
+  ok('Doors is off to begin with and its layers are hidden', (await p3.evaluate(() => window.__bloop.doors)) === false && !(await p3.isVisible('#doors-panel')));
+  await p3.click('#doors'); await p3.waitForTimeout(800);
+  ok('Doors opens on a starter mix', (await p3.evaluate(() => window.__bloop.doors && window.__bloop.layers)) === 'liquid,standing,ripples,undulate' && (await p3.isVisible('#doors-panel')));
+  ok('eighteen layers offered', (await p3.locator('[data-layer]').count()) === 18);
+  ok('the six shows step aside but colours and sliders stay', !(await p3.isVisible('[data-look="lava"]')) && (await p3.isVisible('#pal-sunset')) && (await p3.isVisible('#k-bloop')) && (await p3.isVisible('#k-hue')));
+  await p3.click('#layers-clear');
+  for (const key of await p3.evaluate(() => Array.from(document.querySelectorAll('[data-layer]')).map(b => b.getAttribute('data-layer')))) {
+    await p3.click('#layer-' + key); await p3.waitForTimeout(250);
+    const st = await p3.evaluate(k => ({ on: document.getElementById('layer-' + k).getAttribute('aria-pressed'), err: JSON.stringify(window.__bloop.layerErr), layers: window.__bloop.layers }), key);
+    ok(`layer ${key} switches on and builds`, st.on === 'true' && st.err === '{}' && st.layers.split(',').includes(key), st.err === '{}' ? '' : st.err);
+  }
+  await p3.waitForTimeout(1500);
+  ok('all eighteen run together without an error', (await p3.evaluate(() => window.__bloop.layers.split(',').length)) === 18 && errors.length === 0, errors.join(' | '));
+  await p3.evaluate(() => document.body.classList.add('hidden-ui')); await p3.waitForTimeout(300);
+  await p3.screenshot({ path: 'tests/bloop/shot-doors-all.png' });
+  await p3.evaluate(() => document.body.classList.remove('hidden-ui'));
+  await p3.click('#layer-fractal');
+  ok('a layer switches back off', (await p3.getAttribute('#layer-fractal', 'aria-pressed')) === 'false' && !(await p3.evaluate(() => window.__bloop.layers)).includes('fractal'));
+  await p3.click('#layers-clear'); await p3.click('#layer-moire'); await p3.click('#layer-lissa'); await p3.click('#pal-black');
+  await p3.reload(); await p3.waitForTimeout(700);
+  ok('Doors, its layers and colours survive a reload', (await p3.evaluate(() => [window.__bloop.doors, window.__bloop.layers, window.__bloop.pal].join('/'))) === 'true/moire,lissa/black' && (await p3.isVisible('#doors-panel')));
+  await p3.click('#surprise'); await p3.waitForTimeout(400);
+  const mix = (await p3.evaluate(() => window.__bloop.layers)).split(',');
+  ok('surprise in Doors picks a mix of layers', (await p3.evaluate(() => window.__bloop.doors)) === true && mix.length >= 3 && mix.length <= 4 && (await p3.evaluate(() => JSON.stringify(window.__bloop.layerErr))) === '{}', mix.join());
+  ok('Doors controls do not overflow sideways', await p3.evaluate(() => { const s = document.getElementById('sheet'); return s.scrollWidth <= s.clientWidth; }));
+  await p3.click('#doors'); await p3.waitForTimeout(400);
+  ok('closing Doors brings the six shows back', (await p3.evaluate(() => window.__bloop.doors)) === false && (await p3.isVisible('[data-look="lava"]')) && !(await p3.isVisible('#doors-panel')) && (await p3.evaluate(() => window.__bloop.glOK)));
   ok('controls do not overflow sideways in landscape', await p3.evaluate(() => { const s = document.getElementById('sheet'); return s.scrollWidth <= s.clientWidth; }));
   // ---- Home Screen: full-screen tags, and the room travels in the address because the icon gets its own storage
   ok('page asks to run full-screen from the Home Screen', (await p3.getAttribute('meta[name="apple-mobile-web-app-capable"]', 'content')) === 'yes');
