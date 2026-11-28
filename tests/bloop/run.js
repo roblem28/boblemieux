@@ -1,4 +1,4 @@
-// Bloop suite (song names, the five shows and the colour sets).   node tests/bloop/serve.mjs 8765   then   node tests/bloop/run.js http://127.0.0.1:8765
+// Bloop suite (song names, the six shows and the colour sets).   node tests/bloop/serve.mjs 8765   then   node tests/bloop/run.js http://127.0.0.1:8765
 // Covers the bloop-now function (as the Shortcut and the page use it) and the page showing what the Shortcut posts.
 // CHROME=/path/to/chrome picks the browser; otherwise Playwright's own Chromium is used.
 const { chromium } = require('playwright');
@@ -89,13 +89,13 @@ const post = (room, body) => call('POST', room, body);
   await p2.route('**/bloop-now**', q => q.fulfill({ status: 404, contentType: 'text/html', body: '<h1>404</h1>' }));
   await p2.goto(base + '/bloop/'); await p2.click('#what'); await p2.waitForTimeout(800);
   ok('page without the function explains itself', (await p2.textContent('#pair-note')).includes('only work on the boblemieux.ai copy'));
-  // ---- five shows, each with its own shader ('graphics start' above fails if any one does not compile), and eight colour sets
+  // ---- six shows, each with its own shader ('graphics start' above fails if any one does not compile), and eight colour sets
   const p3 = await b.newPage({ viewport: { width: 844, height: 390 } });
   p3.on('pageerror', e => errors.push(String(e)));
   await p3.goto(base + '/bloop/'); await p3.waitForTimeout(500);
   ok('opens on the lava lamp', (await p3.evaluate(() => window.__bloop.style)) === 'lava' && (await p3.getAttribute('[data-look="lava"]', 'aria-pressed')) === 'true');
   const lit = sel => p3.evaluate(s => Array.from(document.querySelectorAll(s)).filter(x => x.getAttribute('aria-pressed') === 'true').map(x => x.getAttribute('data-look') || x.getAttribute('data-pal')).join(), sel);
-  for (const st of ['oil', 'acid', 'opart', 'flower', 'lava']) {
+  for (const st of ['oil', 'amoeba', 'acid', 'wave', 'fire', 'lava']) {
     await p3.click(`[data-look="${st}"]`); await p3.waitForTimeout(400);
     ok(`${st} show switches on and is the only chip lit`, (await p3.evaluate(() => window.__bloop.style)) === st && (await lit('[data-look]')) === st);
     await p3.evaluate(() => document.body.classList.add('hidden-ui')); await p3.waitForTimeout(300);
@@ -121,10 +121,22 @@ const post = (room, body) => call('POST', room, body);
   await p3.click('[data-look="oil"]'); await p3.click('#pal-cherry'); await p3.reload(); await p3.waitForTimeout(500);
   ok('show and colours survive a reload', (await p3.evaluate(() => window.__bloop.style + '/' + window.__bloop.pal)) === 'oil/cherry' && (await lit('[data-pal]')) === 'cherry');
   await p3.click('#surprise'); await p3.waitForTimeout(300);
-  ok('surprise picks a real show and colour set', ['lava', 'oil', 'acid', 'opart', 'flower'].includes(await p3.evaluate(() => window.__bloop.style)) && (await lit('[data-pal]')).length > 0);
-  await p3.evaluate(() => localStorage.setItem('bloop.look', JSON.stringify({ style: 'deep', hue: 0.97, spread: 0.5, speed: 0.3, bloop: 0.5, count: 6, kick: 0.5, swirl: 0.5, glow: 0.5 })));
+  ok('surprise picks a real show and colour set', ['lava', 'oil', 'amoeba', 'acid', 'wave', 'fire'].includes(await p3.evaluate(() => window.__bloop.style)) && (await lit('[data-pal]')).length > 0);
+  await p3.evaluate(() => localStorage.setItem('bloop.look', JSON.stringify({ style: 'opart', hue: 0.97, spread: 0.5, speed: 0.3, bloop: 0.5, count: 6, kick: 0.5, swirl: 0.5, glow: 0.5 })));
   await p3.reload(); await p3.waitForTimeout(500);
-  ok('a look saved under the old version still loads', (await p3.evaluate(() => window.__bloop.glOK && (window.__bloop.style + '/' + window.__bloop.pal))) === 'lava/sunset');
+  ok('a look saved under an old version still loads', (await p3.evaluate(() => window.__bloop.glOK && (window.__bloop.style + '/' + window.__bloop.pal))) === 'lava/sunset');
+  // Sound wave draws what the mic hears; Fireworks launches shells without being asked
+  await p3.click('[data-look="wave"]'); await p3.waitForTimeout(500);
+  ok('sound wave idles when there is nothing to hear', (await p3.evaluate(() => window.__bloop.waveLive)) === false);
+  await p3.click('#mic'); await p3.waitForFunction(() => window.__bloop.mic, null, { timeout: 8000 });
+  await p3.waitForFunction(() => window.__bloop.waveLive === true, null, { timeout: 8000 }).catch(() => {});
+  ok('sound wave follows the microphone', (await p3.evaluate(() => window.__bloop.waveLive)) === true);
+  await p3.click('#mic');
+  await p3.click('[data-look="fire"]');
+  await p3.waitForFunction(() => window.__bloop.shells > 0, null, { timeout: 8000 }).catch(() => {});
+  ok('fireworks launch', (await p3.evaluate(() => window.__bloop.shells)) > 0);
+  await p3.waitForTimeout(4000);
+  ok('fireworks stay within the Blobs limit', (await p3.evaluate(() => window.__bloop.shells)) <= 7);
   ok('controls do not overflow sideways in landscape', await p3.evaluate(() => { const s = document.getElementById('sheet'); return s.scrollWidth <= s.clientWidth; }));
   // ---- Home Screen: full-screen tags, and the room travels in the address because the icon gets its own storage
   ok('page asks to run full-screen from the Home Screen', (await p3.getAttribute('meta[name="apple-mobile-web-app-capable"]', 'content')) === 'yes');
